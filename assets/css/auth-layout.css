@@ -1,0 +1,76 @@
+/* Keep account and authentication pages inside the visible viewport. */
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.site-header {
+    flex-shrink: 0;
+}
+
+.login-section,
+.register-section,
+.signup-section,
+.pub-section,
+.success-section {
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    box-sizing: border-box;
+    padding-top: clamp(16px, 4vh, 48px);
+    padding-bottom: clamp(16px, 4vh, 48px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+}
+
+.login-section::-webkit-scrollbar,
+.register-section::-webkit-scrollbar,
+.signup-section::-webkit-scrollbar,
+.pub-section::-webkit-scrollbar,
+.success-section::-webkit-scrollbar {
+    display: none;
+}
+
+@media (max-height: 760px) and (min-width: 721px) {
+    .register-card,
+    .signup-card,
+    .shop-register-card,
+    .pub-card,
+    .success-card {
+        padding-top: 24px;
+        padding-bottom: 24px;
+    }
+
+    .register-logo,
+    .signup-logo {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 8px;
+    }
+
+    .register-title,
+    .signup-title,
+    .shop-register-title {
+        margin-bottom: 16px;
+    }
+}
+
+@media (max-width: 720px) {
+    .login-section,
+    .register-section,
+    .signup-section,
+    .pub-section,
+    .success-section {
+        padding: 16px;
+        align-items: flex-start;
+    }
+}
