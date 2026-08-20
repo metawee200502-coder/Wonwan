@@ -8,6 +8,15 @@
 //     ['label' => 'meowmeow book',          'url' => ''],  // หน้าปัจจุบัน ไม่มี url
 // ];
 $breadcrumbs = $breadcrumbs ?? [];
+$headerUnreadCount = 0;
+if (!empty($_SESSION['user_id'])) {
+    try {
+        if (!isset($pdo)) require_once __DIR__ . '/../config/config.php';
+        $headerNotificationStmt = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0');
+        $headerNotificationStmt->execute([(int)$_SESSION['user_id']]);
+        $headerUnreadCount = (int)$headerNotificationStmt->fetchColumn();
+    } catch (Throwable $e) { $headerUnreadCount = 0; }
+}
 ?>
 
 <style>
@@ -112,6 +121,25 @@ $breadcrumbs = $breadcrumbs ?? [];
 .header-search button:hover {
     color: var(--primary-color);
 }
+
+/* ---------- Autocomplete ---------- */
+.ac-wrap{position:relative;flex:1;min-width:0}
+.ac-dropdown{display:none;position:absolute;top:calc(100% + 8px);left:-16px;right:-16px;background:#fff;border:1.5px solid var(--border-color);border-radius:14px;box-shadow:0 8px 28px rgba(76,46,40,.12);z-index:2000;overflow:hidden;font-family:var(--font-family)}
+.ac-dropdown.open{display:block}
+.ac-item{display:flex;align-items:center;gap:11px;padding:9px 14px;cursor:pointer;text-decoration:none;color:var(--text-dark);transition:background .15s;border-bottom:1px solid #f6ede9}
+.ac-item:last-child{border-bottom:0}
+.ac-item:hover,.ac-item.focused{background:#fdf2ee}
+.ac-img{width:36px;height:50px;object-fit:cover;border-radius:5px;flex-shrink:0;background:var(--card-peach)}
+.ac-texts{min-width:0;flex:1}
+.ac-title{font-size:13px;font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-title mark{background:none;color:var(--primary-color);font-weight:700}
+.ac-author{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0;white-space:nowrap}
+.ac-badge--new{background:#dff2f3;color:#176272}
+.ac-badge--used{background:#f2eeee;color:#756a6e}
+.ac-badge--exchange{background:var(--accent-pink-light);color:var(--text-dark)}
+.ac-footer{display:block;text-align:center;padding:9px;font-size:12px;color:var(--primary-color);font-weight:600;border-top:1px solid #f0e6e2;text-decoration:none;transition:background .15s}
+.ac-footer:hover{background:#fdf2ee}
 
 /* ---------- Icons + Avatar ---------- */
 .header-actions {
@@ -218,6 +246,19 @@ $breadcrumbs = $breadcrumbs ?? [];
         padding: 8px 16px;
     }
 }
+@media (max-width: 520px) {
+    .header-topbar { padding: 8px 12px; gap: 8px; }
+    .header-logo { gap: 6px; }
+    .header-logo img { width: 58px; height: 38px; }
+    .header-logo__name { font-size: 17px; }
+    .header-logo__tagline { display: none; }
+    .header-actions { margin-left: auto; gap: 0; }
+    .icon-btn { width: 36px; height: 36px; }
+    .header-avatar { width: 36px; height: 36px; }
+    .header-search form { min-height: 42px; padding: 7px 13px; }
+    .header-breadcrumb { padding: 7px 12px; flex-wrap: nowrap; overflow-x: auto; font-size: 12px; }
+    .header-breadcrumb__current { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; }
+}
 </style>
 
 <!-- ===== TOP BAR ===== -->
@@ -240,13 +281,18 @@ $breadcrumbs = $breadcrumbs ?? [];
         <!-- Search Bar -->
         <div class="header-search">
             <form action="/pages/search.php" method="GET" role="search">
-                <input
-                    type="text"
-                    name="q"
-                    placeholder="ค้นหาตามชื่อเรื่อง ผู้เขียน หรือ ISBN..."
-                    value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
-                    aria-label="ค้นหาหนังสือ"
-                >
+                <div class="ac-wrap">
+                    <input
+                        type="text"
+                        name="q"
+                        id="headerSearchInput"
+                        placeholder="ค้นหาตามชื่อเรื่อง ผู้เขียน หรือ ISBN..."
+                        value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
+                        aria-label="ค้นหาหนังสือ"
+                        autocomplete="off"
+                    >
+                    <div class="ac-dropdown" id="acDropdown" role="listbox"></div>
+                </div>
                 <button type="submit" aria-label="ค้นหา">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" stroke-width="2"
@@ -285,7 +331,7 @@ $breadcrumbs = $breadcrumbs ?? [];
             </a>
 
             <!-- การแจ้งเตือน -->
-            <a href="#" class="icon-btn" aria-label="การแจ้งเตือน">
+            <a href="/pages/notifications.php" class="icon-btn" aria-label="การแจ้งเตือน">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round">
@@ -293,7 +339,7 @@ $breadcrumbs = $breadcrumbs ?? [];
                     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
                 </svg>
                 <!-- แสดง badge ถ้ามีการแจ้งเตือน -->
-                <span class="icon-btn__badge"></span>
+                <?php if ($headerUnreadCount > 0): ?><span class="icon-btn__badge" title="<?=$headerUnreadCount?> รายการใหม่"></span><?php endif; ?>
             </a>
 
             <!-- Avatar / บัญชีผู้ใช้ -->
@@ -344,3 +390,56 @@ $breadcrumbs = $breadcrumbs ?? [];
     <?php endif; ?>
 
 </header>
+<script src="/assets/js/shop-actions.js?v=<?= filemtime(__DIR__ . '/../assets/js/shop-actions.js') ?>" defer></script>
+<script src="/assets/js/followers-link.js?v=<?= filemtime(__DIR__ . '/../assets/js/followers-link.js') ?>" defer></script>
+<script src="/assets/js/announcement-drag.js?v=<?= filemtime(__DIR__ . '/../assets/js/announcement-drag.js') ?>" defer></script>
+<?php if(!empty($_SESSION['user_id'])):?><script src="/assets/js/notification-live.js?v=<?=filemtime(__DIR__.'/../assets/js/notification-live.js')?>" defer></script><?php endif;?>
+<script>
+(function(){
+  var inp=document.getElementById('headerSearchInput'),drop=document.getElementById('acDropdown');
+  if(!inp||!drop)return;
+  var timer,lastQ='',focusIdx=-1,items=[];
+  function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+  function hi(t,q){return q?t.replace(new RegExp('('+escRe(q)+')','gi'),'<mark>$1</mark>'):t;}
+  function bc(c){return c==='exchange'?'ac-badge--exchange':c==='used'?'ac-badge--used':'ac-badge--new';}
+  function bl(c){return c==='exchange'?'\u0e41\u0e25\u0e01\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19':c==='used'?'\u0e21\u0e37\u0e2d\u0e2a\u0e2d\u0e07':'\u0e21\u0e37\u0e2d\u0e2b\u0e19\u0e36\u0e48\u0e07';}
+  function detUrl(it){return '/pages/book_detail.php?source='+(it.type==='exchange'?'exchange':'book')+'&id='+it.id;}
+  function close(){drop.classList.remove('open');focusIdx=-1;}
+  function render(data,q){
+    items=data;focusIdx=-1;
+    if(!data.length){close();return;}
+    var html='';
+    data.forEach(function(it,i){
+      html+='<a class="ac-item" href="'+detUrl(it)+'" data-idx="'+i+'">'+'<img class="ac-img" src="'+it.image+'" alt="" loading="lazy">'+'<div class="ac-texts"><div class="ac-title">'+hi(it.title,q)+'</div>'+(it.author?'<div class="ac-author">'+hi(it.author,q)+'</div>':'')+'</div>'+'<span class="ac-badge '+bc(it.cond)+'">'+bl(it.cond)+'</span></a>';
+    });
+    html+='<a class="ac-footer" href="/pages/search.php?q='+encodeURIComponent(q)+'">\u0e14\u0e39\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14 \u2192</a>';
+    drop.innerHTML=html;
+    drop.classList.add('open');
+  }
+  function doFetch(q){
+    if(q===lastQ)return;lastQ=q;
+    clearTimeout(timer);
+    if(q.length<1){close();return;}
+    timer=setTimeout(function(){
+      fetch('/pages/handlers/search_autocomplete.php?q='+encodeURIComponent(q))
+        .then(function(r){return r.json();})
+        .then(function(data){if(inp.value.trim()===q)render(data,q);})
+        .catch(function(){});
+    },180);
+  }
+  inp.addEventListener('input',function(){doFetch(inp.value.trim());});
+  inp.addEventListener('focus',function(){if(inp.value.trim())doFetch(inp.value.trim());});
+  inp.addEventListener('keydown',function(e){
+    var rows=drop.querySelectorAll('.ac-item');
+    if(!drop.classList.contains('open'))return;
+    if(e.key==='ArrowDown'){e.preventDefault();focusIdx=Math.min(focusIdx+1,rows.length-1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();focusIdx=Math.max(focusIdx-1,-1);}
+    else if(e.key==='Enter'&&focusIdx>=0){e.preventDefault();rows[focusIdx].click();return;}
+    else if(e.key==='Escape'){close();return;}
+    rows.forEach(function(r,i){r.classList.toggle('focused',i===focusIdx);});
+    if(focusIdx>=0&&items[focusIdx])inp.value=items[focusIdx].title;
+  });
+  document.addEventListener('click',function(e){if(!inp.closest('form').contains(e.target))close();});
+  inp.closest('form').addEventListener('submit',function(){close();});
+})();
+</script>

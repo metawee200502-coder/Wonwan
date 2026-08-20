@@ -1,0 +1,177 @@
+<?php
+declare(strict_types=1);
+
+function wanawanDigitalTwinConfig(): array
+{
+    $path = __DIR__ . '/ai.local.php';
+    if (!is_file($path)) return [];
+    $config = require $path;
+    return is_array($config) ? $config : [];
+}
+
+function wanawanDigitalTwinItem(PDO $pdo, string $type, int $id): ?array
+{
+    if ($type === 'exchange') {
+        $stmt = $pdo->prepare("SELECT exchange_id item_id,title,author,category,isbn,story_reason synopsis,wanted_detail,condition_percent,shipping_methods,'exchange' item_type FROM exchanges WHERE exchange_id=? AND status<>'completed' LIMIT 1");
+    } else {
+        $stmt = $pdo->prepare("SELECT book_id item_id,title,author,category,COALESCE(NULLIF(isbn_13,''),isbn) isbn,synopsis,publisher_name,format,pages,language,publish_date,price,book_type,condition_level,defects_detail,'book' item_type FROM books WHERE book_id=? AND status<>'hidden' LIMIT 1");
+    }
+    $stmt->execute([$id]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $item ?: null;
+}
+
+function wanawanDigitalTwinRelatedBooks(PDO $pdo, array $current, string $question): array
+{
+    $stmt = $pdo->prepare("SELECT book_id,title,author,category,synopsis,publisher_name,price,book_type FROM books WHERE status='available' AND stock_quantity>0 AND book_id<>? ORDER BY (category<=>?) DESC,created_at DESC LIMIT 120");
+    $stmt->execute([$current['item_type'] === 'book' ? (int)$current['item_id'] : 0, $current['category'] ?? null]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $questionLower = mb_strtolower($question);
+    $wantsCheaper = (bool)preg_match('/ถูกกว่า|ราคาถูก|ประหยัด|งบ(?:ไม่เกิน|น้อย)|ราคาต่ำกว่า/u', $questionLower);
+    $maxBudget = null;
+    if (preg_match('/(?:ราคา|งบ)?\s*(?:ไม่เกิน|ต่ำกว่า|ไม่เกินงบ)\s*([0-9,]+)|งบ\s*([0-9,]+)/u', $questionLower, $budgetMatch)) {
+        $budgetValue = ($budgetMatch[1] ?? '') !== '' ? $budgetMatch[1] : ($budgetMatch[2] ?? '');
+        $maxBudget = (float)str_replace(',', '', (string)$budgetValue);
+    }
+    $currentPrice = isset($current['price']) ? (float)$current['price'] : null;
+    $sourceWords = preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower((string)($current['title'] ?? '') . ' ' . (string)($current['synopsis'] ?? '')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $sourceWords = array_values(array_unique(array_filter($sourceWords, fn(string $word): bool => mb_strlen($word) >= 3 && !in_array($word, ['หนังสือ','เรื่องราว','เกี่ยวกับ','และ','หรือ','ของ','ที่','เป็น','การ','ใน','จาก','กับ','เพื่อ','เมื่อ'], true))));
+    foreach ($rows as &$row) {
+        $score = (($row['category'] ?? '') !== '' && ($row['category'] ?? '') === ($current['category'] ?? '')) ? 10 : 0;
+        $candidateText = mb_strtolower((string)$row['title'] . ' ' . (string)$row['author'] . ' ' . (string)$row['synopsis']);
+        $overlap = 0;
+        foreach ($sourceWords as $word) {
+            if (mb_stripos($candidateText, $word) !== false) $overlap++;
+        }
+        $score += min(16, $overlap * 2);
+        foreach (preg_split('/[^\p{L}\p{N}]+/u', $questionLower, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $word) {
+            if (mb_strlen($word) >= 2 && mb_stripos($candidateText, $word) !== false) $score += 8;
+        }
+        foreach (['รัก','โรแมนติก','แฟนตาซี','สืบสวน','ระทึก','ดราม่า','วาย','ประวัติศาสตร์','จิตวิทยา','พัฒนาตนเอง','สุขภาพ','การ์ตูน','เด็ก','ครอบครัว'] as $theme) {
+            if (mb_stripos($questionLower, $theme) !== false && mb_stripos($candidateText, $theme) !== false) $score += 12;
+        }
+        if ($currentPrice !== null && (float)$row['price'] < $currentPrice) $score += $wantsCheaper ? 20 : 2;
+        if ($currentPrice !== null) $row['_price_difference'] = $currentPrice - (float)$row['price'];
+        $row['_score'] = $score;
+    }
+    unset($row);
+    if ($wantsCheaper && $currentPrice !== null) {
+        $rows = array_values(array_filter($rows, fn(array $row): bool => (float)$row['price'] < $currentPrice));
+    }
+    if ($maxBudget !== null && $maxBudget > 0) {
+        $rows = array_values(array_filter($rows, fn(array $row): bool => (float)$row['price'] <= $maxBudget));
+    }
+    usort($rows, function(array $a, array $b) use ($wantsCheaper): int {
+        $scoreOrder = $b['_score'] <=> $a['_score'];
+        if ($scoreOrder !== 0) return $scoreOrder;
+        return $wantsCheaper ? ((float)$a['price'] <=> (float)$b['price']) : 0;
+    });
+    return array_slice($rows, 0, 15);
+}
+
+function wanawanDigitalTwinPrompt(array $item, array $related): string
+{
+    $facts = [];
+    foreach ($item as $key => $value) {
+        if ($value !== null && $value !== '' && !in_array($key, ['item_id','item_type'], true)) $facts[] = $key . ': ' . $value;
+    }
+    $relatedFacts = [];
+    foreach ($related as $book) {
+        $relatedFacts[] = sprintf(
+            '- [book_id=%d] %s | ผู้เขียน: %s | หมวด: %s | ราคา: ฿%s | ลิงก์สินค้า: /pages/book_detail.php?id=%d | เรื่องย่อ: %s',
+            (int)$book['book_id'], (string)$book['title'], (string)($book['author'] ?: '-'),
+            (string)($book['category'] ?: '-'), number_format((float)$book['price'], 2),
+            (int)$book['book_id'],
+            mb_strimwidth((string)($book['synopsis'] ?: 'ไม่มีข้อมูล'), 0, 500, '…', 'UTF-8')
+        );
+    }
+    $isDiscover = (int)$item['item_id'] === 0;
+    $mainUrl = $isDiscover ? '' : '/pages/book_detail.php?source=' . ($item['item_type'] === 'exchange' ? 'exchange' : 'book') . '&id=' . (int)$item['item_id'];
+    $identity = $isDiscover
+        ? "คุณคือ Digital Twin ผู้ช่วยค้นหาหนังสือของเว็บไซต์ Wonwan Web วิเคราะห์ความต้องการของลูกค้าและเลือกหนังสือจากคลังจริงด้านล่าง"
+        : "คุณคือ Digital Twin ของหนังสือในเว็บไซต์ Wonwan Web ทำหน้าที่เป็นผู้ช่วยเลือกหนังสือที่รู้จักเล่มหลักจากข้อมูลจริงด้านล่าง";
+    return $identity . "\n\n"
+        . "กติกาสำคัญ:\n"
+        . "1. ตอบภาษาไทยแบบเป็นมิตร กระชับ และชัดเจน ไม่สวมบทเป็นตัวละครในเรื่อง\n"
+        . "2. วิเคราะห์อารมณ์ แนวเรื่อง ความเหมาะสม และเปรียบเทียบได้ แต่ห้ามแต่งพล็อต รีวิว รางวัล หรือข้อเท็จจริงที่ไม่มีในข้อมูล\n"
+        . "3. ถ้าข้อมูลไม่พอ ให้บอกอย่างตรงไปตรงมาว่าไม่มีข้อมูลส่วนนั้น\n"
+        . "4. เมื่อลูกค้าขอเรื่องคล้ายกัน ให้เปรียบเทียบเรื่องย่อของเล่มหลักกับเรื่องย่อแต่ละเล่มด้านล่าง โดยพิจารณาธีม อารมณ์ บรรยากาศ แนวความสัมพันธ์ และกลุ่มผู้อ่าน แล้วอธิบายเหตุผลที่แนะนำ ห้ามตัดสินจากหมวดหมู่อย่างเดียว\n"
+        . "5. หากลูกค้ากำหนดเงื่อนไขราคา เช่น ถูกกว่า งบไม่เกิน หรือราคาต่ำกว่า ต้องแนะนำเฉพาะรายการที่ตรงเงื่อนไขและระบุราคาเปรียบเทียบอย่างชัดเจน หากไม่พบให้บอกตามตรง\n"
+        . "6. หนังสือทุกเล่มที่แนะนำต้องเขียนชื่อเต็ม ราคา เหตุผลที่คล้าย และคัดลอกลิงก์สินค้าของเล่มนั้นจากข้อมูลด้านล่างมาปิดท้าย ห้ามละเว้นลิงก์\n"
+        . "7. หลีกเลี่ยงการเปิดเผยตอนจบ เว้นแต่ลูกค้าขอสปอยล์อย่างชัดเจน\n"
+        . "8. ระบบนี้ไม่ได้เปิดการค้นเว็บแบบเสียค่าใช้จ่าย หากผู้ใช้ถามหนังสือนอกคลัง สามารถตอบจากความรู้ทั่วไปของโมเดลได้ แต่ต้องระบุว่าไม่ได้ตรวจสอบข้อมูลล่าสุดจากอินเทอร์เน็ต\n"
+        . "9. ห้ามบอกว่าหนังสือนอกคลังมีขายใน Wonwan และห้ามสร้างลิงก์สินค้า Wonwan ให้หนังสือที่ไม่มี book_id ในรายการคลัง\n"
+        . "10. หากไม่มั่นใจชื่อเรื่อง ผู้เขียน หรือรายละเอียดของหนังสือนอกคลัง ให้บอกว่าไม่สามารถยืนยันได้แทนการคาดเดา\n\n"
+        . ($isDiscover ? "โหมดนี้ยังไม่ได้เลือกหนังสือเล่มหลัก ให้พิจารณาความต้องการจากคำถามของลูกค้า\n\n" : "ข้อมูลเล่มหลัก:\n" . implode("\n", $facts) . "\nลิงก์เล่มหลัก: {$mainUrl}\n\n")
+        . "หนังสือที่เกี่ยวข้องในคลัง Wonwan:\n" . ($relatedFacts ? implode("\n", $relatedFacts) : '- ไม่พบรายการ') . "\n";
+}
+
+function wanawanGeminiReply(array $config, string $systemPrompt, array $history): string
+{
+    $apiKey = trim((string)($config['api_key'] ?? ''));
+    $model = trim((string)($config['model'] ?? 'gemini-3.5-flash-lite'));
+    if ($apiKey === '' || $apiKey === 'YOUR_GEMINI_API_KEY') {
+        throw new RuntimeException('Digital Twin ยังไม่ได้ตั้งค่ากุญแจ AI');
+    }
+    $contents = [];
+    foreach ($history as $message) {
+        $contents[] = [
+            'role' => $message['role'] === 'assistant' ? 'model' : 'user',
+            'parts' => [['text' => (string)$message['content']]],
+        ];
+    }
+    $payload = [
+        'systemInstruction' => ['parts' => [['text' => $systemPrompt]]],
+        'contents' => $contents,
+        'generationConfig' => ['maxOutputTokens' => 1200],
+    ];
+    if (!array_key_exists('web_search', $config) || !empty($config['web_search'])) {
+        $payload['tools'] = [['google_search' => new stdClass()]];
+    }
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey);
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 45,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+    ]);
+    $raw = curl_exec($curl);
+    $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+    if ($raw === false || $curlError !== '') throw new RuntimeException('ไม่สามารถเชื่อมต่อบริการ AI ได้ กรุณาลองใหม่');
+    $data = json_decode((string)$raw, true);
+    if ($status < 200 || $status >= 300) {
+        error_log('Digital Twin Gemini error: ' . $status . ' ' . mb_strimwidth((string)$raw, 0, 800));
+        $errorMessage = (string)($data['error']['message'] ?? '');
+        $searchEnabled = !empty($payload['tools']);
+        if ($searchEnabled && ($status === 429 || stripos($errorMessage, 'quota') !== false || stripos($errorMessage, 'billing') !== false)) {
+            $fallbackConfig = $config;
+            $fallbackConfig['web_search'] = false;
+            $fallbackPrompt = $systemPrompt . "\n\nขณะนี้โควตาค้นเว็บภายนอกไม่พร้อมใช้งาน ห้ามกล่าวว่าได้ค้นเว็บแล้ว หากคำถามต้องใช้ข้อมูลภายนอก ให้แจ้งลูกค้าตรง ๆ ว่ายังตรวจสอบอินเทอร์เน็ตไม่ได้ และตอบเฉพาะสิ่งที่ยืนยันได้จากข้อมูลคลังด้านบนเท่านั้น";
+            return wanawanGeminiReply($fallbackConfig, $fallbackPrompt, $history);
+        }
+        throw new RuntimeException($errorMessage ?: 'บริการ AI ตอบกลับผิดพลาด กรุณาลองใหม่');
+    }
+    $candidate = $data['candidates'][0] ?? [];
+    $parts = $candidate['content']['parts'] ?? [];
+    $reply = trim(implode("\n", array_map(fn(array $part): string => (string)($part['text'] ?? ''), $parts)));
+    if ($reply === '') throw new RuntimeException('AI ยังไม่สามารถตอบคำถามนี้ได้ กรุณาลองถามใหม่');
+    $sources = [];
+    foreach (($candidate['groundingMetadata']['groundingChunks'] ?? []) as $chunk) {
+        $web = $chunk['web'] ?? [];
+        $uri = trim((string)($web['uri'] ?? ''));
+        if ($uri === '' || !preg_match('#^https?://#i', $uri)) continue;
+        $title = trim((string)($web['title'] ?? 'แหล่งข้อมูล')) ?: 'แหล่งข้อมูล';
+        $sources[$uri] = $title;
+        if (count($sources) >= 5) break;
+    }
+    if ($sources) {
+        $reply .= "\n\nแหล่งข้อมูลภายนอกที่ใช้ตรวจสอบ:\n";
+        foreach ($sources as $uri => $title) $reply .= '- [' . str_replace([']', "\n"], ['', ' '], $title) . '](' . $uri . ")\n";
+        $reply = rtrim($reply);
+    }
+    return $reply;
+}

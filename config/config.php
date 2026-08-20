@@ -1,4 +1,57 @@
 <?php
+date_default_timezone_set('Asia/Bangkok');
+if (!function_exists('wanawanSellerName')) {
+    function wanawanSellerName(?string $name, string $type): string {
+        $name = trim((string)$name);
+        if ($name === '' || $type === 'user') return $name;
+        $prefix = $type === 'publisher' ? 'สำนักพิมพ์' : ($type === 'shop' ? 'ร้านหนังสือ' : '');
+        if ($prefix === '') return $name;
+        if (mb_strpos($name, $prefix) === 0) $name = trim(mb_substr($name, mb_strlen($prefix)));
+        return $prefix . ($name !== '' ? ' ' . $name : '');
+    }
+}
+if (!function_exists('wanawanShippingFee')) {
+    function wanawanShippingFee(int $quantity): float {
+        return $quantity > 0 ? 45 : 0;
+    }
+}
+
+if (!function_exists('wanawanSellerUserIds')) {
+    function wanawanSellerUserIds(PDO $pdo,string $type,int $sellerId):array {
+        if($type==='user')return[$sellerId];
+        if(!in_array($type,['publisher','shop'],true))return[];
+        $table=$type==='publisher'?'publisher_staff':'shop_staff';
+        $column=$type==='publisher'?'publisher_id':'shop_id';
+        $stmt=$pdo->prepare("SELECT user_id FROM $table WHERE $column=?");
+        $stmt->execute([$sellerId]);
+        return array_values(array_unique(array_map('intval',$stmt->fetchAll(PDO::FETCH_COLUMN))));
+    }
+}
+
+if (!function_exists('wanawanNotifyNewReview')) {
+    function wanawanNotifyNewReview(PDO $pdo,int $reviewId,int $bookId,int $reviewerId):void {
+        $stmt=$pdo->prepare("SELECT b.title,b.seller_type,b.seller_id,COALESCE(NULLIF(u.display_name,''),u.email,'ลูกค้า') reviewer_name FROM books b JOIN users u ON u.user_id=? WHERE b.book_id=?");
+        $stmt->execute([$reviewerId,$bookId]);
+        $review=$stmt->fetch(PDO::FETCH_ASSOC);
+        if(!$review)return;
+        $notify=$pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,related_user_id,related_review_id,is_read,sent_via) VALUES(?,?,?,'review',?,?,0,'web')");
+        foreach(wanawanSellerUserIds($pdo,$review['seller_type'],(int)$review['seller_id']) as $recipient){
+            if($recipient!==$reviewerId)$notify->execute([$recipient,'มีรีวิวใหม่จาก '.$review['reviewer_name'],'ลูกค้ารีวิวสินค้า “'.$review['title'].'”',$reviewerId,$reviewId]);
+        }
+    }
+}
+if (!function_exists('wanawanChatNotify')) {
+    function wanawanChatNotify(PDO $pdo,int $recipientId,int $conversationId,string $senderName,string $message): void {
+        $active=$pdo->prepare('SELECT 1 FROM chat_presence WHERE user_id=? AND conversation_id=? AND last_seen_at>=DATE_SUB(NOW(),INTERVAL 8 SECOND)');
+        $active->execute([$recipientId,$conversationId]);
+        if($active->fetchColumn())return;
+        $title='ข้อความใหม่จาก '.trim($senderName?:'คู่สนทนา');
+        $existing=$pdo->prepare("SELECT notification_id FROM notifications WHERE user_id=? AND notification_type='chat' AND chat_conversation_id=? AND is_read=0 ORDER BY notification_id DESC LIMIT 1");
+        $existing->execute([$recipientId,$conversationId]);$notificationId=(int)$existing->fetchColumn();
+        if($notificationId){$pdo->prepare('UPDATE notifications SET title=?,message=?,created_at=NOW() WHERE notification_id=?')->execute([$title,$message,$notificationId]);return;}
+        $pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,chat_conversation_id,is_read,sent_via) VALUES(?,?,?,'chat',?,0,'web')")->execute([$recipientId,$title,$message,$conversationId]);
+    }
+}
 $host = 'localhost';
 $dbname = 'wanawan_db';
 $db_user = 'root';
@@ -10,4 +63,33 @@ try {
 } catch (PDOException $e) {
     die("เชื่อมต่อฐานข้อมูลไม่สำเร็จ: " . $e->getMessage());
 }
- 
+
+// ตรวจคำสั่งซื้อหมดอายุทุกครั้งที่ระบบมีการใช้งาน เพื่อคืนสต็อกแม้ลูกค้าปิดหน้าชำระเงินไปแล้ว
+try {
+    require_once __DIR__ . '/order_reservations.php';
+    wanawanExpirePendingOrders($pdo);
+} catch (PDOException $e) {
+    if (!in_array($e->getCode(), ['42S02','42S22'], true)) throw $e;
+}
+
+// บัญชีสำนักพิมพ์และร้านค้าใช้งานเฉพาะระบบหลังบ้าน
+if (session_status() === PHP_SESSION_ACTIVE
+    && in_array($_SESSION['role'] ?? '', ['publisher_admin', 'shop_admin'], true)
+) {
+    $scriptPath = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $adminPages = [
+        'dashboard.php', 'inventory.php', 'support.php', 'admin_orders.php',
+        'admin_notifications.php', 'admin_chat.php', 'add_book.php', 'edit_book.php',
+        'publisher_setup.php', 'shop_setup.php', 'admin_profile.php', 'partner_detail.php',
+        'book_detail.php', 'seller_review_management.php', 'seller_reviews.php',
+        'admin_promotions.php'
+    ];
+    $currentPage = basename($scriptPath);
+    $isBackendAction = str_contains($scriptPath, '/process/')
+        || str_contains($scriptPath, '/pages/handlers/');
+
+    if (!$isBackendAction && !in_array($currentPage, $adminPages, true)) {
+        header('Location: /pages/dashboard.php');
+        exit;
+    }
+}

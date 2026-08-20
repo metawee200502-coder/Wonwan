@@ -47,7 +47,7 @@
         <div class="form-group">
             <label>สำนักพิมพ์</label>
             <input type="text" name="publisher_name" id="publisher_name" class="form-control"
-                   value="<?= htmlspecialchars($seller_name ?? '') ?>" placeholder="ระบุสำนักพิมพ์">
+                   value="<?= htmlspecialchars($seller_name ?? '') ?>" readonly>
         </div>
         <div class="form-group">
             <label>หมวดหมู่</label>
@@ -98,15 +98,9 @@
         </div>
     </div>
 
-    <div class="form-grid-2" style="margin-bottom:14px">
-        <div class="form-group">
-            <label>วันที่พิมพ์</label>
-            <input type="date" name="publish_date" id="book_publish_date" class="form-control">
-        </div>
-        <div class="form-group">
-            <label>จำนวนสต็อก</label>
-            <input type="number" name="stock_quantity" class="form-control" value="1" min="1">
-        </div>
+    <div class="form-group" style="margin-bottom:14px">
+        <label>จำนวนสต็อก</label>
+        <input type="number" name="stock_quantity" class="form-control" value="1" min="1">
     </div>
 
     <div class="form-group">

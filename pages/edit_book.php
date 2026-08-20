@@ -29,7 +29,7 @@ if ($role === 'publisher_admin') {
         $seller_type = 'publisher';
         $seller_name = $row['company_name'];
     }
-} else {
+} elseif ($role === 'shop_admin') {
     $stmt = $pdo->prepare('
         SELECT ss.shop_id, s.shop_name
         FROM shop_staff ss
@@ -43,6 +43,12 @@ if ($role === 'publisher_admin') {
         $seller_type = 'shop';
         $seller_name = $row['shop_name'];
     }
+}
+
+if (!$seller_id && $role === 'reader') {
+    $seller_id=(int)$user_id;
+    $seller_type='user';
+    $seller_name=$_SESSION['display_name']??'ผู้ขายทั่วไป';
 }
 
 if (!$seller_id) {
@@ -65,6 +71,41 @@ if (!$book) {
     exit;
 }
 
+function editBookImageUrl(?string $value): string {
+    if (!$value) return '';
+    $value = str_replace('\\', '/', trim($value));
+    if (preg_match('#^https?://#i', $value)) return $value;
+    $value = ltrim($value, '/');
+    if (str_starts_with($value, 'pages/uploads/')) return '/'.$value;
+    if (str_starts_with($value, 'uploads/')) {
+        if (is_file(__DIR__.'/../'.$value)) return '/'.$value;
+        return '/pages/'.$value;
+    }
+    if (str_starts_with($value, 'assets/')) return '/'.$value;
+    return '/assets/image/books/'.$value;
+}
+
+function editBookLocalImage(?string $value): ?string {
+    if (!$value || preg_match('#^https?://#i', $value)) return null;
+    $value = ltrim(str_replace('\\', '/', $value), '/');
+    $candidates = str_starts_with($value, 'pages/uploads/')
+        ? [__DIR__.'/'.substr($value, 6)]
+        : [__DIR__.'/../'.$value, __DIR__.'/'.$value];
+    foreach ($candidates as $path) {
+        $real = realpath($path);
+        $root = realpath(__DIR__.'/../uploads');
+        $pageRoot = realpath(__DIR__.'/uploads');
+        if ($real && (($root && str_starts_with($real, $root.DIRECTORY_SEPARATOR)) || ($pageRoot && str_starts_with($real, $pageRoot.DIRECTORY_SEPARATOR)))) return $real;
+    }
+    return null;
+}
+
+// โพสต์ของบัญชีทั่วไปใช้หน้าฟอร์มฝั่งหน้าร้าน ไม่แสดง Sidebar ระบบร้านใหญ่
+if($seller_type==='user'){
+    header('Location: /pages/edit_used_book.php?id='.$book_id);
+    exit;
+}
+
 // ==================== ประมวลผลเมื่อกดบันทึกข้อมูล (POST) ====================
 $success_msg = '';
 $error_msg   = '';
@@ -80,20 +121,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $condition_level = $_POST['condition_level'] ?? null;
     $book_type       = $book['book_type']; // ล็อกประเภทสินค้าไว้ไม่ให้เปลี่ยนตอนแก้ไข
 
+    $newFiles = [];
+    $imagesSaved = false;
     try {
         // จัดการอัปโหลดรูปภาพปกใหม่ (ถ้ามีการเลือกรูปใหม่)
-        $image_cover = $book['image_cover'];
-        if (isset($_FILES['image_cover']) && $_FILES['image_cover']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../uploads/covers/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-            $file_ext = pathinfo($_FILES['image_cover']['name'], PATHINFO_EXTENSION);
-            $new_file_name = uniqid('cover_', true) . '.' . $file_ext;
-            $target_file = $upload_dir . $new_file_name;
-            
-            if (move_uploaded_file($_FILES['image_cover']['tmp_name'], $target_file)) {
-                $image_cover = $new_file_name;
+        $imageFields = ['image_cover','image_back','image_inside','image_edge'];
+        $images = [];
+        $oldFilesToDelete = [];
+        $uploadDir = __DIR__.'/uploads/books/';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            throw new RuntimeException('ไม่สามารถสร้างโฟลเดอร์รูปสินค้าได้');
+        }
+        $allowedMimes = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+        foreach ($imageFields as $field) {
+            $images[$field] = $book[$field] ?? null;
+            $remove = !empty($_POST['remove_'.$field]);
+            $file = $_FILES[$field] ?? null;
+            if ($file && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                if ($file['error'] !== UPLOAD_ERR_OK || $file['size'] > 5 * 1024 * 1024) {
+                    throw new RuntimeException('รูปภาพต้องมีขนาดไม่เกิน 5 MB');
+                }
+                $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+                $ext = $allowedMimes[$mime] ?? null;
+                if (!$ext) throw new RuntimeException('รองรับรูปภาพเฉพาะ JPG, PNG และ WEBP');
+                $name = $field.'_'.bin2hex(random_bytes(8)).'.'.$ext;
+                $target = $uploadDir.$name;
+                if (!move_uploaded_file($file['tmp_name'], $target)) throw new RuntimeException('อัปโหลดรูปภาพไม่สำเร็จ');
+                $newFiles[] = $target;
+                if ($old = editBookLocalImage($images[$field])) $oldFilesToDelete[] = $old;
+                $images[$field] = 'uploads/books/'.$name;
+            } elseif ($remove) {
+                if ($old = editBookLocalImage($images[$field])) $oldFilesToDelete[] = $old;
+                $images[$field] = null;
             }
         }
 
@@ -102,15 +161,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             UPDATE books SET 
                 title = ?, author = ?, category = ?, price = ?, 
                 original_price = ?, stock_quantity = ?, status = ?, 
-                condition_level = ?, image_cover = ?
+                condition_level = ?, image_cover = ?, image_back = ?, image_inside = ?, image_edge = ?
             WHERE book_id = ? AND seller_id = ? AND seller_type = ?
         ");
         $updateStmt->execute([
             $title, $author, $category, $price, 
             $original_price, $stock_quantity, $status, 
-            $condition_level, $image_cover,
+            $condition_level, $images['image_cover'], $images['image_back'], $images['image_inside'], $images['image_edge'],
             $book_id, $seller_id, $seller_type
         ]);
+        $imagesSaved = true;
+        foreach (array_unique($oldFilesToDelete) as $oldFile) @unlink($oldFile);
 
         $success_msg = 'อัปเดตข้อมูลหนังสือเรียบร้อยแล้ว!';
         
@@ -118,7 +179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$book_id, $seller_id, $seller_type]);
         $book = $stmt->fetch();
         
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        if (!$imagesSaved) foreach ($newFiles as $newFile) if (is_file($newFile)) @unlink($newFile);
         $error_msg = 'เกิดข้อผิดพลาด: ' . $e->getMessage();
     }
 }
@@ -168,6 +230,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .type-new { background: #E8F5E9; color: var(--accent-green); }
         .type-used { background: var(--accent-pink-light); color: var(--primary-color); }
         .current-cover-img { width: 100px; height: 140px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 10px; display: block; }
+        .image-edit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+        .image-edit-item { padding:16px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-color); }
+        .image-edit-item .current-cover-img { width:120px; height:160px; }
+        .remove-image { display:flex; align-items:center; gap:7px; margin:10px 0; color:var(--accent-red); font-size:var(--text-sm); cursor:pointer; }
+        .remove-image input { accent-color:var(--accent-red); }
+        @media(max-width:650px){.image-edit-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
@@ -281,14 +349,24 @@ include __DIR__ . '/../components/sidebar.php';
                 <div class="form-section-title">รูปภาพหน้าปกสินค้า</div>
                 <div class="form-group">
                     <label class="form-label">รูปภาพหน้าปกปัจจุบัน</label>
-                    <?php if (!empty($book['image_cover'])): ?>
-                        <img src="../uploads/covers/<?= htmlspecialchars($book['image_cover']) ?>" class="current-cover-img" alt="Cover">
+                    <div class="image-edit-grid">
+                    <?php foreach (['image_cover'=>'ภาพปก','image_back'=>'ภาพด้านหลัง','image_inside'=>'ภาพด้านใน','image_edge'=>'ภาพสันหนังสือ'] as $imageField=>$imageLabel): ?>
+                    <div class="image-edit-item">
+                    <label class="form-label"><?= htmlspecialchars($imageLabel) ?></label>
+                    <?php if (!empty($book[$imageField])): ?>
+                        <img src="<?= htmlspecialchars(editBookImageUrl($book[$imageField])) ?>" class="current-cover-img" alt="<?= htmlspecialchars($imageLabel) ?>" onerror="this.onerror=null;this.src='/assets/image/minilogo.png'">
                     <?php else: ?>
                         <div style="font-size:var(--text-xs); color:var(--text-muted); margin-bottom: 10px;">ยังไม่มีการอัปโหลดรูปภาพปก</div>
                     <?php endif; ?>
                     
                     <label class="form-label" style="margin-top: 12px;">อัปโหลดรูปภาพปกใหม่เพื่อเปลี่ยน</label>
-                    <input type="file" name="image_cover" class="form-control" accept="image/*">
+                    <input type="file" name="<?= $imageField ?>" class="form-control image-input" accept="image/jpeg,image/png,image/webp">
+                    <?php if (!empty($book[$imageField])): ?>
+                    <label class="remove-image"><input type="checkbox" name="remove_<?= $imageField ?>" value="1"> ลบภาพเดิม</label>
+                    <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
@@ -306,6 +384,23 @@ document.addEventListener("DOMContentLoaded", function() {
     const inputPrice = document.getElementById('inputPrice');
     const inputOriginalPrice = document.getElementById('inputOriginalPrice');
     const summaryBox = document.getElementById('priceSummaryBox');
+
+    document.querySelectorAll('.image-input').forEach(input => {
+        input.addEventListener('change', () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const item = input.closest('.image-edit-item');
+            let preview = item.querySelector('.current-cover-img');
+            if (!preview) {
+                preview = document.createElement('img');
+                preview.className = 'current-cover-img';
+                input.parentNode.insertBefore(preview, input);
+            }
+            preview.src = URL.createObjectURL(file);
+            const remove = item.querySelector('.remove-image input');
+            if (remove) remove.checked = false;
+        });
+    });
 
     function calculateDiscount() {
         if (!inputOriginalPrice) return; // หากเป็นสินค้ามือหนึ่งจะข้ามฟังก์ชันนี้ไปลยค่ะ

@@ -1,0 +1,15 @@
+<?php
+session_start();header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__.'/../../config/config.php';require_once __DIR__.'/../../config/promotions.php';require_once __DIR__.'/../../config/checkout_recommendations.php';
+if(empty($_SESSION['user_id'])){http_response_code(401);echo json_encode(['success'=>false,'message'=>'กรุณาเข้าสู่ระบบก่อน']);exit;}
+$input=json_decode(file_get_contents('php://input'),true)?:[];
+if(!hash_equals((string)($_SESSION['checkout_recommendation_csrf']??''),(string)($input['csrf_token']??''))){http_response_code(419);echo json_encode(['success'=>false,'message'=>'หน้านี้หมดอายุ กรุณารีเฟรชแล้วลองใหม่']);exit;}
+$ids=array_values(array_unique(array_filter(array_map('intval',$_SESSION['checkout_selected_ids']??[]))));if(!$ids){http_response_code(400);echo json_encode(['success'=>false,'message'=>'ไม่พบสินค้าในขั้นตอนชำระเงิน']);exit;}
+$marks=implode(',',array_fill(0,count($ids),'?'));$stmt=$pdo->prepare("SELECT ci.quantity,b.* FROM cart_items ci JOIN books b ON b.book_id=ci.book_id WHERE ci.user_id=? AND ci.book_id IN ($marks) AND b.status='available'");$stmt->execute(array_merge([(int)$_SESSION['user_id']],$ids));$items=$stmt->fetchAll(PDO::FETCH_ASSOC);
+$context=[];foreach($items as $item)$context[(int)$item['book_id']]=(int)$item['quantity'];ksort($context);$context=hash('sha256',json_encode($context));if(($_SESSION['checkout_recommendation_context']??'')!==$context){$_SESSION['checkout_recommendation_context']=$context;$_SESSION['checkout_recommendation_refreshes']=0;}
+$used=(int)($_SESSION['checkout_recommendation_refreshes']??0);if($used>=3){echo json_encode(['success'=>false,'message'=>'สุ่มคำแนะนำครบ 3 ครั้งแล้ว','remaining'=>0]);exit;}$used++;$_SESSION['checkout_recommendation_refreshes']=$used;
+$recommendations=wanawanCheckoutRecommendations($pdo,(int)$_SESSION['user_id'],$items,4,$used);
+function refreshRecommendationImg(?string $value):?string{if(!$value)return null;if(preg_match('#^https?://#i',$value))return$value;$value=ltrim(str_replace('\\','/',$value),'/');return str_starts_with($value,'uploads/')?'/pages/'.$value:'/assets/image/books/'.$value;}
+ob_start();foreach($recommendations as $book):?>
+<article class="recommend"><?php if($img=refreshRecommendationImg($book['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt=""><?php else:?><div class="placeholder"></div><?php endif;?><div><span class="promo"><?=htmlspecialchars($book['promo_label'])?></span><h3><?=htmlspecialchars($book['title'])?></h3><div class="reason"><?=htmlspecialchars($book['ai_reason'])?></div><div class="recommend-price">฿<?=number_format($book['price'],2)?><?php if((float)($book['original_price']??0)>(float)$book['price']):?><span class="old-price">฿<?=number_format($book['original_price'],2)?></span><?php endif;?></div><button type="button" class="add-recommend" data-book-id="<?=$book['book_id']?>">+ เพิ่มในคำสั่งซื้อ</button></div></article>
+<?php endforeach;$html=ob_get_clean();echo json_encode(['success'=>true,'html'=>$html,'remaining'=>3-$used],JSON_UNESCAPED_UNICODE);

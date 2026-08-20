@@ -12,7 +12,10 @@ require_once __DIR__ . '/handlers/handle_isbn_lookup.php';
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 
 $user_id = $_SESSION['user_id'];
-$role    = $_SESSION['role'] ?? '';
+$role    = $_SESSION['role'] ?? 'reader';
+
+// บัญชีผู้อ่านใช้ฟอร์มขายมือสองฝั่งหน้าร้าน ไม่เข้าสู่ระบบจัดการของร้านใหญ่
+if ($role === 'reader') { header('Location: /pages/sell_used_book.php'); exit; }
 
 $seller_id = null; $seller_type = null; $seller_name = '';
 
@@ -43,7 +46,14 @@ if ($role === 'publisher_admin') {
         $seller_name = $row['shop_name'];
     }
 }
-if (!$seller_id) { header('Location: dashboard.php'); exit; }
+if (!$seller_id) {
+    $stmt=$pdo->prepare('SELECT display_name,email FROM users WHERE user_id=?');
+    $stmt->execute([$user_id]);$normalUser=$stmt->fetch(PDO::FETCH_ASSOC);
+    if(!$normalUser){header('Location: login.php');exit;}
+    $seller_id=(int)$user_id;
+    $seller_type='user';
+    $seller_name=$normalUser['display_name']?:strstr($normalUser['email'],'@',true);
+}
 
 // AJAX ISBN Lookup
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'lookup_isbn') {
@@ -64,10 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $current_action = $_POST['action'];
 
     if (in_array($current_action, ['save_book','save_draft'])) {
+        if($seller_type==='user')$_POST['book_type']='used';
         $status = $current_action === 'save_draft' ? 'draft' : 'available';
         $result = handleSaveBook($pdo, $seller_id, $seller_type, $seller_name, $status);
     } elseif ($current_action === 'import_excel') {
-        $result = handleImportCsv($pdo, $seller_id, $seller_type);
+        $result = handleImportCsv($pdo, $seller_id, $seller_type, $seller_name);
     }
 
     $success_msg = $result['success'] ?? '';
@@ -369,12 +380,11 @@ async function lookupISBN() {
             const b = result.data;
             const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
             setVal('book_title', b.title);       setVal('book_author', b.author);
-            setVal('publisher_name', b.publisher_name); setVal('isbn_13', b.isbn_13);
+            setVal('isbn_13', b.isbn_13);
             setVal('book_category', b.category); setVal('book_format', b.format);
             setVal('book_pages', b.pages);       setVal('book_dimensions', b.dimensions);
             setVal('book_weight', b.weight_grams); setVal('book_language', b.language);
             setVal('book_synopsis', b.synopsis);
-            if (b.publish_date) setVal('book_publish_date', b.publish_date.length === 4 ? b.publish_date + '-01-01' : b.publish_date);
             if (b.image_cover) previewImageFromUrl('slot_image_cover', 'image_cover_url', b.image_cover);
             Swal.fire({ icon: 'success', title: 'พบข้อมูลหนังสือ', text: 'ดึงข้อมูลจาก Google Books เรียบร้อย', iconColor: '#80c97b', timer: 2200, showConfirmButton: false });
         } else {
@@ -391,8 +401,9 @@ async function lookupISBN() {
 }
 
 function downloadTemplate() {
-    const header  = 'title,author,isbn,price,stock_quantity,category,book_type,image_cover,image_back,image_inside,image_edge\n';
-    const example = 'ตัวอย่างชื่อหนังสือ,ชื่อผู้แต่ง,9789748480093,350,10,วรรณกรรมไทย,used,https://example.com/cover.jpg,,,\n';
+    const header  = 'title,author,isbn,isbn_13,category,format,pages,dimensions,weight_grams,language,synopsis,book_type,condition_level,defects_detail,price,original_price,stock_quantity,image_cover,image_back,image_inside,image_edge\n';
+    const example = 'ตัวอย่างหนังสือมือหนึ่ง,ชื่อผู้แต่ง,9748480093,9789748480093,วรรณกรรมไทย,Paperback,320,14.5 x 21 x 2.2 ซม.,350,ไทย,เรื่องย่อตัวอย่าง,new,new,,350,,10,https://example.com/new-cover.jpg,https://example.com/new-back.jpg,https://example.com/new-inside.jpg,https://example.com/new-edge.jpg\n' +
+                    'ตัวอย่างหนังสือมือสอง,ชื่อผู้แต่ง,9748480094,9789748480094,วรรณกรรมไทย,Paperback,280,13 x 19 x 2 ซม.,300,ไทย,เรื่องย่อตัวอย่าง,used,good,มีรอยพับเล็กน้อย,220,350,1,https://example.com/used-cover.jpg,https://example.com/used-back.jpg,https://example.com/used-inside.jpg,https://example.com/used-edge.jpg\n';
     const blob = new Blob(['\uFEFF' + header + example], { type: 'text/csv;charset=utf-8;' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'book_import_template.csv' });
     a.click();

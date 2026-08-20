@@ -21,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['role']    = $user['role'];
                 $_SESSION['email']   = $user['email'];
+                $_SESSION['display_name'] = $user['display_name'] ?: $user['email'];
+                $_SESSION['avatar'] = !empty($user['profile_image']) ? '/pages/' . ltrim($user['profile_image'], '/') : '';
 
                 // แยกทางไปหน้าต่างๆ ตาม role
                 switch ($user['role']) {
@@ -66,7 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     default:
                         // reader ทั่วไป
-                        header("Location: ../pages/home.php");
+                        $redirect = (string)($_SESSION['login_redirect'] ?? '');
+                        unset($_SESSION['login_redirect']);
+                        if ($redirect !== '' && str_starts_with($redirect, '/') && !str_starts_with($redirect, '//')) {
+                            header('Location: ' . $redirect);
+                        } else {
+                            header("Location: ../pages/home.php");
+                        }
                         break;
                 }
                 exit();

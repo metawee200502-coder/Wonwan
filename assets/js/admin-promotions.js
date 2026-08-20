@@ -1,0 +1,20 @@
+(()=>{
+ const data=window.wanawanPromotionOptions;if(!data)return;
+ const form=document.querySelector('input[name="promotion_name"]')?.form;if(!form)return;
+ const description=form.querySelector('textarea[name="description"]')?.closest('.field');
+ const wrapper=document.createElement('div');wrapper.className='promotion-scope';
+ wrapper.innerHTML=`<div class="field"><label>สินค้าที่ร่วมโปรโมชั่น</label><select name="scope_type" id="promotionScope"><option value="all">สินค้าทั้งร้าน</option><option value="category">เฉพาะหมวดหมู่</option><option value="books">หนังสือ / เรื่อง / ซีรีส์ที่เลือก</option></select></div><div class="field scope-target" id="categoryTargets" hidden><label>เลือกหมวดหมู่ (เลือกได้หลายหมวด)</label><select name="target_categories[]" multiple size="6"></select><small>กด Ctrl หรือ Command ค้างไว้เพื่อเลือกหลายรายการ</small></div><div class="field scope-target" id="bookTargets" hidden><label>เลือกหนังสือหรือซีรีส์ (เลือกได้หลายเล่ม)</label><input type="search" id="promotionBookSearch" placeholder="ค้นหาชื่อหนังสือหรือผู้แต่ง"><select name="target_books[]" multiple size="9"></select><small>เลือกเล่มเดียวสำหรับโปรเฉพาะเรื่อง หรือเลือกทุกเล่มในชุดสำหรับโปรซีรีส์</small></div>`;
+ description?.insertAdjacentElement('afterend',wrapper);
+ form.querySelector('input[type="datetime-local"]')?.closest('.two')?.classList.add('promotion-dates');
+ const categorySelect=wrapper.querySelector('[name="target_categories[]"]');
+ data.categories.forEach(value=>categorySelect.add(new Option(value,value)));
+ const bookSelect=wrapper.querySelector('[name="target_books[]"]');
+ const renderBooks=query=>{const selected=new Set([...bookSelect.selectedOptions].map(o=>o.value));bookSelect.innerHTML='';data.books.filter(book=>(book.title+' '+(book.author||'')).toLowerCase().includes(query.toLowerCase())).forEach(book=>{const option=new Option(book.title+(book.author?' — '+book.author:''),book.book_id);option.selected=selected.has(String(book.book_id));bookSelect.add(option)})};
+ renderBooks('');
+ const scope=wrapper.querySelector('#promotionScope'),categoryBox=wrapper.querySelector('#categoryTargets'),bookBox=wrapper.querySelector('#bookTargets');
+ scope.addEventListener('change',()=>{categoryBox.hidden=scope.value!=='category';bookBox.hidden=scope.value!=='books';categorySelect.required=scope.value==='category';bookSelect.required=scope.value==='books'});
+ wrapper.querySelector('#promotionBookSearch').addEventListener('input',event=>renderBooks(event.target.value));
+ const style=document.createElement('style');style.textContent='.promotion-scope select[multiple]{min-height:125px}.promotion-scope small{display:block;color:#8b7a80;font-size:11px;margin-top:5px}.promotion-scope input[type="search"]{margin-bottom:7px}.scope-label{display:inline-block;margin:5px 0 0;padding:4px 8px;border-radius:6px;background:#fff0e8;color:#8b5138;font-size:11px;font-weight:700}.card,.field,.two>*{min-width:0}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.promotion-dates{grid-template-columns:1fr}.field input[type="datetime-local"]{width:100%;min-width:0;font-size:14px;padding-left:10px;padding-right:10px}@media(max-width:1120px){.grid{grid-template-columns:430px minmax(0,1fr)}.two{grid-template-columns:1fr}}@media(max-width:900px){.grid{grid-template-columns:1fr}}';document.head.appendChild(style);
+ const bookNames=new Map(data.books.map(book=>[String(book.book_id),book.title]));
+ document.querySelectorAll('.promo').forEach((card,index)=>{const promotion=data.promotions[index];if(!promotion)return;let label='สินค้าทั้งร้าน';if(promotion.scope_type==='category')label='หมวด: '+promotion.targets.map(t=>t.target_value).join(', ');if(promotion.scope_type==='books')label='หนังสือ/ซีรีส์: '+promotion.targets.map(t=>bookNames.get(String(t.target_value))||'รายการที่ '+t.target_value).join(', ');const node=document.createElement('div');node.className='scope-label';node.textContent=label;card.querySelector('.promo-head')?.insertAdjacentElement('afterend',node)});
+})();

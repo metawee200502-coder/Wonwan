@@ -1,4 +1,17 @@
 <?php
+function normalizeBookPublishDate(string $value): ?string {
+    $value = trim($value);
+    if ($value === '') return null;
+    foreach (['!d-m-Y', '!Y-m-d'] as $format) {
+        $date = DateTimeImmutable::createFromFormat($format, $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        if ($date && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+            return $date->format('Y-m-d');
+        }
+    }
+    return null;
+}
+
 function collectBookFields(string $seller_name): array {
     return [
         'title'           => trim($_POST['title'] ?? ''),
@@ -12,7 +25,7 @@ function collectBookFields(string $seller_name): array {
         'dimensions'      => trim($_POST['dimensions'] ?? ''),
         'weight_grams'    => (int)($_POST['weight_grams'] ?? 0),
         'language'        => trim($_POST['language'] ?? 'ไทย'),
-        'publish_date'    => $_POST['publish_date'] ?: null,
+        'publish_date'    => normalizeBookPublishDate((string)($_POST['publish_date'] ?? '')),
         'synopsis'        => trim($_POST['synopsis'] ?? ''),
         'condition_level' => $_POST['condition_level'] ?? 'new',
         'defects_detail'  => trim($_POST['defects_detail'] ?? ''),

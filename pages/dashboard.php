@@ -1,6 +1,23 @@
 <?php
 session_start();
 require_once '../config/config.php';
+$userId=(int)($_SESSION['user_id']??0);$role=$_SESSION['role']??'';
+if(!$userId||!in_array($role,['publisher_admin','shop_admin'],true)){header('Location:/pages/login.php');exit;}
+$sellerType=$role==='publisher_admin'?'publisher':'shop';
+$sellerStmt=$sellerType==='publisher'?$pdo->prepare('SELECT p.publisher_id id,p.company_name name FROM publisher_staff ps JOIN publishers p ON p.publisher_id=ps.publisher_id WHERE ps.user_id=? LIMIT 1'):$pdo->prepare('SELECT s.shop_id id,s.shop_name name FROM shop_staff ss JOIN shops s ON s.shop_id=ss.shop_id WHERE ss.user_id=? LIMIT 1');
+$sellerStmt->execute([$userId]);$dashboardSeller=$sellerStmt->fetch(PDO::FETCH_ASSOC);if(!$dashboardSeller){header('Location:/pages/login.php');exit;}
+$sellerId=(int)$dashboardSeller['id'];$seller_name=(string)$dashboardSeller['name'];
+$salesStmt=$pdo->prepare("SELECT COALESCE(SUM(oi.price_at_purchase*oi.quantity),0) FROM order_items oi JOIN orders o ON o.order_id=oi.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? AND o.payment_status='paid'");$salesStmt->execute([$sellerType,$sellerId]);$dashboardSales=(float)$salesStmt->fetchColumn();
+$stockStmt=$pdo->prepare("SELECT COALESCE(SUM(stock_quantity),0) FROM books WHERE seller_type=? AND seller_id=? AND status='available'");$stockStmt->execute([$sellerType,$sellerId]);$dashboardStock=(int)$stockStmt->fetchColumn();
+$pendingStmt=$pdo->prepare("SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? AND o.payment_status='paid' AND o.shipping_status IN('pending','packing')");$pendingStmt->execute([$sellerType,$sellerId]);$dashboardPending=(int)$pendingStmt->fetchColumn();
+$reviewStmt=$pdo->prepare("SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? AND o.payment_status='reviewing'");$reviewStmt->execute([$sellerType,$sellerId]);$dashboardOrderAlerts=(int)$reviewStmt->fetchColumn();
+$monthly=array_fill(1,12,0.0);$monthlyStmt=$pdo->prepare("SELECT MONTH(o.created_at) month,SUM(oi.price_at_purchase*oi.quantity) total FROM order_items oi JOIN orders o ON o.order_id=oi.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? AND o.payment_status='paid' AND YEAR(o.created_at)=YEAR(CURDATE()) GROUP BY MONTH(o.created_at)");$monthlyStmt->execute([$sellerType,$sellerId]);foreach($monthlyStmt as $row)$monthly[(int)$row['month']]=(float)$row['total'];
+$currentMonth=(int)date('n');$currentSales=$monthly[$currentMonth]??0;$previousSales=$currentMonth>1?($monthly[$currentMonth-1]??0):0;$salesGrowth=$previousSales>0?(($currentSales-$previousSales)/$previousSales*100):($currentSales>0?100:0);
+$yearStmt=$pdo->prepare("SELECT DISTINCT YEAR(o.created_at) sales_year FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? ORDER BY sales_year DESC");$yearStmt->execute([$sellerType,$sellerId]);$salesYears=array_map('intval',$yearStmt->fetchAll(PDO::FETCH_COLUMN));if(!in_array((int)date('Y'),$salesYears,true))array_unshift($salesYears,(int)date('Y'));
+$categoryStmt=$pdo->prepare("SELECT COALESCE(NULLIF(category,''),'อื่นๆ') category,COUNT(*) total FROM books WHERE seller_type=? AND seller_id=? AND status<>'hidden' GROUP BY COALESCE(NULLIF(category,''),'อื่นๆ') ORDER BY total DESC");$categoryStmt->execute([$sellerType,$sellerId]);$dashboardCategories=$categoryStmt->fetchAll(PDO::FETCH_ASSOC);$categoryTotal=array_sum(array_column($dashboardCategories,'total'));
+$activityStmt=$pdo->prepare("SELECT DISTINCT o.order_number,o.payment_status,o.shipping_status,o.created_at FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type=? AND b.seller_id=? ORDER BY o.created_at DESC LIMIT 5");$activityStmt->execute([$sellerType,$sellerId]);$activities=[];foreach($activityStmt as $order){$label=match($order['payment_status']){'reviewing'=>'ได้รับหลักฐานการชำระเงิน','paid'=>match($order['shipping_status']){'delivered'=>'จัดส่งสำเร็จแล้ว','shipped'=>'กำลังจัดส่งคำสั่งซื้อ','packing'=>'กำลังเตรียมสินค้า',default=>'ยืนยันการชำระเงินแล้ว'},'cancelled'=>'คำสั่งซื้อถูกยกเลิก',default=>'มีคำสั่งซื้อใหม่'};$activities[]=[$label,'คำสั่งซื้อ #'.$order['order_number'],date('d/m/Y H:i',strtotime($order['created_at']))];}
+$chatStmt=$pdo->prepare("SELECT COUNT(m.message_id) FROM chat_conversations c JOIN chat_messages m ON m.conversation_id=c.conversation_id AND m.is_read=0 AND m.sender_user_id=c.customer_user_id WHERE c.seller_type=? AND c.seller_id=?");$chatStmt->execute([$sellerType,$sellerId]);$dashboardUnreadChats=(int)$chatStmt->fetchColumn();
+$dashboardTodos=[];if($dashboardOrderAlerts)$dashboardTodos[]=['มีคำสั่งซื้อรอตรวจสอบ '.$dashboardOrderAlerts.' รายการ','ตรวจสอบหลักฐานการชำระเงินจากลูกค้า','/pages/admin_orders.php?status=reviewing','ตรวจสอบ'];if($dashboardPending)$dashboardTodos[]=['มีคำสั่งซื้อรอจัดส่ง '.$dashboardPending.' รายการ','เตรียมสินค้าและระบุข้อมูลพัสดุ','/pages/admin_orders.php?status=packing','จัดการ'];if($dashboardUnreadChats)$dashboardTodos[]=['มีข้อความที่ยังไม่อ่าน '.$dashboardUnreadChats.' ข้อความ','ตอบกลับคำถามจากลูกค้า','/pages/admin_chat.php','ตอบกลับ'];
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -330,7 +347,7 @@ require_once '../config/config.php';
             border-color: var(--primary-color);
         }
 
-        .chart-year-select {
+        .chart-year-select,.chart-month-select,.chart-week-select {
             padding: 4px 10px;
             border-radius: var(--radius-md);
             border: 1px solid var(--border-color);
@@ -573,6 +590,7 @@ require_once '../config/config.php';
 <body>
 
 <!-- ========== SIDEBAR ========== -->
+<?php if(false): ?>
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="../assets/image/minilogo.png" alt="Logo">
@@ -608,12 +626,13 @@ require_once '../config/config.php';
             แชทและการสนับสนุน
         </a>
 
-        <a href="orders.php" class="nav-item">
+        <a href="admin_orders.php" class="nav-item">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="9" cy="21" r="1"></circle>
                 <circle cx="20" cy="21" r="1"></circle>
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
+            <?php if($dashboardOrderAlerts): ?><span style="background:#c83232;color:#fff;border-radius:20px;min-width:22px;padding:3px 7px;text-align:center;font-size:11px"><?=$dashboardOrderAlerts?></span><?php endif; ?>
             ติดตามคำสั่งซื้อ
         </a>
     </nav>
@@ -626,6 +645,7 @@ require_once '../config/config.php';
         </div>
     </div>
 </aside>
+<?php endif; $active_menu='dashboard'; include __DIR__.'/../components/sidebar.php'; ?>
 
 <!-- ========== MAIN CONTENT ========== -->
 <div class="main-content">
@@ -663,10 +683,10 @@ require_once '../config/config.php';
                             <line x1="2" y1="10" x2="22" y2="10"></line>
                         </svg>
                     </div>
-                    <span class="stat-badge">+12.5%</span>
+                    <span class="stat-badge <?=$salesGrowth<0?'urgent':''?>"><?=$salesGrowth>=0?'+':''?><?=number_format($salesGrowth,1)?>%</span>
                 </div>
                 <div class="stat-label">ยอดขายทั้งหมด</div>
-                <div class="stat-value">142,509.20</div>
+                <div class="stat-value">฿<?=number_format($dashboardSales,2)?></div>
             </div>
 
             <div class="stat-card">
@@ -681,7 +701,7 @@ require_once '../config/config.php';
                     </div>
                 </div>
                 <div class="stat-label">จำนวนหนังสือคงเหลือ</div>
-                <div class="stat-value">1,842 <span style="font-size:14px;font-weight:400;color:var(--text-muted)">รายการ</span></div>
+                <div class="stat-value"><?=number_format($dashboardStock)?> <span style="font-size:14px;font-weight:400;color:var(--text-muted)">เล่ม</span></div>
             </div>
 
             <div class="stat-card">
@@ -692,10 +712,10 @@ require_once '../config/config.php';
                             <polyline points="14 2 14 8 20 8"></polyline>
                         </svg>
                     </div>
-                    <span class="stat-badge urgent">เร่งด่วน</span>
+                    <?php if($dashboardPending):?><span class="stat-badge urgent">รอดำเนินการ</span><?php endif;?>
                 </div>
                 <div class="stat-label">รายการคำสั่งซื้อรอจัดส่ง</div>
-                <div class="stat-value">34 <span style="font-size:14px;font-weight:400;color:var(--text-muted)">รายการ</span></div>
+                <div class="stat-value"><?=number_format($dashboardPending)?> <span style="font-size:14px;font-weight:400;color:var(--text-muted)">รายการ</span></div>
             </div>
         </div>
 
@@ -706,13 +726,14 @@ require_once '../config/config.php';
                 <div class="chart-card-header">
                     <span class="chart-title">การเติบโตของยอดขาย</span>
                     <div class="chart-filters">
-                        <select class="chart-year-select">
-                            <option>2026</option>
-                            <option>2025</option>
+                        <select class="chart-year-select" aria-label="เลือกปีของยอดขาย">
+                            <?php foreach($salesYears as $salesYear):?><option value="<?=$salesYear?>" <?=$salesYear===(int)date('Y')?'selected':''?>><?=$salesYear?></option><?php endforeach;?>
                         </select>
-                        <button class="chart-filter-btn">รายสัปดาห์</button>
-                        <button class="chart-filter-btn active">รายเดือน</button>
-                        <button class="chart-filter-btn">รายปี</button>
+                        <select class="chart-month-select" aria-label="เลือกเดือน" hidden><?php foreach(['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'] as $monthIndex=>$monthName):?><option value="<?=$monthIndex+1?>" <?=$monthIndex+1===(int)date('n')?'selected':''?>><?=$monthName?></option><?php endforeach;?></select>
+                        <select class="chart-week-select" aria-label="เลือกสัปดาห์" hidden></select>
+                        <button class="chart-filter-btn" data-period="weekly">รายสัปดาห์</button>
+                        <button class="chart-filter-btn active" data-period="monthly">รายเดือน</button>
+                        <button class="chart-filter-btn" data-period="yearly">รายปี</button>
                     </div>
                 </div>
                 <canvas id="salesChart" height="90"></canvas>
@@ -727,7 +748,7 @@ require_once '../config/config.php';
                     <div class="donut-canvas-wrap">
                         <canvas id="donutChart"></canvas>
                         <div class="donut-center">
-                            <div class="donut-center-num">9</div>
+                            <div class="donut-center-num"><?=number_format($categoryTotal)?></div>
                             <div class="donut-center-label">รวมทั้งหมด</div>
                         </div>
                     </div>
@@ -775,12 +796,7 @@ require_once '../config/config.php';
                 </div>
 
                 <?php
-                $activities = [
-                    ['ชำระเงินเสร็จสมบูรณ์สำหรับ', 'คำสั่งซื้อ #99218', '15 นาทีที่แล้ว'],
-                    ['ชำระเงินเสร็จสมบูรณ์สำหรับ', 'คำสั่งซื้อ #99217', '32 นาทีที่แล้ว'],
-                    ['ชำระเงินเสร็จสมบูรณ์สำหรับ', 'คำสั่งซื้อ #99216', '1 ชั่วโมงที่แล้ว'],
-                    ['ชำระเงินเสร็จสมบูรณ์สำหรับ', 'คำสั่งซื้อ #99215', '2 ชั่วโมงที่แล้ว'],
-                ];
+                if(!$activities):?><div style="padding:35px 10px;text-align:center;color:var(--text-muted)">ยังไม่มีกิจกรรมคำสั่งซื้อ</div><?php endif;
                 foreach ($activities as $a): ?>
                 <div class="activity-item">
                     <div class="activity-icon">
@@ -850,16 +866,28 @@ require_once '../config/config.php';
 </div>
 
 <script>
+const dashboardCategories = <?=json_encode(array_map(fn($row)=>['name'=>$row['category'],'value'=>(int)$row['total']],$dashboardCategories),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+const dashboardColors = ['#C97B8B','#175564','#4A3B35','#E3A77C','#7D9A83','#9A7FB5','#D6B45F','#8EAFC1'];
+const legend = document.querySelector('.donut-legend');
+if (legend) {
+    legend.replaceChildren();
+    const total = dashboardCategories.reduce((sum,item)=>sum+item.value,0);
+    dashboardCategories.forEach((item,index)=>{const row=document.createElement('div');row.className='legend-item';const left=document.createElement('div');left.className='legend-left';const dot=document.createElement('div');dot.className='legend-dot';dot.style.background=dashboardColors[index%dashboardColors.length];const name=document.createElement('span');name.textContent=item.name;left.append(dot,name);const pct=document.createElement('span');pct.className='legend-pct';pct.textContent=total?`${Math.round(item.value/total*100)}%`:'0%';row.append(left,pct);legend.append(row)});
+    if(!dashboardCategories.length)legend.innerHTML='<div style="color:#8a7b74">ยังไม่มีข้อมูลหมวดหมู่</div>';
+}
+const todoCard=document.querySelector('.todo-card');
+const dashboardTodos=<?=json_encode($dashboardTodos,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+if(todoCard){todoCard.replaceChildren();const head=document.createElement('div');head.className='card-header-row';const title=document.createElement('span');title.className='card-title';title.textContent='สิ่งที่ต้องดำเนินการ';const badge=document.createElement('span');badge.className='todo-badge';badge.textContent=`${dashboardTodos.length} รายการ`;head.append(title,badge);todoCard.append(head);if(!dashboardTodos.length){const empty=document.createElement('div');empty.style.cssText='padding:45px 10px;text-align:center;color:var(--text-muted)';empty.textContent='ไม่มีรายการที่ต้องดำเนินการ';todoCard.append(empty)}dashboardTodos.forEach(item=>{const row=document.createElement('div');row.className='todo-item';const left=document.createElement('div');left.className='todo-left';const flag=document.createElement('div');flag.className='todo-flag';flag.textContent='!';const copy=document.createElement('div');const itemTitle=document.createElement('div');itemTitle.className='todo-title';itemTitle.textContent=item[0];const desc=document.createElement('div');desc.className='todo-desc';desc.textContent=item[1];copy.append(itemTitle,desc);left.append(flag,copy);const action=document.createElement('a');action.className='btn-todo btn-check';action.href=item[2];action.textContent=item[3];action.style.textDecoration='none';row.append(left,action);todoCard.append(row)})}
 // Bar Chart
 const salesCtx = document.getElementById('salesChart').getContext('2d');
-new Chart(salesCtx, {
+const salesChart = new Chart(salesCtx, {
     type: 'bar',
     data: {
-        labels: ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'],
+        labels: ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'],
         datasets: [{
-            data: [8000, 6500, 9000, 7500, 13000, 9500, 7000, 8500, 6000],
+            data: <?=json_encode(array_values($monthly),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>,
             backgroundColor: (ctx) => {
-                return ctx.dataIndex === 4 ? '#C97B8B' : '#F7D9DE';
+                return ctx.dataIndex === <?=max(0,$currentMonth-1)?> ? '#C97B8B' : '#F7D9DE';
             },
             borderRadius: 6,
             borderSkipped: false,
@@ -880,8 +908,8 @@ new Chart(donutCtx, {
     type: 'doughnut',
     data: {
         datasets: [{
-            data: [45, 25, 15, 15],
-            backgroundColor: ['#C97B8B','#175564','#4A3B35','#F7D9DE'],
+            data: dashboardCategories.length?dashboardCategories.map(item=>item.value):[1],
+            backgroundColor: dashboardCategories.length?dashboardCategories.map((_,index)=>dashboardColors[index%dashboardColors.length]):['#F1E8E5'],
             borderWidth: 0,
             hoverOffset: 4
         }]
@@ -900,13 +928,39 @@ document.querySelectorAll('.nav-item').forEach(item => {
     });
 });
 
-// Chart filter buttons
-document.querySelectorAll('.chart-filter-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.chart-filter-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-    });
-});
+// ตัวกรองกราฟยอดขายจากฐานข้อมูลจริง
+const salesYearSelect=document.querySelector('.chart-year-select');
+const salesMonthSelect=document.querySelector('.chart-month-select');
+const salesWeekSelect=document.querySelector('.chart-week-select');
+const salesFilterButtons=[...document.querySelectorAll('.chart-filter-btn')];
+let activeSalesPeriod='monthly';
+async function loadSalesChart(){
+    const year=salesYearSelect.value;
+    const month=salesMonthSelect.value;
+    const week=salesWeekSelect.value;
+    salesFilterButtons.forEach(button=>button.disabled=true);
+    try{
+        const response=await fetch(`/pages/handlers/dashboard_sales.php?year=${encodeURIComponent(year)}&period=${encodeURIComponent(activeSalesPeriod)}&month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}`,{headers:{Accept:'application/json'}});
+        if(!response.ok)throw new Error('load failed');
+        const result=await response.json();
+        if(!result.success)throw new Error('invalid result');
+        if(activeSalesPeriod==='weekly'){
+            const previousValue=salesWeekSelect.value;
+            salesWeekSelect.replaceChildren(...result.weeks.map((range,index)=>{const option=document.createElement('option');option.value=index;option.textContent=`สัปดาห์ ${index+1} · ${range.label}`;return option}));
+            salesWeekSelect.value=String(result.week??previousValue??0);
+        }
+        salesChart.data.labels=result.labels;
+        salesChart.data.datasets[0].data=result.data.map(Number);
+        salesChart.data.datasets[0].backgroundColor=(context)=>{const values=result.data.map(Number),max=Math.max(...values);return max>0&&Number(context.raw)===max?'#C97B8B':'#F7D9DE'};
+        salesChart.options.scales.x.ticks.maxRotation=0;
+        salesChart.options.scales.x.ticks.autoSkip=true;
+        salesChart.update();
+    }catch(error){console.error('ไม่สามารถโหลดข้อมูลยอดขายได้',error)}finally{salesFilterButtons.forEach(button=>button.disabled=false)}
+}
+salesFilterButtons.forEach(button=>button.addEventListener('click',()=>{salesFilterButtons.forEach(item=>item.classList.remove('active'));button.classList.add('active');activeSalesPeriod=button.dataset.period;const weekly=activeSalesPeriod==='weekly';salesMonthSelect.hidden=!weekly;salesWeekSelect.hidden=!weekly;if(weekly)salesWeekSelect.value='';loadSalesChart()}));
+salesYearSelect.addEventListener('change',loadSalesChart);
+salesMonthSelect.addEventListener('change',()=>{salesWeekSelect.value='';loadSalesChart()});
+salesWeekSelect.addEventListener('change',loadSalesChart);
 </script>
 
 </body>

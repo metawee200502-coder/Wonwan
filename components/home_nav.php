@@ -1,5 +1,5 @@
 <?php
-$active_tab = $active_tab ?? 'new';
+$active_zone = $active_zone ?? null;
 ?>
 
 <style>
@@ -40,9 +40,10 @@ $active_tab = $active_tab ?? 'new';
 }
 .nav-menu-bar a:hover,
 .nav-menu-bar a.active {
-    color: var(--primary-color);
+    color: var(--secondary-color);
     background-color: rgba(201, 123, 139, 0.08);
 }
+.nav-menu-bar a.active { box-shadow: inset 0 -3px 0 var(--secondary-color); }
 .nav-menu-bar .nav-ico {
     width: 18px;
     height: 18px;
@@ -65,11 +66,15 @@ $active_tab = $active_tab ?? 'new';
     }
     .nav-menu-bar__inner::-webkit-scrollbar { display: none; }
 }
+@media (max-width: 520px) {
+    .nav-menu-bar a { padding: 11px 16px; }
+    .nav-menu-bar .nav-ico { width: 16px; height: 16px; }
+}
 </style>
 
 <nav class="nav-menu-bar" aria-label="เมนูหลักหน้าแรก">
     <div class="nav-menu-bar__inner">
-        <a href="?tab=new" class="<?= $active_tab === 'new' ? 'active' : '' ?>">
+        <a href="/pages/new_books.php" class="<?= $active_zone === 'new' ? 'active' : '' ?>">
             <span class="nav-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                     <path d="M12 3v18M3 12h18"/>
@@ -78,7 +83,7 @@ $active_tab = $active_tab ?? 'new';
             </span>
             เลือกอ่านเล่มใหม่
         </a>
-        <a href="?tab=used" class="<?= $active_tab === 'used' ? 'active' : '' ?>">
+        <a href="/pages/used_books.php" class="<?= $active_zone === 'used' ? 'active' : '' ?>">
             <span class="nav-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
@@ -87,7 +92,7 @@ $active_tab = $active_tab ?? 'new';
             </span>
             ตามหาเล่มโปรด
         </a>
-        <a href="?tab=exchange" class="<?= $active_tab === 'exchange' ? 'active' : '' ?>">
+        <a href="/pages/exchange_books.php" class="<?= $active_zone === 'exchange' ? 'active' : '' ?>">
             <span class="nav-ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M7 7h11l-3-3M18 7l-3 3"/>

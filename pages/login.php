@@ -298,6 +298,12 @@
                 </p>
             <?php endif; ?>
 
+            <?php if (isset($_GET['google_error'])): ?>
+                <p style="color: var(--accent-red); text-align: center; margin-bottom: 15px; font-size: var(--text-xs);">
+                    ไม่สามารถเข้าสู่ระบบด้วย Google ได้ กรุณาลองอีกครั้ง
+                </p>
+            <?php endif; ?>
+
             <form action="../process/process_login.php" method="POST">
                 <div class="input-group">
                     <label for="email">อีเมล</label>
@@ -336,13 +342,13 @@
                     <label class="remember-me">
                         <input type="checkbox" name="remember"> จดจำฉันไว้
                     </label>
-                    <a href="#" class="forgot-password">ลืมรหัสผ่าน?</a>
+                    <a href="/pages/forgot_password.php" class="forgot-password">ลืมรหัสผ่าน?</a>
                 </div>
 
                 <button type="submit" class="btn-primary btn-block">เข้าสู่ระบบ</button>
             </form>
 
-            <button type="button" class="btn-social">
+            <button type="button" class="btn-social" onclick="window.location.href='/pages/google_login.php'">
                 <img src="../assets/image/gglogo.png" alt="Google"> เข้าสู่ระบบด้วย Google
             </button>
 

@@ -1,0 +1,6 @@
+<?php
+return [
+    'channel_access_token' => 'ใส่_LINE_CHANNEL_ACCESS_TOKEN_ตรงนี้',
+    'channel_secret' => 'ใส่_LINE_CHANNEL_SECRET_ตรงนี้',
+];
+

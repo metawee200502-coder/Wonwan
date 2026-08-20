@@ -48,8 +48,13 @@
                        onchange="updateBulkCount()">
             </td>
             <td>
-                <div class="book-title"><?= htmlspecialchars($b['title']) ?></div>
+                <div class="inventory-book">
+                    <img class="inventory-cover" src="<?= htmlspecialchars(inventoryBookImage($b['image_cover'] ?? null)) ?>" alt="Book cover" onerror="this.onerror=null;this.src='/assets/image/minilogo.png'">
+                    <div>
+                        <div class="book-title"><?= htmlspecialchars($b['title']) ?></div>
                 <div class="book-author">นักเขียน: <?= htmlspecialchars($b['author'] ?? '-') ?></div>
+                    </div>
+                </div>
             </td>
             <td>
                 <?= htmlspecialchars($b['category'] ?? '-') ?><br>

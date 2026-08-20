@@ -20,6 +20,21 @@ if ($role === 'publisher_admin') {
 }
 if (!$seller_id) { header('Location: dashboard.php'); exit; }
 
+function inventoryBookImage(?string $value): string {
+    if (!$value) return '/assets/image/minilogo.png';
+    $value = str_replace('\\', '/', trim($value));
+    if (preg_match('#^https?://#i', $value)) return $value;
+    $value = ltrim($value, '/');
+    if (str_starts_with($value, 'pages/uploads/')) return '/'.$value;
+    if (str_starts_with($value, 'uploads/')) {
+        if (is_file(__DIR__.'/../'.$value)) return '/'.$value;
+        if (is_file(__DIR__.'/'.$value)) return '/pages/'.$value;
+        return '/pages/'.$value;
+    }
+    if (str_starts_with($value, 'assets/')) return '/'.$value;
+    return '/assets/image/books/'.$value;
+}
+
 // ==================== POST Handler ====================
 $success_msg = ''; $error_msg = '';
 
@@ -100,7 +115,7 @@ $total_pages   = ceil($total_records / $limit);
 
 $stmt = $pdo->prepare("
     SELECT b.book_id, b.title, b.author, b.category, b.price, b.original_price,
-           b.stock_quantity, b.status, b.book_type, b.condition_level, b.created_at
+           b.stock_quantity, b.status, b.book_type, b.condition_level, b.image_cover, b.created_at
     FROM books b $where ORDER BY $order
     LIMIT " . intval($limit) . " OFFSET " . intval($offset)
 );
@@ -188,6 +203,8 @@ $stats = $statsStmt->fetch();
         .inv-table input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:var(--primary-color); }
         .book-title { font-weight:600; color:var(--text-dark); margin-bottom:2px; }
         .book-author { font-size:var(--text-xs); color:var(--text-muted); }
+        .inventory-book { display:flex; align-items:center; gap:12px; min-width:220px; }
+        .inventory-cover { width:52px; height:72px; flex:0 0 52px; object-fit:cover; border-radius:6px; border:1px solid var(--border-color); background:#fff; }
         .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:500; }
         .badge-new { background:#E8F5E9; color:var(--accent-green); }
         .badge-used { background:var(--accent-pink-light); color:var(--primary-color); }
