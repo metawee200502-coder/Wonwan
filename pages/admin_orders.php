@@ -92,4 +92,8 @@ body,button,input,select,textarea,.btn,.filters a,.badge,.orders th,.orders td,.
 .orders .badge{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:31px!important;padding:6px 12px!important;white-space:nowrap!important;line-height:1.2!important}
 .orders td:nth-child(7) .btn{min-width:108px!important;white-space:nowrap!important}
 </style>
+<script>
+const notificationOrderNumber=new URLSearchParams(location.search).get('order');
+if(notificationOrderNumber){const notificationOrderButton=[...document.querySelectorAll('.detail')].find(button=>{try{return JSON.parse(button.dataset.order).order.order_number===notificationOrderNumber}catch(_){return false}});if(notificationOrderButton)notificationOrderButton.click();}
+</script>
 </body></html>

@@ -121,11 +121,18 @@ if ($isExchange) {
 $recommended = $recStmt->fetchAll(PDO::FETCH_ASSOC);
 if (!$isExchange) $recommended = wanawanSortRecommendedBooks(wanawanAnnotateBooks($pdo, $recommended));
 
-$breadcrumbs = [
-    ['label' => 'หน้าหลัก', 'url' => '/pages/home.php'],
-    ['label' => $isExchange ? 'ลานแลกเปลี่ยนหนังสือ' : 'หนังสือแนะนำ', 'url' => '/pages/home.php?tab=' . ($isExchange ? 'exchange' : (($item['book_type'] ?? 'used') === 'new' ? 'new' : 'used')) . '#book-section'],
-    ['label' => $title, 'url' => ''],
-];
+if (($_GET['source'] ?? '') === 'mood_match') {
+    $breadcrumbs = [
+        ['label' => '< Mood Match', 'url' => '/pages/mood_match.php'],
+        ['label' => $title, 'url' => ''],
+    ];
+} else {
+    $breadcrumbs = [
+        ['label' => 'หน้าหลัก', 'url' => '/pages/home.php'],
+        ['label' => $isExchange ? 'ลานแลกเปลี่ยนหนังสือ' : 'หนังสือแนะนำ', 'url' => '/pages/home.php?tab=' . ($isExchange ? 'exchange' : (($item['book_type'] ?? 'used') === 'new' ? 'new' : 'used')) . '#book-section'],
+        ['label' => $title, 'url' => ''],
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">

@@ -19,9 +19,10 @@ function wanawanNotifyPostFollowers(PDO $pdo, string $sellerType, int $sellerId,
     $mailConfig = is_file(__DIR__ . '/mail.local.php') ? require __DIR__ . '/mail.local.php' : [];
     $lineConfig = is_file(__DIR__ . '/line.local.php') ? require __DIR__ . '/line.local.php' : [];
     $result = ['followers' => count($users), 'email' => 0, 'line' => 0];
-    $web = $pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,is_read,sent_via) VALUES(?,?,?,'system',0,'web')");
+    $web = $pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,target_url,is_read,sent_via) VALUES(?,?,?,'system',?,0,'web')");
+    $targetUrl = '/pages/partner_detail.php?type=' . rawurlencode($sellerType) . '&id=' . $sellerId;
     foreach ($users as $user) {
-        $web->execute([(int) $user['user_id'], 'ประกาศใหม่จาก ' . $sellerLabel, mb_strimwidth($preview, 0, 240, '…', 'UTF-8')]);
+        $web->execute([(int) $user['user_id'], 'ประกาศใหม่จาก ' . $sellerLabel, mb_strimwidth($preview, 0, 240, '…', 'UTF-8'), $targetUrl]);
         $preference = (string) ($user['notify_preference'] ?? 'email');
         if (in_array($preference, ['email', 'both'], true) && $mailConfig) {
             try {
@@ -63,4 +64,3 @@ function wanawanNotifyPostFollowers(PDO $pdo, string $sellerType, int $sellerId,
     }
     return $result;
 }
-
