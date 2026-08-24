@@ -12,6 +12,9 @@ $keyword = trim($_GET['q'] ?? '');
 $condition = trim($_GET['condition'] ?? '');
 $category = trim($_GET['category'] ?? '');
 $sort = $_GET['sort'] ?? 'latest';
+$buyerLat = (float)($_COOKIE['buyer_lat'] ?? 0);$buyerLng = (float)($_COOKIE['buyer_lng'] ?? 0);
+if(empty($buyerLat) && !empty($_SESSION['user_id'])){$userLoc=$pdo->prepare('SELECT latitude,longitude FROM users WHERE user_id=?');$userLoc->execute([$_SESSION['user_id']]);$u=$userLoc->fetch(PDO::FETCH_ASSOC);if($u&&$u['latitude']){$buyerLat=(float)$u['latitude'];$buyerLng=(float)$u['longitude'];}}
+$hasLocation = ($buyerLat != 0 && $buyerLng != 0);
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 12;
 $offset = ($page - 1) * $perPage;
@@ -23,6 +26,7 @@ if (in_array($condition, ['99','90','80','70'], true)) { $where[] = 'e.condition
 if ($category !== '') { $where[] = 'e.category=:category'; $params[':category'] = $category; }
 $whereSql = implode(' AND ', $where);
 $orderSql = match($sort) {
+    'distance' => $hasLocation ? 'distance ASC, e.created_at DESC' : 'e.created_at DESC',
     'oldest' => 'e.created_at ASC',
     'condition' => 'CAST(e.condition_percent AS UNSIGNED) DESC,e.created_at DESC',
     'title' => 'e.title ASC',
@@ -34,8 +38,10 @@ $countStmt->execute($params);
 $total = (int)$countStmt->fetchColumn();
 $totalPages = max(1, (int)ceil($total / $perPage));
 
-$stmt = $pdo->prepare("SELECT e.*,u.display_name AS owner_name FROM exchanges e LEFT JOIN users u ON u.user_id=e.owner_id WHERE $whereSql ORDER BY $orderSql LIMIT :limit OFFSET :offset");
+$distanceSql = $hasLocation ? ", (6371 * acos(cos(radians(:buyerLat)) * cos(radians(u.latitude)) * cos(radians(u.longitude) - radians(:buyerLng)) + sin(radians(:buyerLat)) * sin(radians(u.latitude)))) AS distance" : ", NULL AS distance";
+$stmt = $pdo->prepare("SELECT e.*,u.display_name AS owner_name $distanceSql FROM exchanges e LEFT JOIN users u ON u.user_id=e.owner_id WHERE $whereSql ORDER BY $orderSql LIMIT :limit OFFSET :offset");
 foreach ($params as $key => $value) $stmt->bindValue($key, $value);
+if($hasLocation){$stmt->bindValue(':buyerLat',$buyerLat);$stmt->bindValue(':buyerLng',$buyerLng);}
 $stmt->bindValue(':limit',$perPage,PDO::PARAM_INT);
 $stmt->bindValue(':offset',$offset,PDO::PARAM_INT);
 $stmt->execute();
@@ -73,9 +79,9 @@ function exchangeQuery(array $changes=[]): string {
 <div class="home-sticky-header"><?php require __DIR__.'/../components/header.php'; ?><?php require __DIR__.'/../components/home_nav.php'; ?></div>
 <main class="exchange-content"><div class="exchange-wrap">
     <section class="exchange-hero"><div><h1 class="exchange-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M18 7l-3 3M17 17H6l3 3M6 17l3-3"/></svg>ลานแลกเปลี่ยนหนังสือ</h1><p class="exchange-quote">“พบปะเพื่อนร่วมอุดมการณ์การอ่าน ส่งต่อความรู้ และค้นหาขุมทรัพย์วรรณกรรมเล่มใหม่ ผ่านการแลกเปลี่ยนที่ไร้พรมแดน”</p><a class="post-btn" href="#exchange-list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>โพสต์หนังสือสำหรับแลก</a></div><div class="exchange-latest-box"><?php if($latestExchanges):foreach($latestExchanges as $index=>$hero):$img=exchangeImage($hero['image_cover']??null)?:'/assets/image/minilogo.png';?><a class="exchange-latest-slide <?=$index===0?'active':''?>" href="/pages/book_detail.php?source=exchange&amp;id=<?=(int)$hero['exchange_id']?>"><div class="exchange-latest-cover"><img src="<?=htmlspecialchars($img)?>" alt="ปกหนังสือ <?=htmlspecialchars($hero['title'])?>"></div><div class="exchange-latest-detail"><span class="exchange-latest-badge">โพสต์ล่าสุด</span><h3><?=htmlspecialchars($hero['title'])?></h3><p class="exchange-latest-author"><?=htmlspecialchars($hero['author']?:'ไม่ระบุผู้เขียน')?></p><p class="exchange-latest-owner"><?=htmlspecialchars($hero['owner_name'])?></p><p class="exchange-latest-condition">สภาพ <?=htmlspecialchars((string)$hero['condition_percent'])?>%</p></div></a><?php endforeach;?><div class="exchange-latest-dots"><?php foreach($latestExchanges as $index=>$hero):?><button class="exchange-latest-dot <?=$index===0?'active':''?>" type="button" data-slide="<?=$index?>" aria-label="แสดงประกาศล่าสุดลำดับ <?=$index+1?>"></button><?php endforeach;?></div><?php else:?><div class="exchange-latest-empty">ยังไม่มีประกาศแลกเปลี่ยน</div><?php endif;?></div></section>
-    <form class="filter-box" method="get"><div class="filter-grid"><div class="field"><label>ค้นหาตามชื่อ/ผู้แต่ง</label><input name="q" value="<?=htmlspecialchars($keyword)?>" placeholder="พิมพ์ชื่อหนังสือที่คุณกำลังตามหา..."></div><div class="field"><label>สภาพหนังสือ</label><select name="condition"><option value="">ทั้งหมด</option><?php foreach(['99'=>'เหมือนใหม่ 99%','90'=>'สภาพดี 90%','80'=>'สภาพปานกลาง 80%','70'=>'มีร่องรอย 70%'] as $value=>$label): ?><option value="<?=$value?>" <?=$condition===$value?'selected':''?>><?=$label?></option><?php endforeach; ?></select></div><div class="field"><label>หมวดหมู่</label><select name="category"><option value="">ทั้งหมด</option><?php foreach($categories as $value): ?><option <?=$category===$value?'selected':''?>><?=htmlspecialchars($value)?></option><?php endforeach; ?></select></div></div><div class="filter-actions"><button class="filter-btn filter-submit">กรองข้อมูล</button><a class="filter-btn filter-reset" href="/pages/exchange_books.php">ล้าง</a></div></form>
-    <div class="result-bar" id="exchange-list"><span>แสดงผลลัพธ์ <?= $total ? number_format($offset+1).'–'.number_format(min($offset+$perPage,$total)) : '0' ?> จากทั้งหมด <?=number_format($total)?> รายการ</span><form class="sort" method="get"><?php foreach($_GET as $key=>$value): if($key==='sort'||$key==='page')continue; ?><input type="hidden" name="<?=htmlspecialchars($key)?>" value="<?=htmlspecialchars($value)?>"><?php endforeach; ?><label>จัดเรียงตาม:</label><select name="sort" onchange="this.form.submit()"><option value="latest" <?=$sort==='latest'?'selected':''?>>ใหม่ล่าสุด</option><option value="oldest" <?=$sort==='oldest'?'selected':''?>>เก่าสุด</option><option value="condition" <?=$sort==='condition'?'selected':''?>>สภาพดีที่สุด</option><option value="title" <?=$sort==='title'?'selected':''?>>ชื่อหนังสือ</option></select></form></div>
-    <div class="exchange-grid"><?php if(!$exchanges): ?><div class="empty-exchange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 7h11l-3-3M18 7l-3 3M17 17H6l3 3M6 17l3-3"/></svg><h3>ยังไม่มีรายการแลกเปลี่ยน</h3><p>เมื่อมีสมาชิกโพสต์หนังสือ รายการจะแสดงที่นี่</p></div><?php else: foreach($exchanges as $row){$book=['id'=>(int)$row['exchange_id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>0,'badge'=>'แลกเปลี่ยน','image'=>exchangeImage($row['image_cover']??null)];$card_type='exchange';require __DIR__.'/../components/book_card.php';} endif; ?></div>
+    <form class="filter-box" method="get"><div class="filter-grid"><div class="field"><label>ค้นหาตามชื่อ/ผู้แต่ง</label><input name="q" value="<?=htmlspecialchars($keyword)?>" placeholder="พิมพ์ชื่อหนังสือที่คุณกำลังตามหา..."></div><div class="field"><label>สภาพหนังสือ</label><select name="condition"><option value="">ทั้งหมด</option><?php foreach(['99'=>'เหมือนใหม่ 99%','90'=>'สภาพดี 90%','80'=>'สภาพปานกลาง 80%','70'=>'มีร่องรอย 70%'] as $value=>$label): ?><option value="<?=$value?>" <?=$condition===$value?'selected':''?>><?=$label?></option><?php endforeach; ?></select></div><div class="field"><label>หมวดหมู่</label><select name="category"><option value="">ทั้งหมด</option><?php foreach($categories as $value): ?><option <?=$category===$value?'selected':''?>><?=htmlspecialchars($value)?></option><?php endforeach; ?></select></div></div><div class="filter-actions"><button type="button" class="filter-btn" style="background:#f4f4f4;color:#444;border-color:#ccc" onclick="setGPSCookie()">📍 ดึงพิกัดหาระยะทาง</button><button class="filter-btn filter-submit">กรองข้อมูล</button><a class="filter-btn filter-reset" href="/pages/exchange_books.php">ล้าง</a></div></form>
+    <div class="result-bar" id="exchange-list"><span>แสดงผลลัพธ์ <?= $total ? number_format($offset+1).'–'.number_format(min($offset+$perPage,$total)) : '0' ?> จากทั้งหมด <?=number_format($total)?> รายการ</span><form class="sort" method="get"><?php foreach($_GET as $key=>$value): if($key==='sort'||$key==='page')continue; ?><input type="hidden" name="<?=htmlspecialchars($key)?>" value="<?=htmlspecialchars($value)?>"><?php endforeach; ?><label>จัดเรียงตาม:</label><select name="sort" onchange="this.form.submit()"><option value="latest" <?=$sort==='latest'?'selected':''?>>ใหม่ล่าสุด</option><?php if($hasLocation):?><option value="distance" <?=$sort==='distance'?'selected':''?>>ใกล้ฉันที่สุด</option><?php endif;?><option value="oldest" <?=$sort==='oldest'?'selected':''?>>เก่าสุด</option><option value="condition" <?=$sort==='condition'?'selected':''?>>สภาพดีที่สุด</option><option value="title" <?=$sort==='title'?'selected':''?>>ชื่อหนังสือ</option></select></form></div>
+    <div class="exchange-grid"><?php if(!$exchanges): ?><div class="empty-exchange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 7h11l-3-3M18 7l-3 3M17 17H6l3 3M6 17l3-3"/></svg><h3>ยังไม่มีรายการแลกเปลี่ยน</h3><p>เมื่อมีสมาชิกโพสต์หนังสือ รายการจะแสดงที่นี่</p></div><?php else: foreach($exchanges as $row){$distanceText=$row['distance']!==null?number_format($row['distance'],1).' กม.':'';$book=['id'=>(int)$row['exchange_id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>0,'badge'=>'แลกเปลี่ยน','image'=>exchangeImage($row['image_cover']??null),'distance'=>$distanceText];$card_type='exchange';require __DIR__.'/../components/book_card.php';} endif; ?></div>
     <?php if($totalPages>1): ?><nav class="pagination" aria-label="หน้ารายการ"><?php for($p=1;$p<=$totalPages;$p++): ?><a class="<?=$p===$page?'active':''?>" href="<?=htmlspecialchars(exchangeQuery(['page'=>$p]))?>"><?=$p?></a><?php endfor; ?></nav><?php else: ?><div style="height:60px"></div><?php endif; ?>
 </div></main>
 <?php require __DIR__.'/../components/footer.php'; ?>
@@ -100,5 +106,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.addEventListener('visibilitychange',()=>document.hidden?clearInterval(timer):start());
     start();
 });
+function setGPSCookie(){
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(p=>{
+            document.cookie = "buyer_lat="+p.coords.latitude+"; path=/; max-age=86400";
+            document.cookie = "buyer_lng="+p.coords.longitude+"; path=/; max-age=86400";
+            location.reload();
+        }, ()=>alert('ไม่สามารถดึงตำแหน่งได้'));
+    } else { alert('ไม่รองรับการดึงตำแหน่ง'); }
+}
 </script>
 </body></html>

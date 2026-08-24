@@ -595,27 +595,28 @@ try {
             </p>
 
             <!-- AI Search -->
-            <div class="dt-search">
-                <input type="text" placeholder="พูดคุยกับหนังสือผ่าน Digital Twin...">
-                <button class="send-btn" aria-label="ส่ง">
+            <form class="dt-search" method="GET" action="/pages/digital_twin.php">
+                <input type="hidden" name="discover" value="1">
+                <input type="text" name="message" placeholder="พูดคุยกับหนังสือผ่าน Digital Twin...">
+                <button class="send-btn" type="submit" aria-label="ส่ง">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"/>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                     </svg>
                 </button>
-            </div>
+            </form>
 
             <!-- Feature Cards -->
             <div class="dt-cards">
-                <div class="dt-card">
+                <div class="dt-card" onclick="location.href='/pages/mood_match.php'">
                     <div class="dt-card-ico pink">📖</div>
                     <h3>Mood Match</h3>
                     <p>ระบบจะค้นหาหนังสือที่เข้ากับบรรยากาศและความสนุกของคุณ
                        เพื่อให้การค้นหาหนังสือเป็นเรื่องง่ายและตรงความต้องการยิ่งขึ้น</p>
                     <a href="/pages/mood_match.php">เริ่มต้นตอนนี้ ›</a>
                 </div>
-                <div class="dt-card">
+                <div class="dt-card" onclick="location.href='/pages/book_genome.php'">
                     <div class="dt-card-ico teal">📚</div>
                     <h3>Book Genome</h3>
                     <p>ค้นหาหนังสือการอ่านที่เป็นเอกลักษณ์ของคุณ

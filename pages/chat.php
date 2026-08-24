@@ -36,6 +36,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['send_message'])){
  if($conv&&$text!==''){$pdo->beginTransaction();try{$pdo->prepare('INSERT INTO chat_messages(conversation_id,sender_user_id,message_text) VALUES(?,?,?)')->execute([$conversationId,$userId,$text]);$pdo->prepare('UPDATE chat_conversations SET last_message_at=NOW() WHERE conversation_id=?')->execute([$conversationId]);if($conv['seller_type']==='user'){$recipients=[(int)$conv['customer_user_id']===$userId?(int)$conv['seller_id']:(int)$conv['customer_user_id']];}else{$table=$conv['seller_type']==='publisher'?'publisher_staff':'shop_staff';$col=$conv['seller_type']==='publisher'?'publisher_id':'shop_id';$s=$pdo->prepare("SELECT user_id FROM $table WHERE $col=?");$s->execute([$conv['seller_id']]);$recipients=$s->fetchAll(PDO::FETCH_COLUMN);}$n=$pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,chat_conversation_id,is_read,sent_via) VALUES(?,'ข้อความใหม่',?,'chat',?,0,'web')");foreach($recipients as $sid)$n->execute([$sid,mb_strimwidth($text,0,120,'…'),$conversationId]);$pdo->commit();}catch(Throwable $e){$pdo->rollBack();throw $e;}}
  header('Location:/pages/chat.php?conversation='.$conversationId);exit;
 }
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['delete_conversation'])){
+ if(!hash_equals($_SESSION['chat_csrf'],$_POST['csrf_token']??''))exit('คำขอไม่ถูกต้อง');
+ $delId=(int)$_POST['delete_conversation_id'];
+ $pdo->prepare("DELETE FROM chat_conversations WHERE conversation_id=? AND (customer_user_id=? OR (seller_type='user' AND seller_id=?))")->execute([$delId,$userId,$userId]);
+ header('Location:/pages/chat.php');exit;
+}
 $list=$pdo->prepare("SELECT c.*,CASE WHEN c.seller_type='user' AND c.seller_id=? THEN COALESCE(NULLIF(cu.display_name,''),cu.email) ELSE COALESCE(p.company_name,s.shop_name,NULLIF(su.display_name,''),su.email) END seller_name,CASE WHEN c.seller_type='user' AND c.seller_id=? THEN cu.profile_image ELSE COALESCE(p.profile_image,s.profile_image,su.profile_image) END profile_image,(SELECT message_text FROM chat_messages WHERE conversation_id=c.conversation_id ORDER BY message_id DESC LIMIT 1) last_text FROM chat_conversations c LEFT JOIN publishers p ON c.seller_type='publisher' AND p.publisher_id=c.seller_id LEFT JOIN shops s ON c.seller_type='shop' AND s.shop_id=c.seller_id LEFT JOIN users su ON c.seller_type='user' AND su.user_id=c.seller_id LEFT JOIN users cu ON cu.user_id=c.customer_user_id WHERE c.customer_user_id=? OR (c.seller_type='user' AND c.seller_id=?) ORDER BY c.last_message_at DESC,c.updated_at DESC");$list->execute([$userId,$userId,$userId,$userId]);$conversations=$list->fetchAll(PDO::FETCH_ASSOC);
 $active=null;$messages=[];$book=null;$exchange=null;$exchangeRequest=null;if($conversationId){$q=$pdo->prepare("SELECT c.*,CASE WHEN c.seller_type='user' AND c.seller_id=? THEN COALESCE(NULLIF(cu.display_name,''),cu.email) ELSE COALESCE(p.company_name,s.shop_name,NULLIF(su.display_name,''),su.email) END seller_name,CASE WHEN c.seller_type='user' AND c.seller_id=? THEN cu.profile_image ELSE COALESCE(p.profile_image,s.profile_image,su.profile_image) END profile_image FROM chat_conversations c LEFT JOIN publishers p ON c.seller_type='publisher' AND p.publisher_id=c.seller_id LEFT JOIN shops s ON c.seller_type='shop' AND s.shop_id=c.seller_id LEFT JOIN users su ON c.seller_type='user' AND su.user_id=c.seller_id LEFT JOIN users cu ON cu.user_id=c.customer_user_id WHERE c.conversation_id=? AND (c.customer_user_id=? OR (c.seller_type='user' AND c.seller_id=?))");$q->execute([$userId,$userId,$conversationId,$userId,$userId]);$active=$q->fetch(PDO::FETCH_ASSOC);if($active){$q=$pdo->prepare('SELECT m.*,u.display_name FROM chat_messages m JOIN users u ON u.user_id=m.sender_user_id WHERE m.conversation_id=? ORDER BY m.message_id');$q->execute([$conversationId]);$messages=$q->fetchAll(PDO::FETCH_ASSOC);$pdo->prepare('UPDATE chat_messages SET is_read=1 WHERE conversation_id=? AND sender_user_id<>?')->execute([$conversationId,$userId]);if($active['referenced_book_id']){$q=$pdo->prepare('SELECT * FROM books WHERE book_id=?');$q->execute([$active['referenced_book_id']]);$book=$q->fetch(PDO::FETCH_ASSOC);}elseif($active['referenced_exchange_id']){$q=$pdo->prepare('SELECT * FROM exchanges WHERE exchange_id=?');$q->execute([$active['referenced_exchange_id']]);$exchange=$q->fetch(PDO::FETCH_ASSOC);if($exchange&&$active['seller_type']==='user'){$q=$pdo->prepare("SELECT er.*,offer.title offer_title,offer.image_cover offer_image,offer.condition_percent offer_condition FROM exchange_requests er LEFT JOIN exchanges offer ON offer.exchange_id=er.offered_exchange_id WHERE er.exchange_id=? AND er.requester_id IN (?,?) ORDER BY er.updated_at DESC LIMIT 1");$q->execute([(int)$active['referenced_exchange_id'],(int)$active['customer_user_id'],(int)$active['seller_id']]);$exchangeRequest=$q->fetch(PDO::FETCH_ASSOC)?:null;}}}}
 $ownMessageIds=[];$lastReadOwnMessageId=0;$lastMessageId=0;foreach($messages as $message){$lastMessageId=max($lastMessageId,(int)$message['message_id']);if((int)$message['sender_user_id']===$userId){$ownMessageIds[]=(int)$message['message_id'];if((int)$message['is_read']===1)$lastReadOwnMessageId=(int)$message['message_id'];}}
@@ -258,4 +264,100 @@ document.addEventListener('DOMContentLoaded',()=>{
  .chat-head{padding:20px 64px 20px 20px}
  .chat-back{display:none}
 }
-</style></head><body><?php require __DIR__.'/../components/header.php';?><div class="layout"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><?php foreach($conversations as $c):?><a class="thread <?=$conversationId==(int)$c['conversation_id']?'active':''?>" href="?conversation=<?=$c['conversation_id']?>"><strong><?=htmlspecialchars($c['seller_name'])?></strong><small><?=htmlspecialchars($c['last_text']?:'เริ่มต้นบทสนทนา')?></small></a><?php endforeach;?></aside><?php if(!$active):?><section class="empty">เลือกบทสนทนาเพื่อเริ่มแชต</section><aside class="product"></aside><?php else:?><section class="conversation"><h2 class="chat-head"><?=htmlspecialchars($active['seller_name'])?></h2><div class="messages"><?php foreach($messages as $m):?><div class="bubble <?=$m['sender_user_id']==$userId?'mine':''?>"><?=nl2br(htmlspecialchars($m['message_text']))?><time><?=date('H:i',strtotime($m['created_at']))?></time></div><?php endforeach;?></div><form class="composer" method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="conversation_id" value="<?=$conversationId?>"><input name="message_text" placeholder="พิมพ์ข้อความ..." required autocomplete="off"><button name="send_message">➤</button></form></section><aside class="product"><h3><?=$exchange?'ข้อมูลรายการแลกเปลี่ยน':'ข้อมูลสินค้าที่ถามถึง'?></h3><?php if($book):?><div class="product-card"><?php if($img=chatImage($book['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($book['title'])?>"><?php endif;?><strong><?=htmlspecialchars($book['title'])?></strong><span>฿<?=number_format($book['price'],2)?></span><div class="chat-product-actions"><button class="chat-product-btn cart" type="button" onclick="addToCart(<?=$book['book_id']?>)">เพิ่มลงตะกร้า</button><a class="chat-product-btn detail" href="/pages/book_detail.php?id=<?=$book['book_id']?>">ดูรายละเอียดสินค้า</a></div></div><?php elseif($exchange):?><div class="product-card"><?php if($img=chatImage($exchange['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($exchange['title'])?>"><?php endif;?><strong><?=htmlspecialchars($exchange['title'])?></strong><span>รายการแลกเปลี่ยน · สภาพ <?=number_format((int)($exchange['condition_percent']??0))?>%</span><div class="chat-product-actions"><?php if((int)$exchange['owner_id']!==$userId):?><a class="chat-product-btn exchange" href="/pages/exchange_request.php?exchange_id=<?=$exchange['exchange_id']?>">ยื่นคำขอแลกเปลี่ยน</a><?php endif;?><a class="chat-product-btn detail" href="/pages/book_detail.php?source=exchange&amp;id=<?=$exchange['exchange_id']?>">ดูรายละเอียดรายการแลกเปลี่ยน</a></div></div><?php else:?><div class="empty" style="padding:50px 15px">บทสนทนาทั่วไป</div><?php endif;?></aside><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?><?php if($book):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?id=<?=$book['book_id']?>');</script><?php elseif($exchange):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=<?=$exchange['exchange_id']?>');</script><?php endif;?></body></html>
+</style>
+<style>
+ .confirm-modal-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(36, 58, 62, 0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; animation: fadeIn 0.2s ease-out; }
+ .confirm-modal-box { background: #fff; padding: 32px 28px; border-radius: 20px; width: 90%; max-width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.12); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+ .confirm-icon { width: 64px; height: 64px; margin: 0 auto 18px; background: #fff0f4; color: #d9534f; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid #fff9fa; box-shadow: 0 4px 10px rgba(217,83,79,0.1); }
+ .confirm-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+ .confirm-modal-box h3 { margin: 0 0 10px; color: var(--secondary-color); font-size: 21px; font-weight: 600; }
+ .confirm-modal-box p { margin: 0 0 26px; color: var(--text-muted); font-size: 15px; line-height: 1.5; }
+ .confirm-actions { display: flex; gap: 12px; }
+ .confirm-actions button { flex: 1; min-height: 46px; border: 0; border-radius: 12px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 15px; transition: transform 0.15s, background-color 0.2s; }
+ .confirm-actions button:active { transform: scale(0.97); }
+ .btn-cancel { background: #f2ebe8; color: var(--text-dark); }
+ .btn-cancel:hover { background: #e5ddd8; }
+ .btn-confirm { background: #d9534f; color: #fff; box-shadow: 0 4px 12px rgba(217,83,79,0.2); }
+ .btn-confirm:hover { background: #c9302c; }
+ @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+ @keyframes popIn { from { opacity: 0; transform: translateY(15px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
+ </style>
+</head><body><?php require __DIR__.'/../components/header.php';?><div class="layout"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><style>.thread-swipe-wrapper::-webkit-scrollbar{display:none}</style><?php foreach($conversations as $c):?><div class="thread-swipe-wrapper" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-bottom:1px solid #eee;"><a class="thread <?=$conversationId==(int)$c['conversation_id']?'active':''?>" href="?conversation=<?=$c['conversation_id']?>" style="flex:0 0 100%; scroll-snap-align:start; border-bottom:0; min-width:100%;"><strong><?=htmlspecialchars($c['seller_name'])?></strong><small><?=htmlspecialchars($c['last_text']?:'เริ่มต้นบทสนทนา')?></small></a><form method="post" style="flex:0 0 75px; scroll-snap-align:end; background:#d9534f; display:flex;" onsubmit="return handleThreadDelete(event, this);"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="delete_conversation" value="1"><input type="hidden" name="delete_conversation_id" value="<?=$c['conversation_id']?>"><button class="thread-delete-btn" type="submit" style="width:100%; border:0; background:transparent; color:#fff; font-weight:600; font:inherit; cursor:pointer;">ลบ</button></form></div><?php endforeach;?></aside><?php if(!$active):?><section class="empty">เลือกบทสนทนาเพื่อเริ่มแชต</section><aside class="product"></aside><?php else:?><section class="conversation"><h2 class="chat-head"><?=htmlspecialchars($active['seller_name'])?></h2><div class="messages"><?php foreach($messages as $m):?><div class="bubble <?=$m['sender_user_id']==$userId?'mine':''?>"><?=nl2br(htmlspecialchars($m['message_text']))?><time><?=date('H:i',strtotime($m['created_at']))?></time></div><?php endforeach;?></div><form class="composer" method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="conversation_id" value="<?=$conversationId?>"><input name="message_text" placeholder="พิมพ์ข้อความ..." required autocomplete="off"><button name="send_message">➤</button></form></section><aside class="product"><h3><?=$exchange?'ข้อมูลรายการแลกเปลี่ยน':'ข้อมูลสินค้าที่ถามถึง'?></h3><?php if($book):?><div class="product-card"><?php if($img=chatImage($book['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($book['title'])?>"><?php endif;?><strong><?=htmlspecialchars($book['title'])?></strong><span>฿<?=number_format($book['price'],2)?></span><div class="chat-product-actions"><button class="chat-product-btn cart" type="button" onclick="addToCart(<?=$book['book_id']?>)">เพิ่มลงตะกร้า</button><a class="chat-product-btn detail" href="/pages/book_detail.php?id=<?=$book['book_id']?>">ดูรายละเอียดสินค้า</a></div></div><?php elseif($exchange):?><div class="product-card"><?php if($img=chatImage($exchange['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($exchange['title'])?>"><?php endif;?><strong><?=htmlspecialchars($exchange['title'])?></strong><span>รายการแลกเปลี่ยน · สภาพ <?=number_format((int)($exchange['condition_percent']??0))?>%</span><div class="chat-product-actions"><?php if((int)$exchange['owner_id']!==$userId):?><a class="chat-product-btn exchange" href="/pages/exchange_request.php?exchange_id=<?=$exchange['exchange_id']?>">ยื่นคำขอแลกเปลี่ยน</a><?php endif;?><a class="chat-product-btn detail" href="/pages/book_detail.php?source=exchange&amp;id=<?=$exchange['exchange_id']?>">ดูรายละเอียดรายการแลกเปลี่ยน</a></div></div><?php else:?><div class="empty" style="padding:50px 15px">บทสนทนาทั่วไป</div><?php endif;?></aside><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?><?php if($book):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?id=<?=$book['book_id']?>');</script><?php elseif($exchange):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=<?=$exchange['exchange_id']?>');</script><?php endif;?>
+ <div id="deleteConfirmModal" class="confirm-modal-overlay">
+     <div class="confirm-modal-box">
+         <div class="confirm-icon">
+             <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+         </div>
+         <h3>ยืนยันการลบแชท</h3>
+         <p>คุณแน่ใจหรือไม่ว่าต้องการลบแชทนี้?<br>การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+         <div class="confirm-actions">
+             <button type="button" class="btn-cancel" onclick="closeDeleteModal()">ยกเลิก</button>
+             <button type="button" class="btn-confirm" id="confirmDeleteBtn">ลบแชท</button>
+         </div>
+     </div>
+ </div>
+ <script>
+ let currentDeleteForm = null;
+ function handleThreadDelete(e, form) {
+     e.preventDefault();
+     currentDeleteForm = form;
+     document.getElementById('deleteConfirmModal').style.display = 'flex';
+     return false;
+ }
+ function closeDeleteModal() {
+     document.getElementById('deleteConfirmModal').style.display = 'none';
+     currentDeleteForm = null;
+ }
+ document.addEventListener('DOMContentLoaded', () => {
+     document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
+         if(currentDeleteForm) currentDeleteForm.submit();
+     });
+     
+     document.querySelectorAll('.thread-swipe-wrapper').forEach(wrapper => {
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+        let isDragged = false;
+        
+        wrapper.querySelectorAll('a, img').forEach(el => el.draggable = false);
+        
+        wrapper.addEventListener('mousedown', (e) => {
+            isDragged = false;
+            if (e.target.closest('.thread-delete-btn')) return; // let buttons work
+            isDown = true;
+            startX = e.pageX - wrapper.offsetLeft;
+            scrollLeft = wrapper.scrollLeft;
+            wrapper.style.scrollSnapType = 'none';
+        });
+        wrapper.addEventListener('mouseleave', () => {
+            if(!isDown) return;
+            isDown = false;
+            wrapper.style.scrollSnapType = 'x mandatory';
+            if (wrapper.scrollLeft > 30) wrapper.scrollTo({left: 75, behavior: 'smooth'});
+            else wrapper.scrollTo({left: 0, behavior: 'smooth'});
+        });
+        wrapper.addEventListener('mouseup', (e) => {
+            if(!isDown) return;
+            isDown = false;
+            wrapper.style.scrollSnapType = 'x mandatory';
+            if (wrapper.scrollLeft > 30) wrapper.scrollTo({left: 75, behavior: 'smooth'});
+            else wrapper.scrollTo({left: 0, behavior: 'smooth'});
+        });
+        wrapper.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - wrapper.offsetLeft;
+            const walk = (startX - x);
+            if (Math.abs(walk) > 5) isDragged = true;
+            wrapper.scrollLeft = scrollLeft + walk;
+        });
+        wrapper.addEventListener('click', (e) => {
+            if (isDragged) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+    });
+});
+</script>
+</body></html>

@@ -22,7 +22,8 @@ function handleSaveBook(PDO $pdo, int $seller_id, string $seller_type, string $s
         if (!is_dir($upload_base)) mkdir($upload_base, 0755, true);
         $imgs = handleBookImages(['image_cover','image_back','image_inside','image_edge'], $upload_base);
         insertBook($pdo, $f, $imgs, $seller_id, $seller_type, $status);
-        return ['success' => $status === 'draft' ? 'บันทึกร่างเรียบร้อย!' : 'เพิ่มหนังสือสำเร็จ!'];
+        $coverPath = !empty($imgs['image_cover']) ? '/pages/' . ltrim($imgs['image_cover'], '/') : '';
+        return ['success' => $status === 'draft' ? 'บันทึกร่างเรียบร้อย!' : 'เพิ่มหนังสือสำเร็จ!', 'cover' => $coverPath];
     } catch (PDOException $e) {
         return ['error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()];
     }

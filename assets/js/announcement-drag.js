@@ -6,7 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.head.appendChild(style);
 
     document.querySelectorAll('.announcement-list').forEach((rail) => {
-        const originals = [...rail.querySelectorAll('.announcement-card')];
+        if (rail.dataset.carouselInit) return;
+        rail.dataset.carouselInit = '1';
+        
+        const originals = [...rail.querySelectorAll('.announcement-card:not(.is-carousel-clone)')];
         if (!originals.length) return;
         const strip = rail.closest('.announcement-strip');
         const count = originals.length;

@@ -50,7 +50,7 @@ async function wanawanAction(url, payload) {
             type:'error',
             linkHref:data.login_url,
             linkText:'เข้าสู่ระบบ',
-            closeText:'เลือกซื้อต่อ'
+            closeText:'ปิดหน้าต่าง'
         });
         throw new Error(data.message);
     }
@@ -58,12 +58,39 @@ async function wanawanAction(url, payload) {
     return data;
 }
 
+window.requireLoginPopup = function(title = 'กรุณาเข้าสู่ระบบ', message = 'เข้าสู่ระบบก่อนทำรายการ') {
+    showWanawanPopup(title, message, {
+        type:'error',
+        linkHref:'/pages/login.php',
+        linkText:'เข้าสู่ระบบ',
+        closeText:'ปิดหน้าต่าง'
+    });
+};
+
 window.addToCart = async function(bookId) {
     try {
         await wanawanAction('/pages/handlers/cart_handler.php', {action:'add', book_id:bookId});
         showWanawanPopup('เพิ่มลงตะกร้าแล้ว', 'หนังสือถูกเพิ่มลงในตะกร้าสินค้าของคุณเรียบร้อยแล้ว');
     } catch (error) {
         if (error.message !== 'กรุณาเข้าสู่ระบบก่อน') showWanawanPopup('ไม่สามารถเพิ่มสินค้าได้', error.message, {type:'error', showCart:false});
+    }
+};
+
+window.buyNow = async function(bookId) {
+    try {
+        await wanawanAction('/pages/handlers/cart_handler.php', {action:'add', book_id:bookId});
+        const checkout = document.createElement('form');
+        checkout.method = 'post';
+        checkout.action = '/pages/checkout_summary.php';
+        const selected = document.createElement('input');
+        selected.type = 'hidden';
+        selected.name = 'selected_ids';
+        selected.value = JSON.stringify([bookId]);
+        checkout.appendChild(selected);
+        document.body.appendChild(checkout);
+        checkout.submit();
+    } catch (error) {
+        if (error.message !== 'กรุณาเข้าสู่ระบบก่อน') showWanawanPopup('ไม่สามารถสั่งซื้อได้', error.message, {type:'error', showCart:false});
     }
 };
 

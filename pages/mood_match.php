@@ -329,12 +329,7 @@ require_once __DIR__ . '/../config/config.php';
 <main class="mood-page">
     <section class="mood-shell">
         <header class="mood-head">
-            <a href="/pages/home.php" class="mood-back" aria-label="กลับไปหน้าหลัก">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-            </a>
+
             <span class="mood-orb">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>

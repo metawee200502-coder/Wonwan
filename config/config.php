@@ -72,6 +72,14 @@ try {
     if (!in_array($e->getCode(), ['42S02','42S22'], true)) throw $e;
 }
 
+// ตรวจสอบโปรโมชั่นที่หมดอายุ หรือครบโควต้า เพื่อปิดการใช้งานและลบประกาศอัตโนมัติ
+try {
+    require_once __DIR__ . '/promotions.php';
+    wanawanExpirePromotions($pdo);
+} catch (PDOException $e) {
+    if (!in_array($e->getCode(), ['42S02','42S22'], true)) throw $e;
+}
+
 // บัญชีสำนักพิมพ์และร้านค้าใช้งานเฉพาะระบบหลังบ้าน
 if (session_status() === PHP_SESSION_ACTIVE
     && in_array($_SESSION['role'] ?? '', ['publisher_admin', 'shop_admin'], true)

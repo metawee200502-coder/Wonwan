@@ -1,5 +1,23 @@
 <?php
 
+if (!function_exists('wanawanExpirePromotions')) {
+    function wanawanExpirePromotions(PDO $pdo): void {
+        // หา promotion ที่หมดอายุหรือครบโควต้าแล้ว แต่ยัง active อยู่
+        $stmt = $pdo->query("SELECT promotion_id FROM seller_promotions WHERE is_active = 1 AND (ends_at < NOW() OR (usage_limit IS NOT NULL AND usage_count >= usage_limit))");
+        $expiredIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        if ($expiredIds) {
+            $inClause = implode(',', array_map('intval', $expiredIds));
+            // ลบประกาศที่เกิดจากโปรโมชั่นเหล่านี้
+            $pdo->query("DELETE FROM shop_posts WHERE promotion_id IN ($inClause)");
+            $pdo->query("DELETE FROM publisher_posts WHERE promotion_id IN ($inClause)");
+            
+            // เปลี่ยนสถานะเป็นปิดใช้งาน
+            $pdo->query("UPDATE seller_promotions SET is_active = 0 WHERE promotion_id IN ($inClause)");
+        }
+    }
+}
+
 function wanawanBestSellerPromotion(PDO $pdo,string $sellerType,int $sellerId,float $subtotal,int $quantity,array $items=[]):array
 {
     $memberDiscount=round($subtotal*.05,2);
@@ -8,7 +26,8 @@ function wanawanBestSellerPromotion(PDO $pdo,string $sellerType,int $sellerId,fl
     if(!in_array($sellerType,['publisher','shop'],true)||$sellerId<1)return $result;
     try{
         $stmt=$pdo->prepare("SELECT * FROM seller_promotions WHERE seller_type=? AND seller_id=? AND is_active=1
-            AND starts_at<=NOW() AND ends_at>=NOW() AND minimum_quantity<=? AND minimum_amount<=?");
+            AND starts_at<=NOW() AND ends_at>=NOW() AND minimum_quantity<=? AND minimum_amount<=?
+            AND (usage_limit IS NULL OR usage_count < usage_limit)");
         $stmt->execute([$sellerType,$sellerId,$quantity,$subtotal]);
         foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $promotion){
             $eligibleSubtotal=$subtotal;$eligibleQuantity=$quantity;

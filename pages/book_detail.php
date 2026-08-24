@@ -27,7 +27,7 @@ function reviewerImageUrl(?string $value): ?string {
 }
 
 if ($source === 'exchange') {
-    $stmt = $pdo->prepare('SELECT e.*, u.display_name AS seller_name, u.email AS seller_email FROM exchanges e LEFT JOIN users u ON u.user_id = e.owner_id WHERE e.exchange_id = ? AND e.status <> "completed"');
+    $stmt = $pdo->prepare('SELECT e.*, u.display_name AS seller_name, u.email AS seller_email, u.latitude, u.longitude FROM exchanges e LEFT JOIN users u ON u.user_id = e.owner_id WHERE e.exchange_id = ? AND e.status <> "completed"');
     $stmt->execute([$id]);
     $item = $stmt->fetch(PDO::FETCH_ASSOC);
     $isExchange = true;
@@ -38,11 +38,11 @@ if ($source === 'exchange') {
     $isExchange = false;
     if ($item) {
         if ($item['seller_type'] === 'publisher') {
-            $sellerStmt = $pdo->prepare('SELECT company_name AS seller_name, description AS seller_description, profile_image, status AS seller_status FROM publishers WHERE publisher_id = ?');
+            $sellerStmt = $pdo->prepare('SELECT company_name AS seller_name, description AS seller_description, profile_image, status AS seller_status, NULL as latitude, NULL as longitude FROM publishers WHERE publisher_id = ?');
         } elseif ($item['seller_type'] === 'shop') {
-            $sellerStmt = $pdo->prepare('SELECT shop_name AS seller_name, description AS seller_description, profile_image, status AS seller_status FROM shops WHERE shop_id = ?');
+            $sellerStmt = $pdo->prepare('SELECT shop_name AS seller_name, description AS seller_description, profile_image, status AS seller_status, latitude, longitude FROM shops WHERE shop_id = ?');
         } else {
-            $sellerStmt = $pdo->prepare('SELECT COALESCE(NULLIF(display_name,\'\'),email) AS seller_name, bio AS seller_description, profile_image FROM users WHERE user_id = ?');
+            $sellerStmt = $pdo->prepare('SELECT COALESCE(NULLIF(display_name,\'\'),email) AS seller_name, bio AS seller_description, profile_image, latitude, longitude FROM users WHERE user_id = ?');
         }
         $sellerStmt->execute([$item['seller_id']]);
         $item = array_merge($item, $sellerStmt->fetch(PDO::FETCH_ASSOC) ?: []);
@@ -52,6 +52,19 @@ if ($source === 'exchange') {
 if (!$item) {
     http_response_code(404);
     exit('ไม่พบรายการหนังสือนี้ หรือรายการถูกปิดแล้ว');
+}
+
+$buyerLat = (float)($_COOKIE['buyer_lat'] ?? 0);
+$buyerLng = (float)($_COOKIE['buyer_lng'] ?? 0);
+if(empty($buyerLat) && !empty($_SESSION['user_id'])){
+    $userLoc=$pdo->prepare('SELECT latitude,longitude FROM users WHERE user_id=?');$userLoc->execute([$_SESSION['user_id']]);$u=$userLoc->fetch(PDO::FETCH_ASSOC);
+    if($u&&$u['latitude']){$buyerLat=(float)$u['latitude'];$buyerLng=(float)$u['longitude'];}
+}
+$distance = null;
+if ($buyerLat != 0 && $buyerLng != 0 && !empty($item['latitude']) && !empty($item['longitude'])) {
+    $lat1 = deg2rad($buyerLat); $lng1 = deg2rad($buyerLng);
+    $lat2 = deg2rad((float)$item['latitude']); $lng2 = deg2rad((float)$item['longitude']);
+    $distance = 6371 * acos(cos($lat1)*cos($lat2)*cos($lng2-$lng1)+sin($lat1)*sin($lat2));
 }
 
 $title = $item['title'];
@@ -224,6 +237,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
         <div>
             <span class="type-pill"><?= htmlspecialchars($isExchange ? 'แลกเปลี่ยน' : $condition) ?></span>
             <span class="product-source-tag product-source-tag--<?=htmlspecialchars($productSourceTag[1])?>"><?=htmlspecialchars($productSourceTag[0])?></span>
+            <?php if($distance!==null):?><span class="type-pill" style="background:#f3f4f6;color:var(--text-dark);border:1px solid #ccc;margin-left:7px">📍 ห่างจากคุณ <?=number_format($distance,1)?> กม.</span><?php endif;?>
             <h1 class="product-title"><?= htmlspecialchars($title) ?></h1>
             <div class="meta">ผู้เขียน: <strong><?= htmlspecialchars($item['author'] ?: '-') ?></strong><?php if (!empty($item['category'])): ?> &nbsp;•&nbsp; หมวดหมู่: <?= htmlspecialchars($item['category']) ?><?php endif; ?></div>
 
@@ -259,7 +273,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <?php if ($isOutOfStock): ?>
                 <div class="actions"><button class="action-btn action-primary" disabled>สินค้าหมด</button><button class="action-btn action-outline" disabled>สินค้าหมด</button><a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a><a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a></div>
                 <?php else: ?>
-                <div class="actions"><button class="action-btn action-primary" onclick="addToCart(<?= $id ?>)">เพิ่มลงรถเข็น</button><button class="action-btn action-outline" onclick="addToCart(<?= $id ?>)">ซื้อเลย</button><a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a><a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a></div>
+                <div class="actions"><button class="action-btn action-primary" onclick="addToCart(<?= $id ?>)">เพิ่มลงรถเข็น</button><button class="action-btn action-outline" onclick="buyNow(<?= $id ?>)">ซื้อเลย</button><a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a><a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a></div>
                 <?php endif; ?>
                 <?php else: ?>
                 <div class="owner-notice" style="padding:16px 20px;border-radius:10px;background:#fff5f0;border:1px solid #ead4c8;color:#8c6a5d;text-align:center;font-weight:600">นี่คือสินค้าที่คุณลงขาย</div>

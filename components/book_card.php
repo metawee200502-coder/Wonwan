@@ -80,24 +80,24 @@ $sourceTag = match ($source_seller_type) {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 28px 20px 24px;
-    min-height: 190px;
+    padding: 30px 20px 24px;
+    min-height: 240px;
 }
 
 /* ปกหนังสือ */
 .book-card__cover {
-    width: 88px;
-    height: 124px;
+    width: 140px;
+    height: 198px;
     object-fit: cover;
     border-radius: var(--radius-sm);
-    box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.12);
+    box-shadow: 2px 6px 16px rgba(0, 0, 0, 0.12);
     display: block;
 }
 
 /* Placeholder ถ้าไม่มีรูป */
 .book-card__placeholder {
-    width: 88px;
-    height: 124px;
+    width: 140px;
+    height: 198px;
     background-color: rgba(0, 0, 0, 0.05);
     border-radius: var(--radius-sm);
     display: flex;
@@ -346,11 +346,12 @@ $sourceTag = match ($source_seller_type) {
 
     <!-- Zone ข้อมูล -->
     <div class="book-card__info">
-        <?php if($sourceTag||$activePromotion):?><div class="book-card__tag-row">
+        <?php if($sourceTag||$activePromotion||!empty($book['distance'])):?><div class="book-card__tag-row">
         <?php if ($sourceTag): ?>
             <span class="book-card__source-tag book-card__source-tag--<?= htmlspecialchars($sourceTag[1]) ?>"><?= htmlspecialchars($sourceTag[0]) ?></span>
         <?php endif; ?>
         <?php if($activePromotion):?><span class="book-card__promo" title="<?=htmlspecialchars($activePromotion['promotion_name'].' · '.$activePromotion['display_condition'])?>">โปร <?=htmlspecialchars($activePromotion['display_discount'])?></span><?php endif;?>
+        <?php if(!empty($book['distance'])):?><span class="book-card__promo" style="background:#f0f2f5;color:var(--text-dark);border:1px solid #e1e4e8;box-shadow:none">📍 <?=htmlspecialchars($book['distance'])?></span><?php endif;?>
         </div><?php endif;?>
         <div class="book-card__title-row">
             <!-- ✅ แก้: เพิ่ม ?? 'ไม่มีชื่อ' ป้องกัน htmlspecialchars(null) -->

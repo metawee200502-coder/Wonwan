@@ -8,6 +8,7 @@
 //     ['label' => 'meowmeow book',          'url' => ''],  // หน้าปัจจุบัน ไม่มี url
 // ];
 $breadcrumbs = $breadcrumbs ?? [];
+require_once __DIR__ . '/breadcrumb_history.php';
 $headerUnreadCount = 0;
 if (!empty($_SESSION['user_id'])) {
     try {
@@ -90,6 +91,7 @@ if (!empty($_SESSION['user_id'])) {
     padding: 8px 16px;
     gap: 8px;
     transition: border-color 0.2s;
+    cursor: text;
 }
 .header-search form:focus-within {
     border-color: var(--primary-color);
@@ -103,6 +105,7 @@ if (!empty($_SESSION['user_id'])) {
     color: var(--text-dark);
     background: transparent;
     min-width: 0;
+    width: 100%;
 }
 .header-search input::placeholder {
     color: var(--text-muted);
@@ -123,7 +126,7 @@ if (!empty($_SESSION['user_id'])) {
 }
 
 /* ---------- Autocomplete ---------- */
-.ac-wrap{position:relative;flex:1;min-width:0}
+.ac-wrap{position:relative;flex:1;min-width:0;width:100%}
 .ac-dropdown{display:none;position:absolute;top:calc(100% + 8px);left:-16px;right:-16px;background:#fff;border:1.5px solid var(--border-color);border-radius:14px;box-shadow:0 8px 28px rgba(76,46,40,.12);z-index:2000;overflow:hidden;font-family:var(--font-family)}
 .ac-dropdown.open{display:block}
 .ac-item{display:flex;align-items:center;gap:11px;padding:9px 14px;cursor:pointer;text-decoration:none;color:var(--text-dark);transition:background .15s;border-bottom:1px solid #f6ede9}
@@ -231,6 +234,81 @@ if (!empty($_SESSION['user_id'])) {
     white-space: nowrap;
 }
 
+/* ปุ่มโพสต์หนังสือแบบลัด */
+.quick-post-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.quick-post-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--primary-color);
+    color: var(--text-light, #fff);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s, transform 0.2s;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+.quick-post-btn:hover {
+    background-color: var(--primary-hover);
+    color: var(--text-light, #fff);
+    transform: translateY(-1px);
+}
+.quick-post-btn svg {
+    display: block;
+}
+
+/* Dropdown เมนูเพิ่มโพสต์ */
+.quick-post-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    min-width: 260px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    z-index: 1000;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+.quick-post-wrapper:hover .quick-post-dropdown,
+.quick-post-wrapper:focus-within .quick-post-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.quick-post-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    color: var(--text-dark);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.quick-post-item:hover {
+    background-color: #fef0f3;
+}
+.quick-post-item:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+}
+.quick-post-icon {
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
     .header-topbar {
@@ -280,7 +358,7 @@ if (!empty($_SESSION['user_id'])) {
 
         <!-- Search Bar -->
         <div class="header-search">
-            <form action="/pages/search.php" method="GET" role="search">
+            <form action="/pages/search.php" method="GET" role="search" onclick="document.getElementById('headerSearchInput').focus()">
                 <div class="ac-wrap">
                     <input
                         type="text"
@@ -307,7 +385,46 @@ if (!empty($_SESSION['user_id'])) {
         <!-- Action Icons + Avatar -->
         <div class="header-actions">
 
+            <!-- ปุ่มโพสต์หนังสือแบบลัด -->
+            <?php if (!empty($_SESSION['user_id'])): ?>
+            <div class="quick-post-wrapper">
+                <button class="quick-post-btn" aria-label="เพิ่มโพสต์">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    เพิ่มโพสต์
+                </button>
+                <div class="quick-post-dropdown">
+                    <a href="/pages/sell_used_book.php" class="quick-post-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="quick-post-icon">
+                            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                        </svg>
+                        โพสต์สินค้ามือ 2
+                    </a>
+                    <a href="/pages/post_exchange.php" class="quick-post-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="quick-post-icon">
+                            <path d="M17 2l4 4-4 4"></path>
+                            <path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+                            <path d="M7 22l-4-4 4-4"></path>
+                            <path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                        โพสต์สำหรับแลกเปลี่ยนสินค้า
+                    </a>
+                </div>
+            </div>
+            <?php else: ?>
+            <a href="#" class="quick-post-btn" aria-label="เพิ่มโพสต์" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อโพสต์หนังสือ', 'คุณต้องเข้าสู่ระบบก่อนเพื่อเพิ่มโพสต์ใหม่')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                เพิ่มโพสต์
+            </a>
+            <?php endif; ?>
+
             <!-- ตะกร้าสินค้า -->
+            <?php if (!empty($_SESSION['user_id'])): ?>
             <a href="/pages/cart.php" class="icon-btn" aria-label="ตะกร้าสินค้า">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
@@ -318,8 +435,21 @@ if (!empty($_SESSION['user_id'])) {
                              a2 2 0 0 0 2-1.61L23 6H6"/>
                 </svg>
             </a>
+            <?php else: ?>
+            <a href="#" class="icon-btn" aria-label="ตะกร้าสินค้า" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อดูตะกร้า', 'คุณต้องเข้าสู่ระบบก่อนเพื่อดูตะกร้าสินค้า')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72
+                             a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+            </a>
+            <?php endif; ?>
 
             <!-- รายการโปรด -->
+            <?php if (!empty($_SESSION['user_id'])): ?>
             <a href="/pages/wishlist.php" class="icon-btn" aria-label="รายการโปรด">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
@@ -329,8 +459,20 @@ if (!empty($_SESSION['user_id'])) {
                              L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
             </a>
+            <?php else: ?>
+            <a href="#" class="icon-btn" aria-label="รายการโปรด" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อดูรายการโปรด', 'คุณต้องเข้าสู่ระบบก่อนเพื่อดูรายการโปรด')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67
+                             l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06
+                             L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+            </a>
+            <?php endif; ?>
 
             <!-- การแจ้งเตือน -->
+            <?php if (!empty($_SESSION['user_id'])): ?>
             <a href="/pages/notifications.php" class="icon-btn" aria-label="การแจ้งเตือน">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
@@ -341,6 +483,16 @@ if (!empty($_SESSION['user_id'])) {
                 <!-- แสดง badge ถ้ามีการแจ้งเตือน -->
                 <?php if ($headerUnreadCount > 0): ?><span class="icon-btn__badge" title="<?=$headerUnreadCount?> รายการใหม่"></span><?php endif; ?>
             </a>
+            <?php else: ?>
+            <a href="#" class="icon-btn" aria-label="การแจ้งเตือน" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'คุณต้องเข้าสู่ระบบก่อนเพื่อดูการแจ้งเตือน')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                </svg>
+            </a>
+            <?php endif; ?>
 
             <!-- Avatar / บัญชีผู้ใช้ -->
             <?php if (!empty($_SESSION['user_id'])): ?>

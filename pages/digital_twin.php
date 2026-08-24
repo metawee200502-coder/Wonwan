@@ -80,7 +80,6 @@ foreach ($titleMapStmt->fetchAll(PDO::FETCH_ASSOC) as $titleRow) $productTitleMa
 <main class="twin-page">
     <section class="twin-shell">
         <aside class="twin-book">
-            <a class="twin-back" href="<?=$isDiscover?'/pages/home.php':'/pages/book_detail.php?source='.urlencode($source).'&amp;id='.(int)$itemId?>">← <?=$isDiscover?'กลับหน้าหลัก':'กลับไปหน้าหนังสือ'?></a>
             <img class="twin-cover" src="<?=htmlspecialchars($cover)?>" alt="ปก <?=htmlspecialchars($item['title'])?>">
             <span class="twin-kicker">DIGITAL TWIN</span>
             <h1><?=htmlspecialchars($item['title'])?></h1>
