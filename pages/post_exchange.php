@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if (empty($_SESSION['user_id'])) { header('Location: /pages/login.php?redirect='.urlencode('/pages/post_exchange.php')); exit; }
 require_once __DIR__ . '/../config/config.php';
@@ -27,8 +27,19 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     }
     if (!$paths['image_cover']) $errors[]='กรุณาอัปโหลดรูปหน้าปก';
     if (!$errors) {
-        $stmt=$pdo->prepare('INSERT INTO exchanges (owner_id,isbn,title,author,category,condition_percent,defect_types,image_cover,image_back,image_inside,image_edge,wanted_type,wanted_detail,shipping_methods,story_reason,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"open")');
-        $stmt->execute([(int)$_SESSION['user_id'],$isbn,$title,$author?:null,$category?:null,$condition,implode(',',$defects),$paths['image_cover'],$paths['image_back'],$paths['image_inside'],$paths['image_edge'],$wanted,$wantedDetail?:null,implode(',',$shipping),$story?:null]);
+        // Sanitise GPS
+        $ownerLat = null; $ownerLng = null; $ownerProvince = null;
+        $rawLat = trim($_POST['owner_lat'] ?? '');
+        $rawLng = trim($_POST['owner_lng'] ?? '');
+        if (is_numeric($rawLat) && is_numeric($rawLng)) {
+            $lt = (float)$rawLat; $lg = (float)$rawLng;
+            if ($lt >= -90 && $lt <= 90 && $lg >= -180 && $lg <= 180) {
+                $ownerLat = $lt; $ownerLng = $lg;
+                $ownerProvince = mb_substr(trim($_POST['owner_province'] ?? ''), 0, 100) ?: null;
+            }
+        }
+        $stmt=$pdo->prepare('INSERT INTO exchanges (owner_id,isbn,title,author,category,condition_percent,defect_types,image_cover,image_back,image_inside,image_edge,wanted_type,wanted_detail,shipping_methods,story_reason,owner_lat,owner_lng,owner_province,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"open")');
+        $stmt->execute([(int)$_SESSION['user_id'],$isbn,$title,$author?:null,$category?:null,$condition,implode(',',$defects),$paths['image_cover'],$paths['image_back'],$paths['image_inside'],$paths['image_edge'],$wanted,$wantedDetail?:null,implode(',',$shipping),$story?:null,$ownerLat,$ownerLng,$ownerProvince]);
         $success = 'โพสต์ประกาศแลกเปลี่ยนสำเร็จ!';
         $insertedExchangeId = $pdo->lastInsertId();
         $cover = '/pages/' . ltrim($paths['image_cover'], '/');
@@ -71,7 +82,23 @@ function old(string $key): string { return htmlspecialchars($_POST[$key]??''); }
 <section class="section"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></span>รายละเอียดสภาพจริง</h2><p>กรุณาอัปโหลดรูปหน้าปก และรูปมุมอื่นเพื่อให้ผู้สนใจเห็นสภาพจริง</p><div class="uploads"><?php foreach(['image_cover'=>'หน้าปก *','image_back'=>'หลังปก','image_inside'=>'สันหนังสือ','image_edge'=>'ขอบกระดาษ'] as $field=>$label):?><label class="upload"><input type="file" name="<?=$field?>" accept="image/jpeg,image/png,image/webp" <?=$field==='image_cover'?'required':''?>><span>▧<br><?=$label?></span></label><?php endforeach;?></div></section>
 <section class="section"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span>ความต้องการในการแลกเปลี่ยน</h2><div class="choices"><?php foreach(['specific'=>'หนังสือเฉพาะเล่ม','category'=>'ตามหมวดหมู่','any'=>'เปิดรับทุกข้อเสนอ'] as $v=>$label):?><label class="choice"><input type="radio" name="wanted_type" value="<?=$v?>" <?=($_POST['wanted_type']??'')===$v?'checked':''?> required><span><?=$label?></span></label><?php endforeach;?></div><div class="field" style="margin-top:18px"><label>หนังสือหรือหมวดหมู่ที่กำลังตามหา</label><textarea name="wanted_detail"><?=old('wanted_detail')?></textarea></div></section>
 <section class="section"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></span>การจัดส่งและนัดรับ</h2><div class="checks"><?php foreach(['ไปรษณีย์ไทย','บริษัทขนส่งเอกชน','นัดรับ'] as $s):?><label class="check"><input type="checkbox" name="shipping[]" value="<?=$s?>" <?=in_array($s,$_POST['shipping']??[],true)?'checked':''?>> <?=$s?></label><?php endforeach;?></div></section>
-<section class="section"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></span>เรื่องราวของหนังสือเล่มนี้</h2><div class="field"><label>ทำไมคุณถึงส่งต่อหนังสือเล่มนี้?</label><textarea name="story_reason" placeholder="แบ่งปันความทรงจำหรือเหตุผลที่คุณรักหนังสือเล่มนี้..."><?=old('story_reason')?></textarea></div></section>
+<section class="section" id="location-panel-ex">
+<h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>ตำแหน่งของคุณ <span style="font-size:13px;font-weight:400;color:#888;margin-left:8px">(ช่วยให้คู่แลกดูระยะทางได้)</span></h2>
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <button type="button" id="btnDetectLocationEx" onclick="detectExchangeLocation()" style="display:flex;align-items:center;gap:8px;padding:11px 20px;background:#3a5ccc;color:#fff;border:none;border-radius:9px;font:inherit;font-weight:600;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#2e4dab'" onmouseout="this.style.background='#3a5ccc'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+    ระบุตำแหน่งอัตโนมัติ
+  </button>
+  <div id="locStatusEx" style="font-size:14px;color:#567342;display:none;align-items:center;gap:7px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#567342" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    <span id="locStatusTextEx"></span>
+  </div>
+  <div id="locErrorEx" style="font-size:13px;color:#b84d49;display:none"></div>
+</div>
+<input type="hidden" name="owner_lat" id="owner_lat">
+<input type="hidden" name="owner_lng" id="owner_lng">
+<input type="hidden" name="owner_province" id="owner_province">
+</section>
 <div class="actions">
 <button class="publish" type="button" onclick="showReviewModal()">ลงประกาศแลกเปลี่ยน</button>
 <a class="cancel" href="/pages/exchange_books.php">ยกเลิก</a>
@@ -166,4 +193,26 @@ function changeModalImage(dir) {
 function closeReviewModal() { document.getElementById('reviewModal').style.display = 'none'; }
 function confirmPost() { document.getElementById('postForm').submit(); }
 
-document.getElementById('lookup').addEventListener('click',async()=>{const isbn=document.getElementById('isbn').value,msg=document.getElementById('lookup-message');msg.textContent='กำลังค้นหา...';try{const data=await fetch('/pages/handlers/isbn_lookup.php?isbn='+encodeURIComponent(isbn)).then(r=>r.json());msg.textContent=data.message||'พบข้อมูลหนังสือแล้ว';if(data.success){['title','author','category'].forEach(k=>{if(data.book[k])document.getElementById(k).value=data.book[k];});}}catch(e){msg.textContent='ค้นหาข้อมูลไม่สำเร็จ';}});document.querySelectorAll('.upload input').forEach(input=>input.addEventListener('change',()=>{const file=input.files[0],label=input.parentElement;if(!file)return;const reader=new FileReader;reader.onload=()=>{label.querySelector('span').style.display='none';let preview=label.querySelector('img');if(!preview){preview=document.createElement('img');preview.alt='ตัวอย่างรูป';label.appendChild(preview);}preview.src=reader.result;};reader.readAsDataURL(file);}));</script></body></html>
+document.getElementById('lookup').addEventListener('click',async()=>{const isbn=document.getElementById('isbn').value,msg=document.getElementById('lookup-message');msg.textContent='กำลังค้นหา...';try{const data=await fetch('/pages/handlers/isbn_lookup.php?isbn='+encodeURIComponent(isbn)).then(r=>r.json());msg.textContent=data.message||'พบข้อมูลหนังสือแล้ว';if(data.success){['title','author','category'].forEach(k=>{if(data.book[k])document.getElementById(k).value=data.book[k];});}}catch(e){msg.textContent='ค้นหาข้อมูลไม่สำเร็จ';}});document.querySelectorAll('.upload input').forEach(input=>input.addEventListener('change',()=>{const file=input.files[0],label=input.parentElement;if(!file)return;const reader=new FileReader;reader.onload=()=>{label.querySelector('span').style.display='none';let preview=label.querySelector('img');if(!preview){preview=document.createElement('img');preview.alt='ตัวอย่างรูป';label.appendChild(preview);}preview.src=reader.result;};reader.readAsDataURL(file);}));
+// -- GPS Location Detection (Exchange) ----------------------------------------
+function detectExchangeLocation() {
+  var btn=document.getElementById('btnDetectLocationEx'),statusEl=document.getElementById('locStatusEx'),statusText=document.getElementById('locStatusTextEx'),errorEl=document.getElementById('locErrorEx');
+  if(!navigator.geolocation){errorEl.textContent='บราวเซอร์ไม่รองรับ Geolocation';errorEl.style.display='block';return;}
+  btn.disabled=true;btn.style.opacity='0.7';btn.textContent='กำลังระบุตำแหน่ง...';errorEl.style.display='none';statusEl.style.display='none';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude;
+    document.getElementById('owner_lat').value=lat;document.getElementById('owner_lng').value=lng;
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lng+'&accept-language=th',{headers:{'User-Agent':'WanawanBookApp/1.0'}})
+    .then(function(r){return r.ok?r.json():Promise.reject();}).then(function(data){
+      var addr=data.address||{},province=addr.state||addr.county||addr.city||addr.town||'';
+      document.getElementById('owner_province').value=province;
+      statusText.textContent=province?'📍 '+province:'📍 lat:'+lat.toFixed(4)+', lng:'+lng.toFixed(4);
+      statusEl.style.display='flex';btn.textContent='✓ ระบุตำแหน่งแล้ว';btn.style.background='#567342';btn.style.opacity='1';
+    }).catch(function(){statusText.textContent='📍 lat:'+lat.toFixed(4)+', lng:'+lng.toFixed(4);statusEl.style.display='flex';btn.textContent='✓ บันทึกพิกัดแล้ว';btn.style.opacity='1';});
+  },function(err){
+    btn.disabled=false;btn.style.opacity='1';
+    btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> ระบุตำแหน่งอัตโนมัติ';
+    var msgs={1:'กรุณาอนุญาตการเข้าถึงตำแหน่ง',2:'ไม่สามารถระบุตำแหน่งได้',3:'หมดเวลา - ลองอีกครั้ง'};
+    errorEl.textContent=msgs[err.code]||'เกิดข้อผิดพลาด';errorEl.style.display='block';
+  },{timeout:12000,maximumAge:0,enableHighAccuracy:true});
+}</script></body></html>

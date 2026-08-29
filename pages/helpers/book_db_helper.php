@@ -13,6 +13,16 @@ function normalizeBookPublishDate(string $value): ?string {
 }
 
 function collectBookFields(string $seller_name): array {
+    // Sanitise GPS inputs — accept only numeric-ish values
+    $rawLat = trim($_POST['seller_lat'] ?? '');
+    $rawLng = trim($_POST['seller_lng'] ?? '');
+    $lat = is_numeric($rawLat) ? (float)$rawLat : null;
+    $lng = is_numeric($rawLng) ? (float)$rawLng : null;
+    // Clamp to valid WGS84 range
+    if ($lat !== null && ($lat < -90  || $lat > 90))  $lat = null;
+    if ($lng !== null && ($lng < -180 || $lng > 180)) $lng = null;
+    if ($lat === null || $lng === null) { $lat = null; $lng = null; }
+    $province = ($lat !== null) ? mb_substr(trim($_POST['seller_province'] ?? ''), 0, 100) : null;
     return [
         'title'           => trim($_POST['title'] ?? ''),
         'author'          => trim($_POST['author'] ?? ''),
@@ -34,6 +44,10 @@ function collectBookFields(string $seller_name): array {
         'stock_quantity'  => (int)($_POST['stock_quantity'] ?? 1),
         'book_type'       => $_POST['book_type'] ?? 'new',
         'shipping_json'   => json_encode($_POST['shipping'] ?? []),
+        // GPS
+        'seller_lat'      => $lat,
+        'seller_lng'      => $lng,
+        'seller_province' => $province ?: null,
     ];
 }
 
@@ -45,14 +59,16 @@ function insertBook(PDO $pdo, array $f, array $imgs, int $seller_id, string $sel
             publish_date, synopsis, condition_level, defects_detail,
             price, stock_quantity, original_price,
             image_cover, image_back, image_inside, image_edge,
-            shipping_methods, status, book_type, created_at
+            shipping_methods, seller_lat, seller_lng, seller_province,
+            status, book_type, created_at
         ) VALUES (
             :seller_id, :seller_type, :isbn, :isbn_13, :title, :author, :publisher_name,
             :category, :format, :pages, :dimensions, :weight_grams, :language,
             :publish_date, :synopsis, :condition_level, :defects_detail,
             :price, :stock_quantity, :original_price,
             :image_cover, :image_back, :image_inside, :image_edge,
-            :shipping_methods, :status, :book_type, NOW()
+            :shipping_methods, :seller_lat, :seller_lng, :seller_province,
+            :status, :book_type, NOW()
         )
     ");
     $stmt->execute([
@@ -81,6 +97,9 @@ function insertBook(PDO $pdo, array $f, array $imgs, int $seller_id, string $sel
         ':image_inside'     => $imgs['image_inside'],
         ':image_edge'       => $imgs['image_edge'],
         ':shipping_methods' => $f['shipping_json'],
+        ':seller_lat'       => $f['seller_lat'] ?? null,
+        ':seller_lng'       => $f['seller_lng'] ?? null,
+        ':seller_province'  => $f['seller_province'] ?? null,
         ':status'           => $status,
         ':book_type'        => $f['book_type'],
     ]);

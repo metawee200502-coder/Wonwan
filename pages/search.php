@@ -49,14 +49,14 @@ $totalResults = count($books)+count($exchanges);
 ?>
 <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ค้นหาหนังสือ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css"><style>
 *{box-sizing:border-box}.search-page{width:100%;max-width:1500px;margin:auto;padding:42px 40px 80px}.search-heading{color:var(--secondary-color);font-size:34px;margin:0}.search-summary{color:var(--text-muted);margin:7px 0 28px}.search-form{display:flex;gap:10px;max-width:950px;margin-bottom:24px}.search-form input{flex:1;height:48px;border:1px solid #d8c9c5;border-radius:24px;padding:0 20px;font:inherit;outline:none}.search-form input:focus{border-color:#d18aa7}.search-form button{min-width:110px;border:0;border-radius:24px;background:#d18aa7;color:#fff;font:inherit;font-weight:700;cursor:pointer}.search-tabs{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:34px}.search-tabs a{padding:9px 18px;border:1px solid #e5c4ce;border-radius:20px;text-decoration:none;color:#a54e70;background:#fff}.search-tabs a.active{background:#d18aa7;color:#fff;border-color:#d18aa7}.result-section{margin-top:34px}.result-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.result-head h2{margin:0;color:var(--secondary-color);font-size:25px}.result-head span{color:var(--text-muted);font-size:13px}.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,332px));gap:24px;align-items:start;justify-content:start}.search-empty{text-align:center;padding:90px 20px;border:1px dashed #ddcbc6;border-radius:14px;color:var(--text-muted)}.search-empty strong{display:block;color:var(--secondary-color);font-size:21px;margin-bottom:6px}
-/* ── Standardize all result cards to match New-book card dimensions ── */
-.result-grid .book-card { display:flex; flex-direction:column; }
-.result-grid .book-card__img-zone { min-height:200px; height:200px; padding:28px 20px 24px; }
-.result-grid .book-card__cover { width:88px; height:124px; object-fit:cover; }
-.result-grid .book-card__placeholder { width:88px; height:124px; }
-.result-grid .book-card__info { flex:1; }
-.result-grid .book-card__actions { margin-top:auto; }
-@media(max-width:950px){.result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.search-page{padding:30px 18px 60px}.search-form{flex-direction:column}.search-form button{height:44px}.result-grid{grid-template-columns:1fr}.search-heading{font-size:28px}}
+/* ── Grid Layout ── */
+.result-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+@media(max-width:1024px){.result-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:768px){.result-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.search-page{padding:30px 18px 60px}.search-form{flex-direction:column}.search-form button{height:44px}.result-grid{grid-template-columns:1fr}.search-heading{font-size:28px}}
 
 </style></head><body><?php require __DIR__.'/../components/header.php';?><main class="search-page"><h1 class="search-heading">ค้นหาหนังสือ</h1><?php if($keyword!==''):?><p class="search-summary">พบ <?=number_format($totalResults)?> รายการสำหรับ “<?=htmlspecialchars($keyword)?>”</p><?php else:?><p class="search-summary">ค้นหาจากชื่อหนังสือ ผู้เขียน ISBN หรือสำนักพิมพ์</p><?php endif;?><form class="search-form" method="get"><input name="q" value="<?=htmlspecialchars($keyword)?>" placeholder="ค้นหาตามชื่อเรื่อง ผู้เขียน หรือ ISBN..." required><input type="hidden" name="type" value="<?=htmlspecialchars($type)?>"><button>ค้นหา</button></form><nav class="search-tabs"><?php foreach(['all'=>'ทั้งหมด','new'=>'หนังสือมือหนึ่ง','used'=>'หนังสือมือสอง','exchange'=>'แลกเปลี่ยน'] as $key=>$label):?><a class="<?=$type===$key?'active':''?>" href="?q=<?=urlencode($keyword)?>&amp;type=<?=$key?>"><?=$label?></a><?php endforeach;?></nav>
 <?php if($keyword===''):?><div class="search-empty"><strong>กำลังมองหาหนังสือเล่มไหนอยู่คะ?</strong><span>พิมพ์ชื่อเรื่อง ผู้เขียน หรือ ISBN ในช่องค้นหาได้เลย</span></div><?php elseif(!$totalResults):?><div class="search-empty"><strong>ไม่พบหนังสือที่ค้นหา</strong><span>ลองตรวจสอบคำสะกดหรือใช้คำค้นที่สั้นลง</span></div><?php else:?>

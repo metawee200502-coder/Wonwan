@@ -66,6 +66,7 @@ $sourceTag = match ($source_seller_type) {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
     width: 100%;
+    height: 100%;
     cursor: pointer;
 }
 .book-card:hover {
@@ -169,6 +170,7 @@ $sourceTag = match ($source_seller_type) {
 .book-card__info {
     background-color: var(--card-bg);
     padding: 14px 16px 6px;
+    flex: 1;
 }
 .book-card__source-tag{width:max-content;max-width:100%;display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:5px;font-size:10px;font-weight:700;line-height:1.2;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .book-card__source-tag::before{content:'✓';width:14px;height:14px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:9px;flex:0 0 14px}
@@ -291,15 +293,42 @@ $sourceTag = match ($source_seller_type) {
 /* ---------- Footer Label ---------- */
 .book-card__footer {
     background-color: var(--card-bg);
-    padding: 6px 16px 12px;
+    padding: 8px 16px 12px;
     border-top: 1px solid var(--border-color);
-    text-align: right;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
 }
 .book-card__label {
     font-size: var(--text-xs);
     color: var(--primary-color);
     font-weight: 500;
     font-family: var(--font-family);
+    margin-left: auto; /* Push to right when loc badge is missing */
+}
+/* ป้ายตำแหน่ง — แบบ clean ไม่มีกรอบ */
+.book-card__footer-loc {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-weight: 400;
+    font-family: var(--font-family);
+    flex: 1;
+    min-width: 0;
+}
+.book-card__footer-loc-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.book-card__footer-loc svg {
+    flex-shrink: 0;
+    color: var(--primary-color);
+    opacity: 0.8;
 }
 </style>
 
@@ -307,6 +336,8 @@ $sourceTag = match ($source_seller_type) {
      CARD TEMPLATE
      ============================================= -->
 <div class="book-card" role="link" tabindex="0"
+     data-book-id="<?= $detail_source !== 'exchange' ? (int)$book_id : '' ?>"
+     data-exchange-id="<?= $detail_source === 'exchange' ? (int)$book_id : '' ?>"
      onclick="location.href='<?= htmlspecialchars($detail_url, ENT_QUOTES) ?>'"
      onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); location.href='<?= htmlspecialchars($detail_url, ENT_QUOTES) ?>'; }">
 
@@ -346,12 +377,11 @@ $sourceTag = match ($source_seller_type) {
 
     <!-- Zone ข้อมูล -->
     <div class="book-card__info">
-        <?php if($sourceTag||$activePromotion||!empty($book['distance'])):?><div class="book-card__tag-row">
+        <?php if($sourceTag||$activePromotion):?><div class="book-card__tag-row">
         <?php if ($sourceTag): ?>
             <span class="book-card__source-tag book-card__source-tag--<?= htmlspecialchars($sourceTag[1]) ?>"><?= htmlspecialchars($sourceTag[0]) ?></span>
         <?php endif; ?>
         <?php if($activePromotion):?><span class="book-card__promo" title="<?=htmlspecialchars($activePromotion['promotion_name'].' · '.$activePromotion['display_condition'])?>">โปร <?=htmlspecialchars($activePromotion['display_discount'])?></span><?php endif;?>
-        <?php if(!empty($book['distance'])):?><span class="book-card__promo" style="background:#f0f2f5;color:var(--text-dark);border:1px solid #e1e4e8;box-shadow:none">📍 <?=htmlspecialchars($book['distance'])?></span><?php endif;?>
         </div><?php endif;?>
         <div class="book-card__title-row">
             <!-- ✅ แก้: เพิ่ม ?? 'ไม่มีชื่อ' ป้องกัน htmlspecialchars(null) -->
@@ -422,6 +452,21 @@ $sourceTag = match ($source_seller_type) {
 
     <!-- Footer Label -->
     <div class="book-card__footer">
+        <?php
+        $locText = '';
+        if (!empty($book['distance'])) {
+            $locText = htmlspecialchars($book['distance']);
+        } elseif (!empty($book['seller_province']) || !empty($book['owner_province'])) {
+            $locText = htmlspecialchars((string)($book['seller_province'] ?? $book['owner_province'] ?? ''));
+        }
+        ?>
+        <?php if ($locText !== ''): ?>
+        <span class="book-card__footer-loc loc-province-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg><span class="book-card__footer-loc-text"><?= $locText ?></span></span>
+        <?php endif; ?>
         <span class="book-card__label">
             <?php
             echo match($card_type) {

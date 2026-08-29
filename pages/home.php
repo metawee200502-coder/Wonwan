@@ -41,7 +41,8 @@ try {
         $stmt = $pdo->prepare("
             SELECT exchange_id AS book_id, title, author,
                    'exchange' AS condition_level, 0 AS price,
-                   image_cover, 1 AS stock_quantity
+                   image_cover, 1 AS stock_quantity,
+                   owner_lat AS seller_lat, owner_lng AS seller_lng, owner_province AS seller_province
             FROM exchanges
             WHERE status = 'open'
             ORDER BY exchange_id DESC
@@ -54,6 +55,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT b.book_id, b.title, b.author, b.condition_level, b.category, b.created_at,
                    b.price, b.image_cover, b.stock_quantity,
+                   b.seller_lat, b.seller_lng, b.seller_province,
                    (COALESCE((SELECT SUM(oi.quantity) FROM order_items oi INNER JOIN orders o ON o.order_id=oi.order_id WHERE oi.book_id=b.book_id AND o.payment_status NOT IN ('cancelled','failed')),0)*10
                     + (SELECT COUNT(*) FROM wishlists w WHERE w.book_id=b.book_id)*3
                     + COALESCE((SELECT SUM(ci.quantity) FROM cart_items ci WHERE ci.book_id=b.book_id),0)*2
@@ -81,7 +83,8 @@ try {
     // ─── หนังสือมาใหม่ (newest 12) ───────────────────────────
     $newestStmt = $pdo->query("
         SELECT b.book_id, b.title, b.author, b.condition_level, b.price,
-               b.image_cover, b.stock_quantity, b.seller_type
+               b.image_cover, b.stock_quantity, b.seller_type,
+               b.seller_lat, b.seller_lng, b.seller_province
         FROM books b
         WHERE b.status = 'available'
         ORDER BY b.book_id DESC
@@ -679,6 +682,9 @@ try {
                                                 ? $row['image_cover']
                                                 : '/pages/' . ltrim($row['image_cover'], '/'))
                                             : null,
+                            'seller_province' => $row['seller_province'] ?? '',
+                            'seller_lat'      => $row['seller_lat'] ?? null,
+                            'seller_lng'      => $row['seller_lng'] ?? null,
                         ];
                         // กำหนด card_type ตาม condition_level จาก DB
                         $card_type = match($row['condition_level'] ?? 'new') {
@@ -751,6 +757,9 @@ try {
                                             : '/pages/' . ltrim($row['image_cover'], '/'))
                                         : null,
                         'seller_type' => (string)($row['seller_type'] ?? ''),
+                        'seller_province' => $row['seller_province'] ?? '',
+                        'seller_lat'      => $row['seller_lat'] ?? null,
+                        'seller_lng'      => $row['seller_lng'] ?? null,
                     ];
                     $card_type = match($row['condition_level'] ?? 'new') {
                         'new'    => 'new',

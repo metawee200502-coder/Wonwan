@@ -60,11 +60,20 @@ if(empty($buyerLat) && !empty($_SESSION['user_id'])){
     $userLoc=$pdo->prepare('SELECT latitude,longitude FROM users WHERE user_id=?');$userLoc->execute([$_SESSION['user_id']]);$u=$userLoc->fetch(PDO::FETCH_ASSOC);
     if($u&&$u['latitude']){$buyerLat=(float)$u['latitude'];$buyerLng=(float)$u['longitude'];}
 }
+$bookLat = (float)($isExchange ? ($item['owner_lat'] ?? $item['latitude'] ?? 0) : ($item['seller_lat'] ?? $item['latitude'] ?? 0));
+$bookLng = (float)($isExchange ? ($item['owner_lng'] ?? $item['longitude'] ?? 0) : ($item['seller_lng'] ?? $item['longitude'] ?? 0));
+
 $distance = null;
-if ($buyerLat != 0 && $buyerLng != 0 && !empty($item['latitude']) && !empty($item['longitude'])) {
+if ($buyerLat != 0 && $buyerLng != 0 && $bookLat != 0 && $bookLng != 0) {
     $lat1 = deg2rad($buyerLat); $lng1 = deg2rad($buyerLng);
-    $lat2 = deg2rad((float)$item['latitude']); $lng2 = deg2rad((float)$item['longitude']);
+    $lat2 = deg2rad($bookLat); $lng2 = deg2rad($bookLng);
     $distance = 6371 * acos(cos($lat1)*cos($lat2)*cos($lng2-$lng1)+sin($lat1)*sin($lat2));
+}
+
+function distanceLabelPHP(float $km): string {
+    if ($km < 1) return round($km * 1000) . ' ม.';
+    if ($km < 10) return number_format($km, 1) . ' กม.';
+    return number_format(round($km)) . ' กม.';
 }
 
 $title = $item['title'];
@@ -237,12 +246,28 @@ if (($_GET['source'] ?? '') === 'mood_match') {
         <div>
             <span class="type-pill"><?= htmlspecialchars($isExchange ? 'แลกเปลี่ยน' : $condition) ?></span>
             <span class="product-source-tag product-source-tag--<?=htmlspecialchars($productSourceTag[1])?>"><?=htmlspecialchars($productSourceTag[0])?></span>
-            <?php if($distance!==null):?><span class="type-pill" style="background:#f3f4f6;color:var(--text-dark);border:1px solid #ccc;margin-left:7px">📍 ห่างจากคุณ <?=number_format($distance,1)?> กม.</span><?php endif;?>
+            <?php
+            $locText = '';
+            $itemProv = $isExchange ? ($item['owner_province'] ?? '') : ($item['seller_province'] ?? '');
+            if (!empty($itemProv)) {
+                $locText = $itemProv;
+            }
+            if ($distance !== null) {
+                $distStr = distanceLabelPHP($distance);
+                $locText = $locText !== '' ? ($locText . ' · ~' . $distStr) : ('~' . $distStr);
+            }
+            ?>
+            <span class="type-pill product-detail-loc" style="background:#fffaf7;color:var(--text-muted);border:1px solid #e2d1c3;margin-left:7px;<?= $locText === '' ? 'display:none;' : 'display:inline-flex;align-items:center;gap:4px;' ?>"
+                  data-book-id="<?= !$isExchange ? $id : '' ?>"
+                  data-exchange-id="<?= $isExchange ? $id : '' ?>">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span class="loc-text"><?= htmlspecialchars($locText) ?></span>
+            </span>
             <h1 class="product-title"><?= htmlspecialchars($title) ?></h1>
             <div class="meta">ผู้เขียน: <strong><?= htmlspecialchars($item['author'] ?: '-') ?></strong><?php if (!empty($item['category'])): ?> &nbsp;•&nbsp; หมวดหมู่: <?= htmlspecialchars($item['category']) ?><?php endif; ?></div>
 
             <?php if ($isExchange): ?>
-                <a class="seller-box seller-box-link" href="/pages/exchange_profile.php?user_id=<?= (int)$item['owner_id'] ?>"><div class="seller-avatar"><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">เจ้าของหนังสือ • พร้อมแลกเปลี่ยน</div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
+                <a class="seller-box seller-box-link" href="/pages/exchange_profile.php?user_id=<?= (int)$item['owner_id'] ?>"><div class="seller-avatar"><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">เจ้าของหนังสือ <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
                 <div class="exchange-actions">
                     <?php $follow_type='user';$follow_id=(int)$item['owner_id'];$follow_class='action-btn action-outline';require __DIR__.'/../components/follow_button.php';?>
                     <?php if (!$isOwner): ?>
@@ -261,7 +286,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <?php if (($item['book_type'] ?? 'used') === 'used'): ?>
                 <div class="condition-box"><div class="condition-head"><span>สภาพหนังสือ</span><span><?= htmlspecialchars($condition) ?></span></div><div class="condition-bar"><span style="width:<?= match($item['condition_level']) { 'good' => 90, 'fair' => 70, 'old' => 50, default => 100 } ?>%"></span></div><div class="defects"><?= htmlspecialchars($item['defects_detail'] ?: 'ไม่พบตำหนิที่ผู้ขายระบุ') ?></div></div>
                 <?php endif; ?>
-                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">มีสินค้า <?= $stockQuantity ?> เล่ม</div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
+                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">มีสินค้า <?= $stockQuantity ?> เล่ม <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
                 <?php if ($isOutOfStock): ?>
                 <div class="stock-indicator stock-out">✕ สินค้าหมดแล้ว</div>
                 <?php elseif ($stockQuantity < 10): ?>

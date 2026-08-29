@@ -155,3 +155,4 @@ body {
         </div>
     </div>
 </footer>
+<script src="/assets/js/location_distance.js?v=4" defer></script>

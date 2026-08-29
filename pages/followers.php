@@ -42,16 +42,24 @@ function followerImage(?string $value):?string{
 <title>ผู้ติดตามของ <?=htmlspecialchars($profileName)?> - วนวรรณ</title>
 <link rel="stylesheet" href="../assets/css/styles.css">
 <style>
-*{box-sizing:border-box}.followers-wrap{max-width:1120px;margin:auto;padding:42px 40px 90px}.followers-back{display:inline-flex;align-items:center;gap:7px;color:var(--secondary-color);text-decoration:none;margin-bottom:25px}.followers-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:28px}.followers-head h1{margin:0;color:var(--secondary-color);font-size:34px}.followers-head p{margin:6px 0 0;color:var(--text-muted)}.followers-count{color:var(--secondary-color);font-weight:700}.followers-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}.followers-empty{grid-column:1/-1;padding:90px 20px;border:1px dashed #d4dcd2;border-radius:15px;text-align:center;color:var(--text-muted);background:#fff}@media(max-width:900px){.followers-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.followers-wrap{padding:28px 18px 60px}.followers-head{align-items:flex-start;flex-direction:column}.followers-head h1{font-size:28px}.followers-grid{grid-template-columns:1fr}}
+*{box-sizing:border-box}.followers-wrap{max-width:1160px;margin:auto;padding:50px 40px 90px}.followers-head{display:flex;align-items:center;gap:15px;margin-bottom:28px}.followers-head h1{margin:0;color:var(--secondary-color);font-size:32px;display:flex;align-items:center;gap:10px}.followers-head p{margin:4px 0 0;color:var(--text-muted);font-size:15px}.followers-count{font-size:18px;color:var(--text-muted);font-weight:normal}.followers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}.followers-empty{grid-column:1/-1;padding:80px 0;color:var(--text-muted);font-size:16px;text-align:center}@media(max-width:900px){.followers-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.followers-wrap{padding:28px 18px 60px}.followers-head h1{font-size:26px}.followers-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <?php require __DIR__.'/../components/header.php';?>
 <main class="followers-wrap">
- <a class="followers-back" href="javascript:history.back()">← กลับไปยังโปรไฟล์</a>
- <header class="followers-head"><div><h1>ผู้ติดตาม</h1><p><?=htmlspecialchars($profileName)?></p></div><span class="followers-count"><?=number_format(count($followers))?> คน</span></header>
+ <header class="followers-head">
+  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="padding:8px;background:#fdf2f5;border-radius:12px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+  <div>
+   <h1>ผู้ติดตาม <span class="followers-count">(<?=number_format(count($followers))?> คน)</span></h1>
+   <p><?=htmlspecialchars($profileName)?></p>
+  </div>
+ </header>
  <section class="followers-grid">
- <?php if(!$followers):?><div class="followers-empty">โปรไฟล์นี้ยังไม่มีผู้ติดตาม</div>
+ <?php if(!$followers):?>
+  <div class="followers-empty">
+   ยังไม่มีใครติดตาม
+  </div>
  <?php else:foreach($followers as $row):
   $partner=['id'=>(int)$row['user_id'],'type'=>'user','name'=>$row['display_name'],'image'=>followerImage($row['profile_image']??null),'followers'=>(int)$row['followers_count'],'books_count'=>(int)$row['books_count'],'profile_url'=>'/pages/exchange_profile.php?user_id='.(int)$row['user_id']];
   require __DIR__.'/../components/partner_card.php';

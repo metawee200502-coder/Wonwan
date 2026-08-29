@@ -46,7 +46,23 @@ function old(string $key,string $default=''):string{return htmlspecialchars((str
 <section class="panel"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg></span>รายละเอียดหนังสือ</h2><div class="grid"><div class="field"><label>ISBN</label><input name="isbn" value="<?=old('isbn')?>" placeholder="ISBN หรือ ISBN-13"></div><div class="field"><label>ชื่อหนังสือ *</label><input name="title" value="<?=old('title')?>" required></div><div class="field"><label>ผู้เขียน</label><input name="author" value="<?=old('author')?>"></div><div class="field"><label>สำนักพิมพ์</label><input name="publisher_name" value="<?=old('publisher_name')?>"></div><div class="field"><label>หมวดหมู่</label><select name="category"><option value="">เลือกหมวดหมู่</option><?php foreach($categories as $cat):?><option value="<?=htmlspecialchars($cat)?>" <?=old('category')===$cat?'selected':''?>><?=htmlspecialchars($cat)?></option><?php endforeach;?></select></div><div class="field"><label>ภาษา</label><select name="language"><option>ไทย</option><option>อังกฤษ</option><option>ญี่ปุ่น</option><option>จีน</option><option>อื่น ๆ</option></select></div></div><div class="grid three"><div class="field"><label>รูปแบบ</label><select name="format"><option value="">เลือกรูปแบบ</option><option>Paperback</option><option>Hardcover</option><option>Pocket Book</option></select></div><div class="field"><label>จำนวนหน้า</label><input type="number" min="1" name="pages" value="<?=old('pages')?>"></div><div class="field"><label>ขนาดหนังสือ</label><input name="dimensions" value="<?=old('dimensions')?>" placeholder="กว้าง x ยาว x หนา ซม."></div></div><div class="field"><label>เรื่องย่อ / รายละเอียด</label><textarea name="synopsis"><?=old('synopsis')?></textarea></div></section>
 <section class="panel"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></span>สภาพและราคา</h2><div class="condition"><label><input type="radio" name="condition_level" value="good" checked> สภาพดี</label><label><input type="radio" name="condition_level" value="fair"> มีตำหนิเล็กน้อย</label><label><input type="radio" name="condition_level" value="old"> สภาพเก่า</label></div><div class="grid" style="margin-top:18px"><div class="field"><label>ราคาขาย *</label><input type="number" min="1" step="0.01" name="price" value="<?=old('price')?>" required></div><div class="field"><label>ราคาปก</label><input type="number" min="0" step="0.01" name="original_price" value="<?=old('original_price')?>"></div></div><div class="field"><label>รายละเอียดตำหนิ</label><textarea name="defects_detail"><?=old('defects_detail')?></textarea></div><input type="hidden" name="stock_quantity" value="1"><input type="hidden" name="book_type" value="used"></section>
 <section class="panel"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></span>รูปภาพสภาพจริง</h2><div class="uploads"><?php foreach(['image_cover'=>'หน้าปก *','image_back'=>'หลังปก','image_inside'=>'ด้านใน','image_edge'=>'สัน/ขอบ'] as $field=>$label):?><label class="upload" id="slot-<?=$field?>"><img class="upload-preview" id="preview-<?=$field?>" alt="ตัวอย่าง <?=$label?>"><span class="upload-title"><?=$label?></span><input type="file" name="<?=$field?>" accept="image/jpeg,image/png,image/webp" onchange="showBookPreview(this,'<?=$field?>')" <?=$field==='image_cover'?'required':''?>></label><?php endforeach;?></div></section>
-<section class="panel"><h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></span>วิธีจัดส่ง</h2><div class="shipping"><?php foreach(['ไปรษณีย์ไทย','บริษัทขนส่งเอกชน','นัดรับ'] as $s):?><label><input type="checkbox" name="shipping[]" value="<?=$s?>" <?=($s==='ไปรษณีย์ไทย')?'checked':''?>> <?=$s?></label><?php endforeach;?></div></section>
+<section class="panel" id="location-panel">
+<h2><span class="num"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>ตำแหน่งของคุณ <span style="font-size:13px;font-weight:400;color:#888;margin-left:8px">(ช่วยให้ผู้ซื้อดูระยะทางได้)</span></h2>
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <button type="button" id="btnDetectLocation" onclick="detectSellerLocation()" style="display:flex;align-items:center;gap:8px;padding:11px 20px;background:#3a5ccc;color:#fff;border:none;border-radius:9px;font:inherit;font-weight:600;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#2e4dab'" onmouseout="this.style.background='#3a5ccc'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+    ระบุตำแหน่งอัตโนมัติ
+  </button>
+  <div id="locStatus" style="font-size:14px;color:#567342;display:none;align-items:center;gap:7px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#567342" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    <span id="locStatusText"></span>
+  </div>
+  <div id="locError" style="font-size:13px;color:#b84d49;display:none"></div>
+</div>
+<input type="hidden" name="seller_lat" id="seller_lat">
+<input type="hidden" name="seller_lng" id="seller_lng">
+<input type="hidden" name="seller_province" id="seller_province">
+</section>
 <div class="actions">
 <button class="btn publish" type="button" onclick="showReviewModal('publish')">ลงขายหนังสือ</button>
 <button class="btn draft" type="button" onclick="showReviewModal('draft')">บันทึกร่าง</button>
@@ -153,4 +169,67 @@ function confirmPost() {
   form.appendChild(actionInput);
   form.submit();
 }
-const previewUrls={};function showBookPreview(input,key){const file=input.files&&input.files[0];const slot=document.getElementById('slot-'+key);const preview=document.getElementById('preview-'+key);if(previewUrls[key])URL.revokeObjectURL(previewUrls[key]);if(!file){preview.removeAttribute('src');slot.classList.remove('has-preview');return}previewUrls[key]=URL.createObjectURL(file);preview.src=previewUrls[key];slot.classList.add('has-preview')}</script></body></html>
+const previewUrls={};function showBookPreview(input,key){const file=input.files&&input.files[0];const slot=document.getElementById('slot-'+key);const preview=document.getElementById('preview-'+key);if(previewUrls[key])URL.revokeObjectURL(previewUrls[key]);if(!file){preview.removeAttribute('src');slot.classList.remove('has-preview');return}previewUrls[key]=URL.createObjectURL(file);preview.src=previewUrls[key];slot.classList.add('has-preview')}
+
+// ── GPS Location Detection ───────────────────────────────────────────────
+function detectSellerLocation() {
+  const btn = document.getElementById('btnDetectLocation');
+  const statusEl = document.getElementById('locStatus');
+  const statusText = document.getElementById('locStatusText');
+  const errorEl = document.getElementById('locError');
+
+  if (!navigator.geolocation) {
+    errorEl.textContent = 'บราวเซอร์ของคุณไม่รองรับ Geolocation';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  btn.textContent = 'กำลังระบุตำแหน่ง...';
+  errorEl.style.display = 'none';
+  statusEl.style.display = 'none';
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      document.getElementById('seller_lat').value = lat;
+      document.getElementById('seller_lng').value = lng;
+
+      // Reverse geocode ด้วย Nominatim (OpenStreetMap) — ฟรี ไม่ต้อง API Key
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=th`, {
+        headers: { 'User-Agent': 'WanawanBookApp/1.0' }
+      })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        // Nominatim ส่ง address.state หรือ address.county สำหรับจังหวัด
+        const addr = data.address || {};
+        const province = addr.state || addr.county || addr.city || addr.town || '';
+        document.getElementById('seller_province').value = province;
+
+        statusText.textContent = province ? `📍 ${province}` : `📍 lat:${lat.toFixed(4)}, lng:${lng.toFixed(4)}`;
+        statusEl.style.display = 'flex';
+        btn.textContent = '✓ ระบุตำแหน่งแล้ว';
+        btn.style.background = '#567342';
+        btn.style.opacity = '1';
+      })
+      .catch(() => {
+        // ถ้า Nominatim ล้มเหลว ยังเก็บ lat/lng ไว้ได้
+        statusText.textContent = `📍 lat:${lat.toFixed(4)}, lng:${lng.toFixed(4)}`;
+        statusEl.style.display = 'flex';
+        btn.textContent = '✓ บันทึกพิกัดแล้ว';
+        btn.style.opacity = '1';
+      });
+    },
+    function(err) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> ระบุตำแหน่งอัตโนมัติ`;
+      const msgs = {1:'กรุณาอนุญาตการเข้าถึงตำแหน่ง',2:'ไม่สามารถระบุตำแหน่งได้',3:'หมดเวลา — ลองอีกครั้ง'};
+      errorEl.textContent = msgs[err.code] || 'เกิดข้อผิดพลาด';
+      errorEl.style.display = 'block';
+    },
+    { timeout: 12000, maximumAge: 0, enableHighAccuracy: true }
+  );
+}</script></body></html>
