@@ -173,7 +173,7 @@ function renderZoneBooks(array $rows): void {
 <body>
 <div class="home-sticky-header">
     <?php require __DIR__ . '/../components/header.php'; ?>
-    <?php require __DIR__ . '/../components/home_nav.php'; ?>
+
 </div>
 
 <main class="zone-content">

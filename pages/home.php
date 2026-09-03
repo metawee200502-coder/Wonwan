@@ -526,10 +526,6 @@ try {
 <!-- ── HEADER [3] ─────────────────────────────────────────── -->
 <div class="home-sticky-header">
 <?php require_once __DIR__ . '/../components/header.php'; ?>
-
-<!-- ── NAV MENU BAR ─────────────────────────────────────── -->
-<?php require __DIR__ . '/../components/home_nav.php'; ?>
-
 <!-- ── MAIN ─────────────────────────────────────────────── -->
 </div>
 
