@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  if(isset($_POST['delete_all'])){$pdo->prepare('DELETE FROM notifications WHERE user_id=?')->execute([$userId]);header('Location:/pages/notifications.php?action=deleted');exit;}
  if(isset($_POST['delete_one'])){$pdo->prepare('DELETE FROM notifications WHERE notification_id=? AND user_id=?')->execute([(int)($_POST['notification_id']??0),$userId]);header('Location:/pages/notifications.php?action=deleted_one');exit;}
 }
-if(isset($_GET['submitted'])){$latest=$pdo->prepare("SELECT order_number FROM orders WHERE user_id=? AND payment_status='reviewing' ORDER BY order_id DESC LIMIT 1");$latest->execute([$userId]);$latestNumber=$latest->fetchColumn();if($latestNumber){header('Location:/pages/payment_success.php?number='.urlencode($latestNumber));exit;}}
+
 function legacyAnnouncementUrl(PDO $pdo,array $notification):string{
  if(($notification['notification_type']??'')!=='system'||!str_starts_with((string)($notification['title']??''),'ประกาศใหม่จาก '))return '';
  $preview=preg_replace('/…$/u','',trim((string)($notification['message']??'')));

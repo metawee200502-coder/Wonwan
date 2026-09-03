@@ -685,6 +685,7 @@ try {
                             'seller_province' => $row['seller_province'] ?? '',
                             'seller_lat'      => $row['seller_lat'] ?? null,
                             'seller_lng'      => $row['seller_lng'] ?? null,
+                            'stock_quantity'  => $row['stock_quantity'] ?? 1,
                         ];
                         // กำหนด card_type ตาม condition_level จาก DB
                         $card_type = match($row['condition_level'] ?? 'new') {
@@ -760,6 +761,7 @@ try {
                         'seller_province' => $row['seller_province'] ?? '',
                         'seller_lat'      => $row['seller_lat'] ?? null,
                         'seller_lng'      => $row['seller_lng'] ?? null,
+                        'stock_quantity'  => $row['stock_quantity'] ?? 1,
                     ];
                     $card_type = match($row['condition_level'] ?? 'new') {
                         'new'    => 'new',

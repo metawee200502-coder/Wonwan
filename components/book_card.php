@@ -21,7 +21,10 @@ if (isset($book) && is_array($book)) {
         $image = null;
     }
     $wishlisted = !empty($book['wishlisted']);
+    // If stock_quantity is provided, use it. Otherwise, assume in stock for backward compatibility
+    $stock_quantity = array_key_exists('stock_quantity', $book) ? (int)$book['stock_quantity'] : 1;
 }
+$is_out_of_stock = ($stock_quantity ?? 1) <= 0;
 $detail_source = ($card_type ?? '') === 'exchange' ? 'exchange' : 'book';
 $activePromotion=null;
 if($detail_source==='book'&&!empty($book_id)&&isset($pdo)){require_once __DIR__.'/../config/promotions.php';$activePromotion=wanawanActiveBookPromotion($pdo,(int)$book_id);}
@@ -68,6 +71,21 @@ $sourceTag = match ($source_seller_type) {
     width: 100%;
     height: 100%;
     cursor: pointer;
+}
+.book-card.out-of-stock .book-card__img-zone::after {
+    content: "สินค้าหมด";
+    position: absolute;
+    inset: 0;
+    background-color: rgba(200, 200, 200, 0.6);
+    backdrop-filter: grayscale(100%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .book-card:hover {
     transform: translateY(-3px);
@@ -142,6 +160,7 @@ $sourceTag = match ($source_seller_type) {
     transition: all 0.25s ease;
     backdrop-filter: blur(4px);
     box-shadow: 0 2px 8px rgba(212, 112, 138, 0.15);
+    z-index: 15; /* Ensure it stays above the out-of-stock overlay */
 }
 .book-card__wish svg {
     color: #d4708a;
@@ -335,14 +354,12 @@ $sourceTag = match ($source_seller_type) {
 <!-- =============================================
      CARD TEMPLATE
      ============================================= -->
-<div class="book-card" role="link" tabindex="0"
-     data-book-id="<?= $detail_source !== 'exchange' ? (int)$book_id : '' ?>"
-     data-exchange-id="<?= $detail_source === 'exchange' ? (int)$book_id : '' ?>"
-     onclick="location.href='<?= htmlspecialchars($detail_url, ENT_QUOTES) ?>'"
-     onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); location.href='<?= htmlspecialchars($detail_url, ENT_QUOTES) ?>'; }">
-
-    <!-- Zone ภาพ -->
+<article class="book-card <?= $is_out_of_stock ? 'is-out-of-stock' : '' ?>" onclick="location.href='<?= $detail_url ?>'">
+    <!-- Zone รูปภาพ -->
     <div class="book-card__img-zone">
+        <?php if($is_out_of_stock): ?>
+            <div class="out-of-stock-overlay">สินค้าหมด</div>
+        <?php endif; ?>
 
         <?php if (!empty($badge)): ?>
             <span class="book-card__badge"><?= htmlspecialchars($badge) ?></span>
@@ -429,18 +446,22 @@ $sourceTag = match ($source_seller_type) {
 
         <?php else: ?>
             <!-- ปุ่ม Add to Cart (มือ 1 / มือ 2) -->
-            <button class="btn-add-cart"
-                    onclick="event.stopPropagation(); addToCart(<?= (int)$book_id ?>)">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="9" cy="21" r="1"/>
-                    <circle cx="20" cy="21" r="1"/>
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61
-                             h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                </svg>
-                Add to Cart
-            </button>
+            <?php if ($is_out_of_stock): ?>
+                <button class="btn-add-cart" style="background:#e0e0e0;color:#888;cursor:not-allowed;" onclick="event.stopPropagation();">
+                    สินค้าหมด
+                </button>
+            <?php else: ?>
+                <button class="btn-add-cart" onclick="event.stopPropagation(); addToCart(<?= (int)$book_id ?>)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1"/>
+                        <circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    เพิ่มลงตะกร้า
+                </button>
+            <?php endif; ?>
         <?php endif; ?>
 
         <!-- ปุ่ม Digital Twin (ทุก type) -->
@@ -479,4 +500,4 @@ $sourceTag = match ($source_seller_type) {
         </span>
     </div>
 
-</div>
+</article>

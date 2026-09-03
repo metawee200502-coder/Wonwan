@@ -106,9 +106,10 @@ function renderZoneBooks(array $rows): void {
     if (!$rows) { echo '<p class="zone-empty">ไม่พบหนังสือตามตัวกรองที่เลือก</p>'; return; }
     foreach ($rows as $row) {
         $book = [
-            'id' => (int)$row['book_id'], 'title' => $row['title'], 'author' => $row['author'] ?? '',
+            'id' => (int)$row['book_id'], 'title' => (string)$row['title'], 'author' => (string)($row['author'] ?? ''),
             'price' => (float)$row['price'], 'badge' => (string)($row['badge'] ?? ''), 'image' => zoneImage($row['image_cover'] ?? null),
             'seller_type' => (string)($row['seller_type'] ?? 'user'), 'seller_verified' => !empty($row['seller_verified']),
+            'stock_quantity' => $row['stock_quantity'] ?? 1,
         ];
         $card_type = 'new';
         require __DIR__ . '/../components/book_card.php';

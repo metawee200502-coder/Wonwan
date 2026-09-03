@@ -274,3 +274,9 @@ body:has(> main.wrap > .head .tabs) > main.wrap > .grid > .empty {
         min-height: 360px;
     }
 }
+
+/* Out of Stock UI */
+.is-out-of-stock .book-image { filter: grayscale(100%); opacity: 0.7; }
+.out-of-stock-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; pointer-events: none; }
+.is-out-of-stock-page .book-cover-image { filter: grayscale(100%); }
+

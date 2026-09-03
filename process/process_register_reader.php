@@ -65,6 +65,8 @@ try {
         ':notify_preference' => 'email',
     ]);
 
+    $_SESSION['needs_location'] = true;
+
     header('Location: ../pages/register_reader.php?success=1');
     exit;
 

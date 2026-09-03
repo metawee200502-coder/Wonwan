@@ -108,10 +108,21 @@ $sellerName=wanawanSellerName($sellerName,$isExchange?'user':($item['seller_type
 $productSellerType=$isExchange?'user':($item['seller_type']??'user');
 $productSellerVerified=($item['seller_status']??'')==='approved';
 $productSourceTag=match($productSellerType){
-    'publisher'=>[$productSellerVerified?'สำนักพิมพ์ยืนยันแล้ว':'สินค้าจากสำนักพิมพ์','publisher'],
-    'shop'=>[$productSellerVerified?'ร้านหนังสือยืนยันแล้ว':'สินค้าจากร้านหนังสือ','shop'],
+    'publisher'=>[$productSellerVerified?'สำนักพิมพ์ยืนยันแล้ว':'สำนักพิมพ์','publisher'],
+    'shop'=>[$productSellerVerified?'ร้านหนังสือยืนยันแล้ว':'ร้านหนังสือ','shop'],
     default=>['ผู้ขายทั่วไป','user'],
 };
+
+$sellerBookCount = 0;
+if ($isExchange) {
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM exchanges WHERE owner_id = ? AND status <> 'completed'");
+    $countStmt->execute([$item['owner_id']]);
+    $sellerBookCount = (int)$countStmt->fetchColumn();
+} else {
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM books WHERE seller_type = ? AND seller_id = ? AND status = 'available'");
+    $countStmt->execute([$item['seller_type'], $item['seller_id']]);
+    $sellerBookCount = (int)$countStmt->fetchColumn();
+}
 
 $chatUrl = (!$isExchange && in_array($item['seller_type'] ?? '', ['publisher', 'shop', 'user'], true))
     ? '/pages/chat.php?' . http_build_query([
@@ -137,7 +148,7 @@ if ($isExchange) {
     $recStmt = $pdo->prepare('SELECT exchange_id AS id, title, author, image_cover FROM exchanges WHERE exchange_id <> ? AND status = "open" ORDER BY created_at DESC LIMIT 4');
     $recStmt->execute([$id]);
 } else {
-    $recStmt = $pdo->prepare('SELECT book_id AS id, title, author, price, image_cover, condition_level FROM books WHERE book_id <> ? AND status = "available" AND category <=> ? ORDER BY created_at DESC LIMIT 4');
+    $recStmt = $pdo->prepare('SELECT book_id AS id, title, author, price, image_cover, condition_level, stock_quantity FROM books WHERE book_id <> ? AND status = "available" AND category <=> ? ORDER BY created_at DESC LIMIT 4');
     $recStmt->execute([$id, $item['category'] ?? null]);
 }
 $recommended = $recStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -233,7 +244,12 @@ if (($_GET['source'] ?? '') === 'mood_match') {
         <div>
             <div class="gallery-main" id="mainGallery">
                 <?php if ($cover): ?>
-                    <img src="<?= htmlspecialchars($cover) ?>" alt="<?= htmlspecialchars($title) ?>" id="mainImage">
+                    <div style="position:relative; width:100%; height:100%;">
+                        <img src="<?= htmlspecialchars($cover) ?>" alt="<?= htmlspecialchars($title) ?>" id="mainImage" style="<?= $isOutOfStock ? 'filter: grayscale(100%); opacity: 0.6;' : '' ?>">
+                        <?php if ($isOutOfStock): ?>
+                            <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 700; color: #555; text-shadow: 0 2px 4px rgba(255,255,255,0.8); z-index: 10; pointer-events: none;">สินค้าหมด</div>
+                        <?php endif; ?>
+                    </div>
                 <?php else: ?>
                     <div class="cover-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8"/></svg><div>ยังไม่มีรูปหนังสือ</div></div>
                 <?php endif; ?>
@@ -286,7 +302,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <?php if (($item['book_type'] ?? 'used') === 'used'): ?>
                 <div class="condition-box"><div class="condition-head"><span>สภาพหนังสือ</span><span><?= htmlspecialchars($condition) ?></span></div><div class="condition-bar"><span style="width:<?= match($item['condition_level']) { 'good' => 90, 'fair' => 70, 'old' => 50, default => 100 } ?>%"></span></div><div class="defects"><?= htmlspecialchars($item['defects_detail'] ?: 'ไม่พบตำหนิที่ผู้ขายระบุ') ?></div></div>
                 <?php endif; ?>
-                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">มีสินค้า <?= $stockQuantity ?> เล่ม <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
+                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?> <span class="product-source-tag seller-inline-source-tag product-source-tag--<?=htmlspecialchars($productSourceTag[1])?>"><?=htmlspecialchars($productSourceTag[0])?></span></div><div class="seller-sub">มีสินค้า <?= number_format($sellerBookCount) ?> เล่ม <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
                 <?php if ($isOutOfStock): ?>
                 <div class="stock-indicator stock-out">✕ สินค้าหมดแล้ว</div>
                 <?php elseif ($stockQuantity < 10): ?>
@@ -296,7 +312,13 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <?php endif; ?>
                 <?php if (!$isOwner): ?>
                 <?php if ($isOutOfStock): ?>
-                <div class="actions"><button class="action-btn action-primary" disabled>สินค้าหมด</button><button class="action-btn action-outline" disabled>สินค้าหมด</button><a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a><a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a></div>
+                <div class="actions">
+                    <button class="action-btn action-primary" disabled style="opacity: 0.5; background: #999; border-color: #999;">ซื้อสินค้า (หมด)</button>
+                    <button class="action-btn action-outline" disabled style="opacity: 0.5; color: #999; border-color: #999;">เพิ่มลงตะกร้า (หมด)</button>
+                    <button class="action-btn action-primary action-wide" style="background: #7b8893; border-color: #7b8893;" onclick="alert('ระบบจะแจ้งเตือนเมื่อมีสินค้าให้คุณทราบ')">แจ้งเตือนเมื่อมีสินค้า</button>
+                    <a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a>
+                    <a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a>
+                </div>
                 <?php else: ?>
                 <div class="actions"><button class="action-btn action-primary" onclick="addToCart(<?= $id ?>)">เพิ่มลงรถเข็น</button><button class="action-btn action-outline" onclick="buyNow(<?= $id ?>)">ซื้อเลย</button><a class="action-btn action-outline action-wide" href="<?=htmlspecialchars($chatUrl)?>">แชทกับคนขาย</a><a class="action-btn action-primary action-wide" href="/pages/digital_twin.php?source=book&amp;id=<?= $id ?>">Digital Twin ของหนังสือเล่มนี้</a></div>
                 <?php endif; ?>
@@ -343,6 +365,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 'price'  => (float)($rec['price'] ?? 0),
                 'badge'  => $isExchange ? 'แลกเปลี่ยน' : (string)($rec['badge'] ?? ''),
                 'image'  => bookImageUrl($rec['image_cover'] ?? null),
+                'stock_quantity' => $isExchange ? 1 : ($rec['stock_quantity'] ?? 1),
             ];
             $card_type = $isExchange
                 ? 'exchange'

@@ -24,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['display_name'] = $user['display_name'] ?: $user['email'];
                 $_SESSION['avatar'] = !empty($user['profile_image']) ? '/pages/' . ltrim($user['profile_image'], '/') : '';
 
+                if (empty($user['latitude']) || empty($user['longitude'])) {
+                    $_SESSION['needs_location'] = true;
+                }
+
                 // แยกทางไปหน้าต่างๆ ตาม role
                 switch ($user['role']) {
                     case 'publisher_admin':
@@ -64,6 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // ยังไม่มีข้อมูลร้านผูกกับ user นี้
                             header("Location: ../pages/shop_setup.php");
                         }
+                        break;
+
+                    case 'super_admin':
+                        header("Location: ../admin/index.php");
                         break;
 
                     default:

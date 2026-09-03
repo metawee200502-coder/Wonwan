@@ -30,7 +30,7 @@ $admin_order_badge = 0;
 $admin_chat_badge = 0;
 if (!empty($_SESSION['user_id']) && isset($pdo)) {
     try {
-        $badgeStmt = $pdo->prepare("SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE o.payment_status='reviewing' AND ((b.seller_type='publisher' AND b.seller_id IN (SELECT publisher_id FROM publisher_staff WHERE user_id=?)) OR (b.seller_type='shop' AND b.seller_id IN (SELECT shop_id FROM shop_staff WHERE user_id=?)))");
+        $badgeStmt = $pdo->prepare("SELECT COUNT(DISTINCT o.order_id) FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE o.payment_status='paid' AND o.shipping_status IN ('pending','packing') AND ((b.seller_type='publisher' AND b.seller_id IN (SELECT publisher_id FROM publisher_staff WHERE user_id=?)) OR (b.seller_type='shop' AND b.seller_id IN (SELECT shop_id FROM shop_staff WHERE user_id=?)))");
         $badgeStmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
         $admin_order_badge = (int)$badgeStmt->fetchColumn();
         if($seller_profile_id){$sellerType=$role==='publisher_admin'?'publisher':'shop';$chatBadgeStmt=$pdo->prepare("SELECT COUNT(m.message_id) FROM chat_conversations c JOIN chat_messages m ON m.conversation_id=c.conversation_id AND m.is_read=0 AND m.sender_user_id=c.customer_user_id WHERE c.seller_type=? AND c.seller_id=?");$chatBadgeStmt->execute([$sellerType,$seller_profile_id]);$admin_chat_badge=(int)$chatBadgeStmt->fetchColumn();}

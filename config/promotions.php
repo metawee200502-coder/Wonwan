@@ -62,13 +62,24 @@ function wanawanBestSellerPromotion(PDO $pdo,string $sellerType,int $sellerId,fl
         // รองรับช่วง deploy ก่อน migration โดย checkout ยังใช้ส่วนลดสมาชิกเดิมได้
         if($e->getCode()!=='42S02')throw $e;
     }
-    $remaining=$subtotal;$normalized=[];
-    foreach($applied as $promotion){$amount=round(min($remaining,(float)$promotion['discount_amount']),2);if($amount<=0)continue;$promotion['discount_amount']=$amount;$normalized[]=$promotion;$remaining-=$amount;}
+    // Find the single best promotion
+    $bestPromotion = null;
+    $maxDiscount = -1;
+    foreach($applied as $promotion){
+        $amount = round(min($subtotal, (float)$promotion['discount_amount']), 2);
+        if($amount > $maxDiscount){
+            $maxDiscount = $amount;
+            $promotion['discount_amount'] = $amount;
+            $bestPromotion = $promotion;
+        }
+    }
+    
+    $normalized = $bestPromotion && $bestPromotion['discount_amount'] > 0 ? [$bestPromotion] : [];
     $storePromotions=array_values(array_filter($normalized,static fn(array $p):bool=>!empty($p['promotion_id'])));
     return [
         'promotion_id'=>$storePromotions[0]['promotion_id']??null,
-        'promotion_name'=>implode(' + ',array_column($normalized,'promotion_name')),
-        'discount_amount'=>round($subtotal-$remaining,2),
+        'promotion_name'=>$normalized[0]['promotion_name']??'',
+        'discount_amount'=>$normalized[0]['discount_amount']??0,
         'is_store_promotion'=>(bool)$storePromotions,
         'applied_promotions'=>$normalized,
     ];

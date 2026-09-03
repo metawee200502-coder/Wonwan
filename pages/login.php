@@ -1,4 +1,17 @@
-<?php session_start(); ?>
+<?php session_start();
+if (!empty($_SESSION['user_id'])) {
+    if (($_SESSION['role'] ?? '') === 'super_admin') {
+        header('Location: /admin/index.php');
+    } elseif (($_SESSION['role'] ?? '') === 'publisher_admin' && !empty($_SESSION['publisher_id'])) {
+        header('Location: /pages/dashboard.php');
+    } elseif (($_SESSION['role'] ?? '') === 'shop_admin' && !empty($_SESSION['shop_id'])) {
+        header('Location: /pages/dashboard.php');
+    } else {
+        header('Location: /pages/home.php');
+    }
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="th">
 <head>

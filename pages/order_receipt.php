@@ -11,7 +11,6 @@ if($order['payment_status']==='cancelled'||$order['shipping_status']==='cancelle
 elseif($order['shipping_status']==='delivered'){$pay='จัดส่งสำเร็จแล้ว';$statusClass='success';}
 elseif($order['shipping_status']==='shipped'){$pay='กำลังจัดส่ง';$statusClass='shipping';}
 elseif($order['shipping_status']==='packing'){$pay='กำลังเตรียมสินค้า';$statusClass='packing';}
-elseif($order['payment_status']==='reviewing'){$pay='รอตรวจสอบการชำระเงิน';$statusClass='reviewing';}
 elseif($order['payment_status']==='paid'){$pay='ชำระเงินแล้ว';$statusClass='paid';}
 else{$pay='รอชำระเงิน';$statusClass='pending';}
 $shippingText=$shippingLabels[$order['shipping_status']]??$order['shipping_status'];

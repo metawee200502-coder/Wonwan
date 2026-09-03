@@ -39,7 +39,7 @@ $tab=$_GET['tab']??'selling';$profile_active=in_array($tab,['orders','notify'])?
 if($tab==='exchange'){$q=$pdo->prepare("SELECT exchange_id id,title,author,image_cover FROM exchanges WHERE owner_id=? AND status<>'completed' ORDER BY created_at DESC");$q->execute([$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
 elseif($tab==='orders'){$q=$pdo->prepare('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC');$q->execute([$userId]);$orders=$q->fetchAll(PDO::FETCH_ASSOC);}
 elseif($tab==='reviews'){$q=$pdo->prepare('SELECT r.*,b.title,b.image_cover,o.order_number FROM book_reviews r JOIN books b ON b.book_id=r.book_id LEFT JOIN order_items oi ON oi.order_item_id=r.order_item_id LEFT JOIN orders o ON o.order_id=oi.order_id WHERE r.user_id=? ORDER BY r.created_at DESC');$q->execute([$userId]);$reviews=$q->fetchAll(PDO::FETCH_ASSOC);}
-else{$q=$pdo->prepare("SELECT b.book_id id,b.title,b.author,b.price,b.image_cover,b.book_type FROM books b WHERE b.status<>'hidden' AND ((b.seller_type='user' AND b.seller_id=?) OR (b.seller_type='shop' AND b.seller_id IN(SELECT shop_id FROM shop_staff WHERE user_id=?)) OR (b.seller_type='publisher' AND b.seller_id IN(SELECT publisher_id FROM publisher_staff WHERE user_id=?))) ORDER BY b.created_at DESC");$q->execute([$userId,$userId,$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
+else{$q=$pdo->prepare("SELECT b.book_id id,b.title,b.author,b.price,b.image_cover,b.book_type,b.stock_quantity FROM books b WHERE b.status<>'hidden' AND ((b.seller_type='user' AND b.seller_id=?) OR (b.seller_type='shop' AND b.seller_id IN(SELECT shop_id FROM shop_staff WHERE user_id=?)) OR (b.seller_type='publisher' AND b.seller_id IN(SELECT publisher_id FROM publisher_staff WHERE user_id=?))) ORDER BY b.created_at DESC");$q->execute([$userId,$userId,$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
 $exchangeCount=$pdo->prepare("SELECT COUNT(*) FROM exchanges WHERE owner_id=? AND status<>'completed'");$exchangeCount->execute([$userId]);$bookCount=(int)$exchangeCount->fetchColumn();
 
 // Fetch the user's most recent province
@@ -67,27 +67,79 @@ document.addEventListener('DOMContentLoaded',()=>{
 <?php elseif($tab==='notify'):?>
     <h2>ตั้งค่าการรับการแจ้งเตือน</h2>
     <?php if(!empty($profileMessage)):?><div style="padding:15px;background:#eefcf1;color:#1e6a39;border-radius:8px;margin-bottom:20px;"><?=htmlspecialchars($profileMessage)?></div><?php endif;?>
-    <form method="post" style="max-width:500px;background:#fff;padding:25px;border-radius:12px;border:1px solid #eadbd4;">
+    <style>
+    .switch-group { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border:1px solid #ccd3c5; border-radius:12px; margin-bottom:12px; background:#faf9f8; }
+    .switch-label { font-weight:600; color:var(--text-dark); display:flex; align-items:center; gap:10px; }
+    .switch { position:relative; display:inline-block; width:54px; height:28px; }
+    .switch input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.3s; border-radius:30px; }
+    .slider:before { position:absolute; content:""; height:20px; width:20px; left:4px; bottom:4px; background-color:white; transition:.3s; border-radius:50%; }
+    input:checked + .slider { background-color:var(--secondary-color); }
+    input:checked + .slider:before { transform:translateX(26px); }
+    input:disabled + .slider { opacity:0.5; cursor:not-allowed; }
+    </style>
+    <form method="post" id="notifyForm" style="max-width:550px;background:#fff;padding:30px;border-radius:16px;border:1px solid #eadbd4; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
         <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['profile_csrf_token'])?>">
         <input type="hidden" name="save_notify" value="1">
-        <p style="color:var(--text-muted);margin-bottom:20px;">เลือกรับข่าวสารเมื่อสถานะการชำระเงินหรือการจัดส่งเปลี่ยนแปลง</p>
-        <select name="notify_preference" style="width:100%;height:46px;padding:0 12px;border:1px solid #ccd3c5;border-radius:8px;margin-bottom:15px;font:inherit;">
-            <option value="email" <?=($user['notify_preference']??'email')==='email'?'selected':''?>>อีเมล</option>
-            <option value="line" <?=($user['notify_preference']??'email')==='line'?'selected':''?>>LINE</option>
-            <option value="both" <?=($user['notify_preference']??'email')==='both'?'selected':''?>>อีเมลและ LINE</option>
-            <option value="none" <?=($user['notify_preference']??'email')==='none'?'selected':''?>>ไม่รับการแจ้งเตือนภายนอก</option>
-        </select>
-        <div style="margin-bottom:20px;">
-            <?php if(empty($user['line_user_id'])):?>
-                <div style="color:#b36d65;font-size:13px;margin-bottom:8px;">ยังไม่ได้เชื่อมต่อบัญชี LINE</div>
-                <a href="/pages/line_connect.php" style="display:inline-grid;place-items:center;height:44px;padding:0 24px;border-radius:8px;background:#06c755;color:#fff;text-decoration:none;font-weight:700;">เชื่อมต่อ LINE</a>
+        <input type="hidden" name="notify_preference" id="notifyPref" value="<?=htmlspecialchars($user['notify_preference']??'email')?>">
+        
+        <h2 style="margin:0 0 8px;font-size:20px;color:var(--secondary-color);">การแจ้งเตือน</h2>
+        <p style="color:var(--text-muted);margin-bottom:25px;font-size:14px;line-height:1.5;">เลือกรับข่าวสารเมื่อสถานะการชำระเงินหรือการจัดส่งเปลี่ยนแปลงผ่านช่องทางต่างๆ ด้านล่าง</p>
+        
+        <?php 
+            $pref = $user['notify_preference'] ?? 'email';
+            $isEmail = in_array($pref, ['email', 'both']);
+            $isLine = in_array($pref, ['line', 'both']);
+            $hasLine = !empty($user['line_user_id']);
+        ?>
+
+        <div class="switch-group">
+            <div class="switch-label">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                อีเมล (Email)
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggleEmail" <?= $isEmail ? 'checked' : '' ?>>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="switch-group" style="<?= !$hasLine ? 'opacity:0.6;' : '' ?>">
+            <div class="switch-label">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00C300" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                ไลน์ (LINE)
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggleLine" <?= $isLine ? 'checked' : '' ?> <?= !$hasLine ? 'disabled' : '' ?>>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div style="margin-top:10px; margin-bottom:25px; padding:0 5px;">
+            <?php if(!$hasLine):?>
+                <div style="color:#b36d65;font-size:13px;margin-bottom:8px;">* คุณต้องเชื่อมต่อบัญชี LINE ก่อนถึงจะเปิดใช้งานการแจ้งเตือนผ่าน LINE ได้</div>
+                <a href="/pages/line_connect.php" style="display:inline-flex;align-items:center;height:40px;padding:0 20px;border-radius:20px;background:#06c755;color:#fff;text-decoration:none;font-weight:600;font-size:14px;transition:0.2s;">
+                    + เชื่อมต่อบัญชี LINE
+                </a>
             <?php else:?>
-                <div style="color:#23853b;font-weight:600;margin-bottom:8px;">✓ เชื่อมต่อ LINE แล้ว</div>
-                <a href="javascript:void(0)" onclick="disconnectLine()" style="color:#b34d55;text-decoration:underline;font-size:13px;">ยกเลิกการเชื่อมต่อ</a>
+                <div style="color:#2d5a27;font-weight:600;font-size:14px;margin-bottom:6px;">✓ เชื่อมต่อบัญชี LINE เรียบร้อยแล้ว</div>
+                <a href="javascript:void(0)" onclick="disconnectLine()" style="color:#b34d55;text-decoration:underline;font-size:13px;">ยกเลิกการเชื่อมต่อบัญชี</a>
             <?php endif;?>
         </div>
-        <button class="edit" style="width:100%;border:0;cursor:pointer;">บันทึกการตั้งค่า</button>
+        <button type="button" onclick="submitNotifyForm()" class="edit" style="width:100%;border:0;cursor:pointer;height:50px;border-radius:12px;font-size:16px;font-weight:600;">บันทึกการตั้งค่า</button>
     </form>
+    <script>
+    function submitNotifyForm() {
+        const e = document.getElementById('toggleEmail').checked;
+        const l = document.getElementById('toggleLine').checked;
+        let p = 'none';
+        if (e && l) p = 'both';
+        else if (e) p = 'email';
+        else if (l) p = 'line';
+        document.getElementById('notifyPref').value = p;
+        document.getElementById('notifyForm').submit();
+    }
+    </script>
     <script>
     if(!window.disconnectLine){
         window.disconnectLine = function(){
@@ -97,4 +149,4 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
     }
     </script>
-<?php else:?><div class="grid"><?php if(!$items):?><div class="empty">ยังไม่มีหนังสือในหมวดนี้</div><?php else:foreach($items as $row){$book=['id'=>$row['id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>$row['price']??0,'badge'=>$tab==='exchange'?'แลกเปลี่ยน':'มาใหม่','image'=>profileImage($row['image_cover']??null)];$card_type=$tab==='exchange'?'exchange':(($row['book_type']??'used')==='new'?'new':'used');$owner_controls=in_array($tab,['selling','exchange'],true);$owner_csrf_token=$_SESSION['profile_csrf_token'];require __DIR__.'/../components/book_card.php';$owner_controls=false;}endif;?></div><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?></body></html>
+<?php else:?><div class="grid"><?php if(!$items):?><div class="empty">ยังไม่มีหนังสือในหมวดนี้</div><?php else:foreach($items as $row){$book=['id'=>$row['id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>$row['price']??0,'badge'=>$tab==='exchange'?'แลกเปลี่ยน':'มาใหม่','image'=>profileImage($row['image_cover']??null),'stock_quantity'=>$row['stock_quantity']??1];$card_type=$tab==='exchange'?'exchange':(($row['book_type']??'used')==='new'?'new':'used');$owner_controls=in_array($tab,['selling','exchange'],true);$owner_csrf_token=$_SESSION['profile_csrf_token'];require __DIR__.'/../components/book_card.php';$owner_controls=false;}endif;?></div><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?></body></html>

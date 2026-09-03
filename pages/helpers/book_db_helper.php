@@ -52,6 +52,21 @@ function collectBookFields(string $seller_name): array {
 }
 
 function insertBook(PDO $pdo, array $f, array $imgs, int $seller_id, string $seller_type, string $status): void {
+    $table = $seller_type === 'shop' ? 'shops' : 'users';
+    $idCol = $seller_type === 'shop' ? 'shop_id' : 'user_id';
+    
+    $stmtLoc = $pdo->prepare("SELECT latitude, longitude FROM $table WHERE $idCol = ?");
+    $stmtLoc->execute([$seller_id]);
+    $sellerLoc = $stmtLoc->fetch(PDO::FETCH_ASSOC);
+    
+    if ($sellerLoc && $sellerLoc['latitude'] !== null && $sellerLoc['longitude'] !== null) {
+        $f['seller_lat'] = $sellerLoc['latitude'];
+        $f['seller_lng'] = $sellerLoc['longitude'];
+    } elseif ($f['seller_lat'] !== null && $f['seller_lng'] !== null) {
+        $updateStmt = $pdo->prepare("UPDATE $table SET latitude = ?, longitude = ? WHERE $idCol = ?");
+        $updateStmt->execute([$f['seller_lat'], $f['seller_lng'], $seller_id]);
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO books (
             seller_id, seller_type, isbn, isbn_13, title, author, publisher_name,
