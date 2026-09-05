@@ -280,3 +280,21 @@ body:has(> main.wrap > .head .tabs) > main.wrap > .grid > .empty {
 .out-of-stock-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; pointer-events: none; }
 .is-out-of-stock-page .book-cover-image { filter: grayscale(100%); }
 
+/* ==========================================================
+   GLOBAL RESPONSIVE OVERRIDE FOR BOOK CARDS 
+   ========================================================== */
+/* Tablet (Max 1024px) -> 3 Cards per row */
+@media (max-width: 1024px) {
+    .grid, .used-grid, .seller-grid, .zone-book-grid, .publisher-grid, 
+    .exchange-grid, .books-grid, .recommend-grid, .profile-grid, .book-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+/* Mobile (Max 768px) -> 2 Cards per row */
+@media (max-width: 768px) {
+    .grid, .used-grid, .seller-grid, .zone-book-grid, .publisher-grid, 
+    .exchange-grid, .books-grid, .recommend-grid, .profile-grid, .book-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}

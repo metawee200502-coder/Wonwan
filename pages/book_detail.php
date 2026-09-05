@@ -129,6 +129,7 @@ $chatUrl = (!$isExchange && in_array($item['seller_type'] ?? '', ['publisher', '
         'seller_type' => $item['seller_type'],
         'seller_id' => (int)$item['seller_id'],
         'book_id' => $id,
+        't' => time()
     ])
     : '#';
 
@@ -173,11 +174,11 @@ if (($_GET['source'] ?? '') === 'mood_match') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title) ?> - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
     * { box-sizing: border-box; }
     .detail-wrap { max-width: 1180px; margin: 0 auto; padding: 36px 40px 70px; }
-    .product-layout { display: grid; grid-template-columns: minmax(300px, 500px) 1fr; gap: 54px; align-items: start; }
+    .product-layout { display: grid; grid-template-columns: minmax(300px, 440px) 1fr; gap: 40px; align-items: start; }
     .gallery-main { min-height: 520px; background: #f7f3f0; border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .gallery-main img { width: 100%; height: 520px; object-fit: contain; }
     .cover-placeholder { color: var(--primary-color); opacity: .45; text-align: center; }
@@ -202,12 +203,12 @@ if (($_GET['source'] ?? '') === 'mood_match') {
     .seller-box { display: flex; align-items: center; gap: 12px; }
     .seller-box-link { color: inherit; text-decoration: none; transition: border-color .2s, box-shadow .2s; }
     .seller-box-link:hover { border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(201,123,139,.12); }
-    .seller-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--accent-pink-light); display: grid; place-items: center; color: var(--primary-color); font-weight: 700; overflow: hidden; }
+    .seller-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--accent-pink-light); display: grid; place-items: center; color: var(--primary-color); font-weight: 700; overflow: hidden; flex: 0 0 46px; }
     .seller-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .seller-name { font-weight: 600; color: var(--text-dark); }
-    .seller-box .seller-name{display:inline-block;vertical-align:middle}.seller-box .product-source-tag{padding:4px 8px;margin-left:7px;font-size:10px;vertical-align:middle}.seller-box .product-source-tag::before{width:13px;height:13px;font-size:8px}.seller-box .seller-inline-source-tag.product-source-tag--user::before{display:none}
-    .seller-sub { font-size: var(--text-xs); color: var(--text-muted); }
-    .seller-profile-label { margin-left: auto; color: var(--primary-color); font-size: var(--text-sm); font-weight: 600; }
+    .seller-info-wrapper { flex: 1; min-width: 0; }
+    .seller-name { font-weight: 600; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seller-sub { font-size: var(--text-xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seller-profile-label { margin-left: auto; color: var(--primary-color); font-size: var(--text-sm); font-weight: 600; flex: 0 0 auto; white-space: nowrap; }
     .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
     .action-btn { min-height: 50px; border-radius: 9px; border: 1px solid var(--primary-color); font-family: var(--font-family); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
     .action-primary { background: #d2948a; color: #fff; border-color: #d2948a; }
@@ -232,8 +233,8 @@ if (($_GET['source'] ?? '') === 'mood_match') {
     .recommend-head h2 { color: var(--secondary-color); margin: 0; font-size: 24px; }
     .recommend-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
     .review-section{margin-top:48px;padding:28px;border:1px solid #eadbd4;border-radius:18px;background:#fff}.review-title-row{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:18px}.review-title-row h2{margin:0;color:var(--secondary-color)}.review-score{display:flex;gap:8px;align-items:baseline}.review-score strong{font-size:27px;color:#d99a27}.review-list{display:grid;gap:12px}.review-card{display:flex;gap:13px;padding:17px;border-radius:13px;background:#fff8f4}.review-avatar{width:45px;height:45px;flex:0 0 45px;border-radius:50%;object-fit:cover;background:#f5dce5;display:grid;place-items:center;color:#b85e7e;font-weight:700}.review-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.review-stars{color:#dda027;letter-spacing:1px}.review-date{font-size:12px;color:#988a84}.review-card p{margin:8px 0 0;line-height:1.65;white-space:pre-wrap}.all-reviews{color:var(--primary-color);font-weight:700;text-decoration:none}.no-reviews{padding:28px;text-align:center;color:var(--text-muted);background:#fff8f4;border-radius:12px}
-    @media (max-width: 800px) { .detail-wrap { padding: 24px 18px 50px; } .product-layout { grid-template-columns: 1fr; gap: 28px; } .gallery-main, .gallery-main img { min-height: 380px; height: 380px; } .recommend-grid { grid-template-columns: repeat(2, 1fr); } .tech-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 480px) { .actions { grid-template-columns: 1fr; } .action-wide { grid-column: auto; } .recommend-grid { grid-template-columns: 1fr; } .tech-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 950px) { .detail-wrap { padding: 24px 18px 50px; } .product-layout { grid-template-columns: 1fr; gap: 28px; } .gallery-main { min-height: unset; height: auto; padding: 20px 0; } .gallery-main img { max-height: 420px; height: auto; } .recommend-grid { grid-template-columns: repeat(2, 1fr); } .tech-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .actions { grid-template-columns: 1fr; } .action-wide { grid-column: auto; } .recommend-grid { grid-template-columns: repeat(2, 1fr); } .tech-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -283,12 +284,12 @@ if (($_GET['source'] ?? '') === 'mood_match') {
             <div class="meta">ผู้เขียน: <strong><?= htmlspecialchars($item['author'] ?: '-') ?></strong><?php if (!empty($item['category'])): ?> &nbsp;•&nbsp; หมวดหมู่: <?= htmlspecialchars($item['category']) ?><?php endif; ?></div>
 
             <?php if ($isExchange): ?>
-                <a class="seller-box seller-box-link" href="/pages/exchange_profile.php?user_id=<?= (int)$item['owner_id'] ?>"><div class="seller-avatar"><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">เจ้าของหนังสือ <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
+                <a class="seller-box seller-box-link" href="/pages/exchange_profile.php?user_id=<?= (int)$item['owner_id'] ?>"><div class="seller-avatar"><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?></div><div class="seller-info-wrapper"><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">เจ้าของหนังสือ <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
                 <div class="exchange-actions">
                     <?php $follow_type='user';$follow_id=(int)$item['owner_id'];$follow_class='action-btn action-outline';require __DIR__.'/../components/follow_button.php';?>
                     <?php if (!$isOwner): ?>
                     <a class="action-btn action-primary" href="/pages/exchange_request.php?exchange_id=<?= $id ?>">ยื่นคำขอแลกเปลี่ยน</a>
-                    <a class="action-btn action-outline" href="/pages/chat.php?seller_type=user&amp;seller_id=<?= (int)$item['owner_id'] ?>&amp;exchange_id=<?= $id ?>">คุยกับเจ้าของหนังสือ</a>
+                    <a class="action-btn action-outline" href="/pages/chat.php?seller_type=user&amp;seller_id=<?= (int)$item['owner_id'] ?>&amp;exchange_id=<?= $id ?>&amp;t=<?= time() ?>">แชทพูดคุยเบื้องต้นกับคนขาย</a>
                     <a class="action-btn twin" href="/pages/digital_twin.php?source=exchange&amp;id=<?= $id ?>">คุยกับ Digital Twin ของหนังสือเล่มนี้</a>
                     <?php else: ?>
                     <div class="owner-notice" style="padding:16px 20px;border-radius:10px;background:#fff5f0;border:1px solid #ead4c8;color:#8c6a5d;text-align:center;font-weight:600">นี่คือโพสต์แลกเปลี่ยนของคุณ</div>
@@ -302,7 +303,7 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <?php if (($item['book_type'] ?? 'used') === 'used'): ?>
                 <div class="condition-box"><div class="condition-head"><span>สภาพหนังสือ</span><span><?= htmlspecialchars($condition) ?></span></div><div class="condition-bar"><span style="width:<?= match($item['condition_level']) { 'good' => 90, 'fair' => 70, 'old' => 50, default => 100 } ?>%"></span></div><div class="defects"><?= htmlspecialchars($item['defects_detail'] ?: 'ไม่พบตำหนิที่ผู้ขายระบุ') ?></div></div>
                 <?php endif; ?>
-                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div><div class="seller-name"><?= htmlspecialchars($sellerName) ?> <span class="product-source-tag seller-inline-source-tag product-source-tag--<?=htmlspecialchars($productSourceTag[1])?>"><?=htmlspecialchars($productSourceTag[0])?></span></div><div class="seller-sub">มีสินค้า <?= number_format($sellerBookCount) ?> เล่ม <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
+                <a class="seller-box seller-box-link" href="/pages/partner_detail.php?type=<?= urlencode($item['seller_type']) ?>&amp;id=<?= (int)$item['seller_id'] ?>"><div class="seller-avatar"><?php if (!empty($item['profile_image'])): ?><img src="<?= htmlspecialchars(bookImageUrl($item['profile_image'])) ?>" alt=""><?php else: ?><?= htmlspecialchars(mb_substr($sellerName, 0, 1)) ?><?php endif; ?></div><div class="seller-info-wrapper"><div class="seller-name"><?= htmlspecialchars($sellerName) ?></div><div class="seller-sub">มีสินค้า <?= number_format($sellerBookCount) ?> เล่ม <span class="product-detail-loc" style="<?= $locText === '' ? 'display:none;' : 'display:inline-flex; align-items:center; gap:4px; vertical-align:middle;' ?>" data-book-id="<?= !$isExchange ? $id : '' ?>" data-exchange-id="<?= $isExchange ? $id : '' ?>">• <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary-color)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="loc-text" style="transform:translateY(1px)"><?= htmlspecialchars($locText) ?></span></span></div></div><span class="seller-profile-label">ดูโปรไฟล์ ›</span></a>
                 <?php if ($isOutOfStock): ?>
                 <div class="stock-indicator stock-out">✕ สินค้าหมดแล้ว</div>
                 <?php elseif ($stockQuantity < 10): ?>

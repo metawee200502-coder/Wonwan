@@ -18,6 +18,62 @@ if (!empty($_SESSION['user_id'])) {
         $headerUnreadCount = (int)$headerNotificationStmt->fetchColumn();
     } catch (Throwable $e) { $headerUnreadCount = 0; }
 }
+
+$mobileUser = null;
+$mobileStats = ['followers' => 0, 'following' => 0, 'posts' => 0, 'cart' => 0, 'exchange_req' => 0, 'pending_orders' => 0];
+
+if (!empty($_SESSION['user_id'])) {
+    try {
+        if (!isset($pdo)) require_once __DIR__ . '/../config/config.php';
+        $stmt = $pdo->prepare('SELECT display_name, profile_image, email, followers_count FROM users WHERE user_id=? LIMIT 1');
+        $stmt->execute([(int)$_SESSION['user_id']]);
+        $mobileUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($mobileUser) {
+            $mobileStats['followers'] = (int)$mobileUser['followers_count'];
+        }
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM profile_follows WHERE follower_user_id=?');
+        $stmt->execute([(int)$_SESSION['user_id']]);
+        $mobileStats['following'] = (int)$stmt->fetchColumn();
+
+        $sellerType = 'user';
+        $sellerId = (int)$_SESSION['user_id'];
+        if (($_SESSION['role'] ?? '') === 'publisher_admin') {
+            $sellerType = 'publisher';
+            $stmt = $pdo->prepare('SELECT publisher_id FROM publisher_staff WHERE user_id=? LIMIT 1');
+            $stmt->execute([(int)$_SESSION['user_id']]);
+            if ($sid = $stmt->fetchColumn()) $sellerId = (int)$sid;
+        } elseif (($_SESSION['role'] ?? '') === 'shop_admin') {
+            $sellerType = 'shop';
+            $stmt = $pdo->prepare('SELECT shop_id FROM shop_staff WHERE user_id=? LIMIT 1');
+            $stmt->execute([(int)$_SESSION['user_id']]);
+            if ($sid = $stmt->fetchColumn()) $sellerId = (int)$sid;
+        }
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM books WHERE seller_type=? AND seller_id=?');
+        $stmt->execute([$sellerType, $sellerId]);
+        $mobileStats['posts'] = (int)$stmt->fetchColumn();
+
+        if ($sellerType === 'user') {
+            $stmtEx = $pdo->prepare('SELECT COUNT(*) FROM exchanges WHERE owner_id=?');
+            $stmtEx->execute([$sellerId]);
+            $mobileStats['posts'] += (int)$stmtEx->fetchColumn();
+        }
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM cart_items WHERE user_id=?');
+        $stmt->execute([(int)$_SESSION['user_id']]);
+        $mobileStats['cart'] = (int)$stmt->fetchColumn();
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM exchange_requests er JOIN exchanges e ON e.exchange_id=er.exchange_id WHERE e.owner_id=? AND er.status='pending'");
+        $stmt->execute([(int)$_SESSION['user_id']]);
+        $mobileStats['exchange_req'] = (int)$stmt->fetchColumn();
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE user_id=? AND payment_status='pending'");
+        $stmt->execute([(int)$_SESSION['user_id']]);
+        $mobileStats['pending_orders'] = (int)$stmt->fetchColumn();
+    } catch (Throwable $e) {}
+}
 ?>
 
 <style>
@@ -310,10 +366,13 @@ if (!empty($_SESSION['user_id'])) {
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
     .header-topbar {
         padding: 10px 16px;
         flex-wrap: wrap;
+    }
+    .header-actions {
+        margin-left: auto;
     }
     .header-search {
         max-width: 100%;
@@ -346,7 +405,7 @@ if (!empty($_SESSION['user_id'])) {
     cursor: pointer;
     padding: 4px;
 }
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
     .mobile-menu-btn { display: block; }
 }
 </style>
@@ -638,8 +697,43 @@ if (!empty($_SESSION['user_id'])) {
     .msb-link.active { background: #f6e6e2; }
     .msb-link-icon { width: 24px; text-align: center; font-size: 20px; display: flex; justify-content: center; }
     .msb-link-icon img { width: 22px; height: 22px; object-fit: contain; }
-    .msb-badge { margin-left: auto; background: #bd2525; color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+    .msb-badge { margin-left: auto; background: var(--primary-color); width: 8px; height: 8px; border-radius: 50%; font-size: 0; padding: 0; }
     .msb-badge-dot { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; background: #c95c74; border-radius: 50%; }
+    
+    .msb-dropdown-btn {
+        display: flex; align-items: center; justify-content: space-between; width: 100%;
+        background: none; border: none; padding: 12px 20px; font-family: var(--font-family);
+        font-size: 14.5px; color: var(--secondary-color); cursor: pointer; transition: 0.2s;
+    }
+    .msb-dropdown-btn:hover { background: #fdf2ee; font-weight: 600; }
+    .msb-dropdown-btn .msb-link-icon-wrap { display: flex; align-items: center; gap: 14px; }
+    .msb-dropdown-icon { transition: transform 0.3s; }
+    .msb-dropdown-btn.active .msb-dropdown-icon { transform: rotate(180deg); }
+    .msb-dropdown-content { display: none; background: #faf9f8; padding: 4px 0; }
+    .msb-dropdown-content.active { display: block; }
+    .msb-sublink {
+        display: block; padding: 10px 20px 10px 58px; text-decoration: none;
+        color: var(--secondary-color); font-size: 13.5px; transition: 0.2s;
+    }
+    .msb-sublink:hover { background: #f6e6e2; font-weight: 600; }
+
+    @media (max-width: 1200px) {
+        body .site-header .icon-btn__badge.notification-live-badge, 
+        body .site-header .icon-btn__badge {
+            font-size: 0 !important;
+            width: 8px !important;
+            height: 8px !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            top: 4px !important;
+            right: 4px !important;
+            color: transparent !important;
+            border-radius: 50% !important;
+            display: block !important;
+            background: #cf2f3b !important;
+            border: 1.5px solid #fdeee2 !important;
+        }
+    }
     
     .msb-footer { margin-top: auto; padding: 20px; border-top: 1px solid #f0e6e2; text-align: center; background: #faf9f8; }
     .msb-logout { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid #eadbd4; border-radius: 12px; background: #fff; color: #bd2525; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; transition: 0.2s; }
@@ -666,7 +760,7 @@ if (!empty($_SESSION['user_id'])) {
         
         <?php if (!empty($mobileUser)): ?>
         <div class="msb-user">
-            <div class="msb-user-info">
+            <a href="/pages/profile.php" class="msb-user-info" style="text-decoration: none; color: inherit;">
                 <?php $mAvatar = !empty($mobileUser['profile_image']) ? (str_starts_with($mobileUser['profile_image'],'http') ? $mobileUser['profile_image'] : (str_starts_with($mobileUser['profile_image'],'uploads/') ? '/pages/'.$mobileUser['profile_image'] : '/assets/image/'.$mobileUser['profile_image'])) : 'https://ui-avatars.com/api/?name='.urlencode($mobileUser['display_name'] ?: $mobileUser['email']).'&background=C97B8B&color=fff'; ?>
                 <img src="<?= htmlspecialchars($mAvatar) ?>" class="msb-avatar" alt="">
                 <div class="msb-user-details">
@@ -680,68 +774,84 @@ if (!empty($_SESSION['user_id'])) {
                         <?= htmlspecialchars($mobileUser['province'] ?? 'อ.เมืองนครราชสีมา') ?>
                     </p>
                 </div>
-            </div>
+            </a>
             <div class="msb-stats">
                 <div class="msb-stat-box">
                     <div class="msb-stat-val"><?= number_format($mobileStats['followers']) ?></div>
+                    <div class="msb-stat-lbl">ผู้ติดตาม</div>
+                </div>
+                <div class="msb-stat-box">
+                    <div class="msb-stat-val"><?= number_format($mobileStats['following']) ?></div>
                     <div class="msb-stat-lbl">กำลังติดตาม</div>
                 </div>
                 <div class="msb-stat-box">
                     <div class="msb-stat-val"><?= number_format($mobileStats['posts']) ?></div>
                     <div class="msb-stat-lbl">โพสต์ของฉัน</div>
                 </div>
-                <div class="msb-stat-box">
-                    <div class="msb-stat-val"><span><?= number_format($mobileStats['cart']) ?> ชิ้น</span></div>
-                    <div class="msb-stat-lbl">ในตะกร้า</div>
-                </div>
             </div>
         </div>
         
         <div class="msb-nav">
             <div class="msb-nav-group">บริการหลัก</div>
-            <a href="/pages/home.php" class="msb-link">
-                <span class="msb-link-icon">🏠</span> หน้าหลัก
+            <button class="msb-dropdown-btn" onclick="this.classList.toggle('active'); document.getElementById('msbHomeDrop').classList.toggle('active')">
+                <div class="msb-link-icon-wrap"><span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span> หน้าหลัก</div>
+                <svg class="msb-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="msb-dropdown-content" id="msbHomeDrop">
+                <a href="/pages/new_books.php" class="msb-sublink">หนังสือมือ 1</a>
+                <a href="/pages/used_books.php" class="msb-sublink">หนังสือมือ 2</a>
+                <a href="/pages/exchange_books.php" class="msb-sublink">ลานแลกเปลี่ยน</a>
+            </div>
+            
+            <div class="msb-nav-group">เมนูโปรไฟล์</div>
+            <a href="/pages/profile.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> โปรไฟล์
             </a>
             <a href="/pages/seller_market.php" class="msb-link">
-                <span class="msb-link-icon">📚</span> คลังหนังสือมือสอง
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg></span> ตลาดซื้อขาย
             </a>
             <a href="/pages/exchange_requests.php" class="msb-link">
-                <span class="msb-link-icon">🔄</span> ลานแลกเปลี่ยนหนังสือ
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span> ลานแลกเปลี่ยน
                 <?php if($mobileStats['exchange_req'] > 0): ?><span class="msb-badge"><?= $mobileStats['exchange_req'] ?></span><?php endif; ?>
             </a>
-            <a href="/pages/profile.php?tab=selling" class="msb-link">
-                <span class="msb-link-icon">🏪</span> ตลาดซื้อขายหนังสือของฉัน
-            </a>
             <a href="/pages/chat.php" class="msb-link">
-                <span class="msb-link-icon">💬</span> กล่องข้อความและการแชท
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> กล่องข้อความ
                 <?php if($headerUnreadCount > 0): ?><span class="msb-badge"><?= $headerUnreadCount ?></span><?php endif; ?>
             </a>
             <a href="/pages/orders.php" class="msb-link">
-                <span class="msb-link-icon">📦</span> รายการคำสั่งซื้อของฉัน
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> รายการการสั่งซื้อ
                 <?php if($mobileStats['pending_orders'] > 0): ?><span class="msb-badge"><?= $mobileStats['pending_orders'] ?></span><?php endif; ?>
             </a>
+            
+            <div class="msb-nav-group">ผู้ช่วย AI ของคุณ</div>
+            <a href="/pages/digital_twin.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> Digital Twin
+            </a>
+            <a href="/pages/mood_match.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></span> Mood Match
+            </a>
             <a href="/pages/book_genome.php" class="msb-link">
-                <span class="msb-link-icon">🤖</span> สนทนากับ Digital Twin หนังสือ
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Book Genome
             </a>
             
             <div class="msb-nav-group">บัญชีและการตั้งค่า</div>
             <a href="/pages/location_settings.php" class="msb-link">
-                <span class="msb-link-icon">📍</span> ตั้งค่าตำแหน่งที่อยู่
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span> ตั้งค่าตำแหน่งที่อยู่
             </a>
             <a href="/pages/profile.php?tab=notify" class="msb-link <?= (isset($_GET['tab']) && $_GET['tab'] === 'notify') ? 'active' : '' ?>">
-                <span class="msb-link-icon">🔔</span> ตั้งค่าการแจ้งเตือน
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span> ตั้งค่าการแจ้งเตือน
                 <?php if (isset($_GET['tab']) && $_GET['tab'] === 'notify'): ?><div class="msb-badge-dot"></div><?php endif; ?>
             </a>
             <a href="#" class="msb-link">
-                <span class="msb-link-icon">🔒</span> ความเป็นส่วนตัวและความปลอดภัย
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span> ความเป็นส่วนตัวและความปลอดภัย
             </a>
             
             <div class="msb-nav-group">ช่วยเหลือและข้อมูลระบบ</div>
             <a href="#" class="msb-link">
-                <span class="msb-link-icon">❓</span> ศูนย์ช่วยเหลือและคำถามที่พบบ่อย
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span> ศูนย์ช่วยเหลือและคำถามที่พบบ่อย
             </a>
             <a href="#" class="msb-link">
-                <span class="msb-link-icon">📜</span> ข้อกำหนดและนโยบายความเป็นส่วนตัว
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> ข้อกำหนดและนโยบายความเป็นส่วนตัว
             </a>
         </div>
         
@@ -762,9 +872,28 @@ if (!empty($_SESSION['user_id'])) {
         </div>
         <div class="msb-nav">
             <div class="msb-nav-group">บริการหลัก</div>
-            <a href="/pages/home.php" class="msb-link"><span class="msb-link-icon">🏠</span> หน้าหลัก</a>
-            <a href="/pages/seller_market.php" class="msb-link"><span class="msb-link-icon">📚</span> คลังหนังสือมือสอง</a>
-            <a href="/pages/map_search.php" class="msb-link"><span class="msb-link-icon">📍</span> แผนที่ร้านหนังสือ</a>
+            <button class="msb-dropdown-btn" onclick="this.classList.toggle('active'); document.getElementById('msbHomeDropGuest').classList.toggle('active')">
+                <div class="msb-link-icon-wrap"><span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span> หน้าหลัก</div>
+                <svg class="msb-dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="msb-dropdown-content" id="msbHomeDropGuest">
+                <a href="/pages/new_books.php" class="msb-sublink">หนังสือมือ 1</a>
+                <a href="/pages/used_books.php" class="msb-sublink">หนังสือมือ 2</a>
+                <a href="/pages/exchange_books.php" class="msb-sublink">ลานแลกเปลี่ยน</a>
+            </div>
+            <a href="/pages/seller_market.php" class="msb-link"><span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span> คลังหนังสือมือสอง</a>
+            <a href="/pages/map_search.php" class="msb-link"><span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span> แผนที่ร้านหนังสือ</a>
+
+            <div class="msb-nav-group">ผู้ช่วย AI ของคุณ</div>
+            <a href="/pages/digital_twin.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> Digital Twin
+            </a>
+            <a href="/pages/mood_match.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></span> Mood Match
+            </a>
+            <a href="/pages/book_genome.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Book Genome
+            </a>
         </div>
         <?php endif; ?>
     </aside>

@@ -13,7 +13,7 @@ $breadcrumbs = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ค้นหาบนแผนที่ - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -224,14 +224,16 @@ $breadcrumbs = [
             padding: 10px 24px;
             font-family: var(--font-family);
             font-size: 15px;
-            font-weight: 600;
+            font-weight: normal;
             color: var(--text-muted);
             border-radius: 24px;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
+            white-space: nowrap;
         }
 
         .map-toggle-btn:hover {
@@ -242,6 +244,24 @@ $breadcrumbs = [
             background: var(--primary-color);
             color: #fff;
             box-shadow: 0 2px 8px rgba(211, 148, 139, 0.4);
+        }
+
+        @media(max-width: 768px) {
+            .map-controls {
+                width: calc(100% - 32px);
+                max-width: 450px;
+                top: 12px;
+            }
+            .map-toggle-btn {
+                flex: 1;
+                padding: 8px 2px;
+                font-size: 12px;
+                gap: 4px;
+            }
+            .map-toggle-btn svg {
+                width: 15px;
+                height: 15px;
+            }
         }
 
         /* Custom Markers */

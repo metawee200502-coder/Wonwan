@@ -314,8 +314,9 @@ require_once __DIR__ . '/../config/config.php';
         .error-msg.show { display: block; }
 
         @media (max-width: 760px) {
-            .mood-page { padding: 0; }
-            .mood-shell { height: calc(100vh - 68px); border-radius: 0; border: none; }
+            html, body { overflow: hidden; height: 100dvh; }
+            .mood-page { padding: 0; height: calc(100dvh - 68px); min-height: 0; }
+            .mood-shell { height: 100%; min-height: 0; border-radius: 0; border: none; }
             .mood-head { height: 70px; padding: 15px; }
             .mood-welcome h2 { font-size: 20px; }
             .bubble { max-width: 90%; }

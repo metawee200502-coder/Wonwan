@@ -14,19 +14,85 @@ $profileMenuIcons=[
  'notify'=>'<svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
 ];
 ?>
-<style>.account{width:100%!important;max-width:none!important;margin:0!important;background:#fff}.account>.content{width:calc(100% - 285px);max-width:1180px;margin-left:auto!important;margin-right:auto!important}@media(max-width:800px){.account>.content{width:100%;max-width:none}}</style>
-<style>.profile-sidebar{width:285px;flex:0 0 285px;border-right:1px solid #d5ddd0;padding:22px 20px 40px;background:#fff;align-self:stretch;min-height:calc(100vh - 76px);display:flex;flex-direction:column}.profile-menu{position:relative;display:flex;align-items:center;gap:14px;min-height:66px;padding:0 14px;border-bottom:1px solid #d5ddd0;color:#347083;text-decoration:none;font-size:17px;border-radius:8px 8px 0 0;transition:background .2s,color .2s,padding-left .2s}.profile-menu:hover{background:#fdf1ed;color:var(--secondary-color);padding-left:18px}.profile-menu.active{font-weight:700;color:var(--secondary-color);background:#f9ebe6}.profile-menu.active:before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:4px;background:var(--secondary-color)}.profile-menu__icon{width:30px;text-align:center;font-size:23px}.profile-menu__badge{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:20px;display:grid;place-items:center;background:#bd2525;color:#fff;font-size:12px}.profile-logout-form{margin:auto 0 0;padding-top:24px}.profile-logout{width:100%;min-height:46px;border:1px solid #c97795;border-radius:9px;background:#fff;color:#a64f70;display:flex;align-items:center;justify-content:center;gap:9px;font:inherit;font-weight:600;cursor:pointer}.profile-logout svg{width:20px;height:20px}.profile-logout:hover{background:#c97795;color:#fff}@media(max-width:800px){.profile-sidebar{width:100%;min-height:0;flex:auto;border-right:0;border-bottom:1px solid #ccd3c5;display:flex;flex-direction:row;overflow-x:auto;padding:0 12px}.profile-menu{flex:0 0 auto;padding:0 16px;border-bottom:0;border-radius:0}.profile-menu:hover{padding-left:16px}.profile-menu.active:before{left:8px}.profile-menu__badge{margin-left:0}.profile-logout-form{margin:0;padding:10px 8px;flex:0 0 auto}.profile-logout{width:auto;min-height:44px;padding:0 16px}}</style>
-<style>.profile-sidebar{position:sticky;top:100px;height:calc(100vh - 100px);min-height:0!important;align-self:flex-start!important;overflow-y:auto}.profile-logout-form{position:sticky;bottom:0;background:#fff;padding-top:16px!important;padding-bottom:8px;z-index:2}.profile-menu__icon{width:32px!important;height:32px;flex:0 0 32px;border-radius:9px;display:grid!important;place-items:center;background:rgba(52,112,131,.08);transition:.2s}.profile-menu__icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.profile-menu:hover .profile-menu__icon,.profile-menu.active .profile-menu__icon{background:#fff;color:var(--secondary-color);box-shadow:0 2px 7px rgba(52,112,131,.12)}@media(max-width:800px){.profile-sidebar{position:static;height:auto;overflow-x:auto;overflow-y:hidden}.profile-logout-form{position:static;padding:10px 8px!important}}</style>
-<aside class="profile-sidebar"><?php foreach($profileMenus as $menu):?><a class="profile-menu <?=$profile_active===$menu[0]?'active':''?>" href="<?=$menu[2]?>"><span class="profile-menu__icon"><?=$profileMenuIcons[$menu[0]]?></span><span><?=$menu[1]?></span><?php if(!empty($menu[3])):?><span class="profile-menu__badge"><?=$menu[3]?></span><?php endif;?></a><?php endforeach;?><form class="profile-logout-form" action="/process/logout.php" method="post"><button class="profile-logout" type="submit"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>ออกจากระบบ</span></button></form></aside>
-<style>@media(min-width:801px){.profile-sidebar{position:sticky!important;top:76px!important;height:calc(100vh - 76px)!important;min-height:0!important;align-self:flex-start!important;overflow-y:auto!important;overscroll-behavior:contain}.profile-logout-form{position:sticky!important;bottom:0!important}}</style>
 <style>
-@media(min-width:801px){
- html.account-pane-active,body.account-pane-active{height:100%;overflow:hidden!important}
- body.account-pane-active>.site-footer{display:none!important}
- .account.account-pane-shell{height:calc(100vh - var(--account-header-height,76px))!important;min-height:0!important;max-height:none!important;overflow:hidden!important;align-items:stretch!important}
- .account.account-pane-shell>.profile-sidebar{position:static!important;top:auto!important;height:100%!important;min-height:0!important;align-self:stretch!important;flex:0 0 285px!important}
- .account.account-pane-shell>main{height:100%!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;scrollbar-width:none!important;-ms-overflow-style:none!important}
- .account.account-pane-shell>main::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+/* Base/Desktop Layout (min-width: 1025px) */
+.account { width:100%!important; max-width:none!important; margin:0!important; background:#fff; display: flex; }
+.account > .content { width:calc(100% - 285px); max-width:1180px; margin-left:auto!important; margin-right:auto!important; }
+
+.profile-sidebar {
+    width: 285px; flex: 0 0 285px; border-right: 1px solid #d5ddd0; padding: 22px 20px 40px;
+    background: #fff; align-self: stretch; min-height: calc(100vh - 76px);
+    display: flex; flex-direction: column; position: sticky; top: 100px; overflow-y: auto;
+}
+.profile-menu { position:relative;display:flex;align-items:center;gap:14px;min-height:66px;padding:0 14px;border-bottom:1px solid #d5ddd0;color:#347083;text-decoration:none;font-size:17px;border-radius:8px 8px 0 0;transition:background .2s,color .2s,padding-left .2s }
+.profile-menu:hover { background:#fdf1ed;color:var(--secondary-color);padding-left:18px }
+.profile-menu.active { font-weight:700;color:var(--secondary-color);background:#f9ebe6 }
+.profile-menu.active:before { content:'';position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:4px;background:var(--secondary-color) }
+.profile-menu__icon { width:32px!important;height:32px;flex:0 0 32px;border-radius:9px;display:grid!important;place-items:center;background:rgba(52,112,131,.08);transition:.2s; text-align:center;font-size:23px; }
+.profile-menu__icon svg { width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round }
+.profile-menu:hover .profile-menu__icon, .profile-menu.active .profile-menu__icon { background:#fff;color:var(--secondary-color);box-shadow:0 2px 7px rgba(52,112,131,.12) }
+.profile-menu__badge { margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:20px;display:grid;place-items:center;background:#bd2525;color:#fff;font-size:12px }
+.profile-logout-form { margin:auto 0 0;padding-top:24px; position:sticky; bottom:0; background:#fff; z-index:2; }
+.profile-logout { width:100%;min-height:46px;border:1px solid #c97795;border-radius:9px;background:#fff;color:#a64f70;display:flex;align-items:center;justify-content:center;gap:9px;font:inherit;font-weight:600;cursor:pointer }
+.profile-logout svg { width:20px;height:20px }
+.profile-logout:hover { background:#c97795;color:#fff }
+
+/* Desktop Dashboard Scroll Lock (min-width: 1201px) */
+@media(min-width: 1201px){
+    .profile-sidebar { position:sticky!important; top:76px!important; height:calc(100vh - 76px)!important; min-height:0!important; align-self:flex-start!important; overflow-y:auto!important; overscroll-behavior:contain }
+    html.account-pane-active, body.account-pane-active { height:100%; overflow:hidden!important }
+    body.account-pane-active > .site-footer { display:none!important }
+    .account.account-pane-shell { height:calc(100vh - var(--account-header-height,76px))!important; min-height:0!important; max-height:none!important; overflow:hidden!important; align-items:stretch!important }
+    .account.account-pane-shell > .profile-sidebar { position:static!important; top:auto!important; height:100%!important; min-height:0!important; align-self:stretch!important; flex:0 0 285px!important }
+    .account.account-pane-shell > main { height:100%!important; min-height:0!important; overflow-y:auto!important; overflow-x:hidden!important; overscroll-behavior:contain; scrollbar-width:none!important; -ms-overflow-style:none!important }
+    .account.account-pane-shell > main::-webkit-scrollbar { display:none!important; width:0!important; height:0!important }
+}
+
+/* Tablet: Hide Sidebar (max-width: 1200px) */
+@media (max-width: 1200px) {
+    .account { display: block !important; }
+    .account > .content { width: 100% !important; max-width: none !important; padding: 30px 40px 80px !important; }
+    .profile-sidebar { display: none !important; }
+}
+
+/* Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+    .account > .content { padding: 20px 16px 80px !important; }
 }
 </style>
-<script>(()=>{if(!matchMedia('(min-width:801px)').matches)return;const sidebar=document.querySelector('.profile-sidebar'),account=sidebar?.parentElement;if(!account?.classList.contains('account'))return;document.documentElement.classList.add('account-pane-active');document.body.classList.add('account-pane-active');account.classList.add('account-pane-shell');const header=document.querySelector('body>header.site-header,body>.site-header');const sync=()=>document.documentElement.style.setProperty('--account-header-height',(header?.getBoundingClientRect().height||76)+'px');sync();addEventListener('resize',sync)})();</script>
+
+<aside class="profile-sidebar">
+    <?php foreach($profileMenus as $menu):?>
+    <a class="profile-menu <?=$profile_active===$menu[0]?'active':''?>" href="<?=$menu[2]?>">
+        <span class="profile-menu__icon"><?=$profileMenuIcons[$menu[0]]?></span>
+        <span><?=$menu[1]?></span>
+        <?php if(!empty($menu[3])):?>
+        <span class="profile-menu__badge"><?=$menu[3]?></span>
+        <?php endif;?>
+    </a>
+    <?php endforeach;?>
+    
+    <form class="profile-logout-form" action="/process/logout.php" method="post">
+        <button class="profile-logout" type="submit">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>ออกจากระบบ</span>
+        </button>
+    </form>
+</aside>
+
+<script>
+(()=>{
+    if(!matchMedia('(min-width: 1201px)').matches) return;
+    const sidebar=document.querySelector('.profile-sidebar'), account=sidebar?.parentElement;
+    if(!account?.classList.contains('account')) return;
+    
+    document.documentElement.classList.add('account-pane-active');
+    document.body.classList.add('account-pane-active');
+    account.classList.add('account-pane-shell');
+    
+    const header=document.querySelector('body>header.site-header, body>.site-header');
+    const sync=()=>document.documentElement.style.setProperty('--account-header-height',(header?.getBoundingClientRect().height||76)+'px');
+    sync();
+    addEventListener('resize',sync);
+})();
+</script>

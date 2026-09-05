@@ -1,0 +1,1 @@
+<?php require c:/laragon/www/wanawan_project/config/config.php;  = ->query(SHOW COLUMNS FROM orders); print_r(->fetchAll(PDO::FETCH_ASSOC));  = ->query(SHOW COLUMNS FROM order_items); print_r(->fetchAll(PDO::FETCH_ASSOC));

@@ -172,10 +172,17 @@ require_once __DIR__ . '/../config/config.php';
             .convergence-label { display: none; }
         }
         @media (max-width: 768px) {
+            html, body { overflow-x: hidden; }
             .books-grid { grid-template-columns: repeat(2, 1fr); }
+            .genome-wrap { padding: 20px 15px; }
+            .glass-panel { padding: 20px; }
+            .dna-grid { grid-template-columns: 1fr; gap: 20px; }
+            .page-title { margin-bottom: 20px; }
+            .page-title h1 { font-size: 24px; }
+            .page-title p { font-size: 14px; }
         }
         @media (max-width: 480px) {
-            .books-grid { grid-template-columns: 1fr; }
+            .books-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>

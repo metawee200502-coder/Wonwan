@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>ลืมรหัสผ่าน - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
         *{box-sizing:border-box}body{min-height:100vh;margin:0}.reset-page{min-height:calc(100vh - 76px);display:grid;place-items:center;padding:32px 18px;background:url('../assets/image/Background.png') center/cover}.reset-card{width:min(440px,100%);padding:38px;background:#fff;border-radius:18px;box-shadow:0 10px 30px #0002}.reset-card h1{margin:0 0 9px;color:var(--secondary-color);font-size:28px}.reset-card>p{color:var(--text-muted);line-height:1.65}.field{margin-top:22px}.field label{display:block;margin-bottom:7px;font-weight:600}.field input{width:100%;height:48px;padding:0 14px;border:1px solid #ccd3d0;border-radius:9px;font:inherit}.submit,.dev-link{width:100%;min-height:48px;margin-top:18px;border:0;border-radius:9px;display:grid;place-items:center;padding:10px;background:var(--secondary-color);color:#fff;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}.back{display:block;margin-top:18px;text-align:center;color:var(--primary-color);text-decoration:none}.notice{margin-top:18px;padding:14px;border-radius:9px;line-height:1.55}.notice.ok{background:#e8f4ec;color:#28633d}.notice.bad{background:#fde7e3;color:#a64139}.dev{margin-top:15px;padding:13px;border:1px dashed #d6a68f;border-radius:9px;background:#fff8f3;color:#77594c;font-size:13px}.dev-link{margin-top:10px;background:#d28f86}
     </style>

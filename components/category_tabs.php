@@ -58,7 +58,7 @@ $isExchange = ($catPage === 'exchange_books.php') || (isset($active_zone) && $ac
     height: 100%;
     display: block;
 }
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
     .nav-menu-bar__inner {
         justify-content: flex-start;
         padding: 0 8px;

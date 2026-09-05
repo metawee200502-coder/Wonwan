@@ -122,7 +122,7 @@ function renderZoneBooks(array $rows): void {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>เลือกซื้อเล่มใหม่ - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
     * { box-sizing: border-box; }
     .zone-wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
@@ -166,8 +166,8 @@ function renderZoneBooks(array $rows): void {
     .zone-book-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
     .zone-empty { grid-column: 1/-1; text-align: center; padding: 50px; color: var(--text-muted); }
     .zone-content { padding-bottom: 70px; }
-    @media (max-width: 1000px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } .zone-book-grid, .publisher-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 700px) { .zone-wrap { padding: 0 18px; } .zone-hero { grid-template-columns: 1fr; } .hero-img-box { max-width:none;height:245px; } .top-book-slide{grid-template-columns:43% 57%}.top-book-cover{padding:14px}.top-book-cover img{width:105px;height:155px}.top-book-detail{padding:24px 15px 30px}.top-book-detail h3{font-size:16px}.top-book-price{font-size:19px}.top-book-rank{top:10px;right:10px} .filter-grid { grid-template-columns: 1fr; } .zone-book-grid, .publisher-grid { grid-template-columns: 1fr; } .zone-title { font-size: 28px; } }
+    @media (max-width: 1000px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } .zone-book-grid { grid-template-columns: repeat(2, 1fr); } .publisher-grid { grid-template-columns: repeat(3, 1fr); } .publisher-card:nth-child(n+4) { display: none; } }
+    @media (max-width: 700px) { .zone-wrap { padding: 0 16px; } .zone-hero { grid-template-columns: 1fr; } .hero-img-box { max-width:none;height:245px; } .top-book-slide{grid-template-columns:43% 57%}.top-book-cover{padding:14px}.top-book-cover img{width:105px;height:155px}.top-book-detail{padding:24px 15px 30px}.top-book-detail h3{font-size:16px}.top-book-price{font-size:19px}.top-book-rank{top:10px;right:10px} .filter-grid { grid-template-columns: 1fr; } .zone-book-grid { grid-template-columns: repeat(2, 1fr); } .publisher-grid { grid-template-columns: repeat(3, 1fr); } .zone-title { font-size: 28px; } }
     </style>
 </head>
 <body>

@@ -1,0 +1,10 @@
+<?php
+$f="c:/laragon/www/wanawan_project/pages/seller_market.php";
+$c=file_get_contents($f);
+$c=str_replace(
+    ".tabs{display:flex;gap:4px;flex-wrap:wrap;margin:20px 0}.tabs a{padding:10px 15px;border-radius:20px;text-decoration:none;color:#706861}.tabs a.active{background:var(--secondary-color);color:#fff}",
+    ".tabs{display:flex;margin:20px 0;background:#fdfdfd;border:1px solid #e1d8d1;border-radius:8px;padding:4px}.tabs a{flex:1;text-align:center;padding:12px 15px;border-radius:6px;text-decoration:none;color:#555;font-weight:600;font-size:15px;transition:all 0.2s}.tabs a.active{background:var(--secondary-color);color:#fff}.tabs a:not(.active):hover{background:#f1f1f1}",
+    $c
+);
+file_put_contents($f,$c);
+echo "Done";

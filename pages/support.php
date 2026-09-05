@@ -12,7 +12,7 @@ $active_menu='support';$seller_name='';
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>แชตและการสนับสนุน - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
         *{box-sizing:border-box}body{margin:0;font-family:var(--font-family);background:#fff;color:var(--text-dark);min-height:100vh}
         .main-content{min-height:100vh;padding:52px 42px}.page-title{font-size:30px;color:var(--secondary-color);margin:0 0 25px}

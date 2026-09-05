@@ -40,7 +40,7 @@ function followerImage(?string $value):?string{
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ผู้ติดตามของ <?=htmlspecialchars($profileName)?> - วนวรรณ</title>
-<link rel="stylesheet" href="../assets/css/styles.css">
+<link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
 <style>
 *{box-sizing:border-box}.followers-wrap{max-width:1160px;margin:auto;padding:50px 40px 90px}.followers-head{display:flex;align-items:center;gap:15px;margin-bottom:28px}.followers-head h1{margin:0;color:var(--secondary-color);font-size:32px;display:flex;align-items:center;gap:10px}.followers-head p{margin:4px 0 0;color:var(--text-muted);font-size:15px}.followers-count{font-size:18px;color:var(--text-muted);font-weight:normal}.followers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}.followers-empty{grid-column:1/-1;padding:80px 0;color:var(--text-muted);font-size:16px;text-align:center}@media(max-width:900px){.followers-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.followers-wrap{padding:28px 18px 60px}.followers-head h1{font-size:26px}.followers-grid{grid-template-columns:1fr}}
 </style>

@@ -33,23 +33,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>ตั้งค่าตำแหน่ง - วนวรรณ</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
         * { box-sizing: border-box; }
         .account { display: flex; max-width: 1280px; margin: auto; }
         .content { flex: 1; padding: 48px 70px 90px; }
         .form-card { max-width: 600px; margin: auto; border: 1px solid var(--secondary-color); border-radius: 20px; padding: 38px 60px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
         .field { margin: 18px 0; }
-        .field label { display: block; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; }
+        .field label { display: block; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; white-space: nowrap; }
         .field input { width: 100%; border: 1px solid #ccd3c5; border-radius: 8px; padding: 13px; font: inherit; background: #faf9f8; }
         .security { color: var(--secondary-color); margin-top: 0; margin-bottom: 15px; }
         .error { background: #fde5e1; color: #9b443c; padding: 14px; border-radius: 9px; margin-bottom: 20px; }
         .success { background: #eaf5e1; color: #2d5a27; padding: 14px; border-radius: 9px; margin-bottom: 20px; }
-        .btn-fetch { background: var(--secondary-color); color: #fff; border: 0; height: 52px; margin-bottom: 20px; padding: 0 15px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; font-size: 16px; }
+        .btn-fetch { background: var(--secondary-color); color: #fff; border: 0; height: 52px; margin-bottom: 20px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; font-size: 16px; }
         .btn-fetch:hover { opacity: 0.9; }
         .btn-fetch:disabled { opacity: 0.7; cursor: not-allowed; }
-        @media(max-width:800px) { .account { display: block; } .content { padding: 30px 16px; } .form-card { padding: 28px 20px; } .grid { grid-template-columns: 1fr; } }
+        @media(max-width:1024px) { .account { display: block; } .content { padding: 30px 16px; } .form-card { padding: 28px 20px; } .grid { grid-template-columns: 1fr; } }
         
         #map { width: 100%; height: 300px; border-radius: 8px; margin-top: 15px; border: 1px solid #ccd3c5; z-index: 1; }
     </style>

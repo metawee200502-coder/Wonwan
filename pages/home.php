@@ -120,7 +120,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>วนวรรณ – หน้าหลัก</title>
-    <link rel="stylesheet" href="/assets/css/styles.css">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
     <style>
     /* =========================================================
        HOME PAGE STYLES — ใช้ CSS Variables จาก styles.css [1]
@@ -332,45 +332,41 @@ try {
     /* Tabs */
     .book-tabs {
         display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
+        border: 1px solid #d8ddd4;
+        border-radius: 9px;
+        padding: 6px;
+        margin: 0 auto 24px;
+        background: #fff;
+        gap: 0;
+        max-width: max-content;
     }
     .book-tab {
-        padding: 8px 26px;
-        border-radius: 24px;
-        border: 1.5px solid var(--accent-pink-light);
-        background-color: var(--accent-pink-light);
+        flex: 1;
+        padding: 10px 20px;
+        text-align: center;
+        border-radius: 7px;
         color: var(--text-dark);
-        font-family: var(--font-family);
-        font-size: var(--text-sm);
-        font-weight: 500;
         text-decoration: none;
-        transition: all 0.2s;
+        font-weight: normal;
+        transition: 0.2s;
+        background: transparent;
+        font-size: var(--text-sm);
+        border: none;
+        white-space: nowrap;
     }
-    .book-tab:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-    }
-    .book-tab.active {
-        background-color: var(--secondary-color);
-        color: var(--text-light);
-        border-color: var(--secondary-color);
-    }
-    .book-tab.exchange-tab {
-        background-color: var(--accent-pink-light);
+    .book-tab:hover, .book-tab.exchange-tab:hover {
+        background: #f4f5f3;
         color: var(--text-dark);
-        border-color: var(--accent-pink-light);
+        border-color: transparent;
     }
-    .book-tab.exchange-tab:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
+    .book-tab.active, .book-tab.exchange-tab.active {
+        background: var(--secondary-color);
+        color: #fff;
+        border-color: transparent;
     }
-    .book-tab.exchange-tab.active {
-        background-color: var(--secondary-color);
-        color: var(--text-light);
-        border-color: var(--secondary-color);
+    .book-tab.active:hover, .book-tab.exchange-tab.active:hover {
+        background: var(--secondary-color);
+        color: #fff;
     }
 
     /* See all */
@@ -514,9 +510,21 @@ try {
         .hero-img-box { max-width: 100%; width: 100%; }
         .book-grid { grid-template-columns: repeat(2, 1fr); }
         .dt-cards { grid-template-columns: 1fr; }
+        .book-tabs {
+            max-width: 100%;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            justify-content: flex-start;
+        }
+        .book-tab {
+            min-width: max-content;
+            flex: 0 0 auto;
+            padding: 10px 16px;
+        }
     }
     @media (max-width: 480px) {
-        .book-grid { grid-template-columns: 1fr; }
+        .book-grid { grid-template-columns: repeat(2, 1fr); }
         .hero-img-box{height:245px}.top-book-slide{grid-template-columns:43% 57%}.top-book-cover{padding:14px}.top-book-cover img{width:105px;height:155px}.top-book-detail{padding:24px 15px 30px}.top-book-detail h3{font-size:16px}.top-book-price{font-size:19px}.top-book-rank{top:10px;right:10px}
     }
     </style>
@@ -634,15 +642,15 @@ try {
 
             <!-- Tabs -->
             <div class="book-tabs">
-                <a href="?tab=new#book-section"
+                <a href="?tab=new"
                    class="book-tab <?= $active_tab === 'new'  ? 'active' : '' ?>">
                    หนังสือมือ 1
                 </a>
-                <a href="?tab=used#book-section"
+                <a href="?tab=used"
                    class="book-tab <?= $active_tab === 'used' ? 'active' : '' ?>">
                    หนังสือมือ 2
                 </a>
-                <a href="?tab=exchange#book-section"
+                <a href="?tab=exchange"
                    class="book-tab exchange-tab <?= $active_tab === 'exchange' ? 'active' : '' ?>">
                    แลกเปลี่ยน
                 </a>
@@ -710,7 +718,7 @@ try {
                     if ($prev > 0 && $p - $prev > 1): ?>
                         <span class="dots">…</span>
                     <?php endif; ?>
-                    <a href="?tab=<?= htmlspecialchars($active_tab) ?>&page=<?= $p ?>#book-section"
+                    <a href="?tab=<?= htmlspecialchars($active_tab) ?>&page=<?= $p ?>"
                        class="<?= $p === $current_page ? 'active' : '' ?>">
                         <?= $p ?>
                     </a>
@@ -777,16 +785,43 @@ try {
 <?php require __DIR__ . '/../components/footer.php'; ?>
 
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
-    const box=document.querySelector('.hero-img-box'),slides=Array.from(document.querySelectorAll('.top-book-slide')),dots=Array.from(document.querySelectorAll('.top-book-dot'));
-    if(!box||slides.length<2)return;
-    let current=0,timer;
-    const show=index=>{current=(index+slides.length)%slides.length;slides.forEach((slide,i)=>slide.classList.toggle('active',i===current));dots.forEach((dot,i)=>dot.classList.toggle('active',i===current))};
-    const start=()=>{clearInterval(timer);timer=setInterval(()=>show(current+1),1750)};
-    dots.forEach(dot=>dot.addEventListener('click',event=>{event.preventDefault();show(Number(dot.dataset.slide));start()}));
-    box.addEventListener('mouseenter',()=>clearInterval(timer));box.addEventListener('mouseleave',start);
-    document.addEventListener('visibilitychange',()=>document.hidden?clearInterval(timer):start());
-    start();
+// Restore scroll position instantly
+(function() {
+    var scrollPos = sessionStorage.getItem('homeScrollPos');
+    if (scrollPos) {
+        // Use timeout 0 to ensure it overrides browser's default scroll restoration
+        setTimeout(function() {
+            window.scrollTo(0, parseInt(scrollPos));
+        }, 0);
+        sessionStorage.removeItem('homeScrollPos');
+    }
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const box = document.querySelector('.hero-img-box'),
+          slides = Array.from(document.querySelectorAll('.top-book-slide')),
+          dots = Array.from(document.querySelectorAll('.top-book-dot'));
+    if (box && slides.length >= 2) {
+        let current = 0, timer;
+        const show = index => {
+            current = (index + slides.length) % slides.length;
+            slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+            dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+        };
+        const start = () => { clearInterval(timer); timer = setInterval(() => show(current + 1), 1750); };
+        dots.forEach(dot => dot.addEventListener('click', event => { event.preventDefault(); show(Number(dot.dataset.slide)); start(); }));
+        box.addEventListener('mouseenter', () => clearInterval(timer));
+        box.addEventListener('mouseleave', start);
+        document.addEventListener('visibilitychange', () => document.hidden ? clearInterval(timer) : start());
+        start();
+    }
+
+    // Save scroll position when clicking tabs or pagination
+    document.querySelectorAll('.book-tab, .pagination a').forEach(link => {
+        link.addEventListener('click', () => {
+            sessionStorage.setItem('homeScrollPos', Math.round(window.scrollY));
+        });
+    });
 });
 </script>
 </body>
