@@ -15,7 +15,6 @@ if (empty($orderIds)) {
 $pdo->beginTransaction();
 try {
     $update = $pdo->prepare("UPDATE orders SET payment_status='paid', paid_at=NOW(), shipping_status='packing' WHERE order_id=? AND payment_status='pending'");
-    $notify = $pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,is_read,sent_via) VALUES(?,?,?,'order',0,'web')");
     
     foreach ($orderIds as $orderId) {
         $orderId = (int)$orderId;
@@ -43,11 +42,11 @@ try {
             }
             
             // Notify buyer
-            $notify->execute([$userId, 'ชำระเงินสำเร็จ', 'คำสั่งซื้อ #'.$order['order_number'].' ชำระเงินเรียบร้อยแล้ว']);
+            wanawanNotifyUser($pdo, $userId, 'ชำระเงินสำเร็จ', 'คำสั่งซื้อ #'.$order['order_number'].' ชำระเงินเรียบร้อยแล้ว', 'order');
             
             // Notify sellers
             foreach (array_unique(array_map('intval', $sellerUsers)) as $sellerUser) {
-                $notify->execute([$sellerUser, 'คำสั่งซื้อใหม่จ่ายเงินแล้ว', 'คำสั่งซื้อ #'.$order['order_number'].' ได้รับยอดเงินเรียบร้อยแล้ว']);
+                wanawanNotifyUser($pdo, $sellerUser, 'คำสั่งซื้อใหม่จ่ายเงินแล้ว', 'คำสั่งซื้อ #'.$order['order_number'].' ได้รับยอดเงินเรียบร้อยแล้ว', 'order');
             }
         }
     }

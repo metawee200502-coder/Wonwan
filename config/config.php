@@ -1,5 +1,6 @@
 <?php
 date_default_timezone_set('Asia/Bangkok');
+require_once __DIR__ . '/external_notifications.php';
 if (!function_exists('wanawanSellerName')) {
     function wanawanSellerName(?string $name, string $type): string {
         $name = trim((string)$name);
@@ -34,9 +35,8 @@ if (!function_exists('wanawanNotifyNewReview')) {
         $stmt->execute([$reviewerId,$bookId]);
         $review=$stmt->fetch(PDO::FETCH_ASSOC);
         if(!$review)return;
-        $notify=$pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,related_user_id,related_review_id,is_read,sent_via) VALUES(?,?,?,'review',?,?,0,'web')");
         foreach(wanawanSellerUserIds($pdo,$review['seller_type'],(int)$review['seller_id']) as $recipient){
-            if($recipient!==$reviewerId)$notify->execute([$recipient,'มีรีวิวใหม่จาก '.$review['reviewer_name'],'ลูกค้ารีวิวสินค้า “'.$review['title'].'”',$reviewerId,$reviewId]);
+            if($recipient!==$reviewerId) wanawanNotifyUser($pdo, $recipient, 'มีรีวิวใหม่จาก '.$review['reviewer_name'], 'ลูกค้ารีวิวสินค้า “'.$review['title'].'”', 'review', ['related_user_id' => $reviewerId, 'related_review_id' => $reviewId]);
         }
     }
 }
@@ -49,7 +49,7 @@ if (!function_exists('wanawanChatNotify')) {
         $existing=$pdo->prepare("SELECT notification_id FROM notifications WHERE user_id=? AND notification_type='chat' AND chat_conversation_id=? AND is_read=0 ORDER BY notification_id DESC LIMIT 1");
         $existing->execute([$recipientId,$conversationId]);$notificationId=(int)$existing->fetchColumn();
         if($notificationId){$pdo->prepare('UPDATE notifications SET title=?,message=?,created_at=NOW() WHERE notification_id=?')->execute([$title,$message,$notificationId]);return;}
-        $pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,chat_conversation_id,is_read,sent_via) VALUES(?,?,?,'chat',?,0,'web')")->execute([$recipientId,$title,$message,$conversationId]);
+        wanawanNotifyUser($pdo, $recipientId, $title, $message, 'chat', ['chat_conversation_id' => $conversationId]);
     }
 }
 $host = 'localhost';

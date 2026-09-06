@@ -10,13 +10,18 @@
 $breadcrumbs = $breadcrumbs ?? [];
 require_once __DIR__ . '/breadcrumb_history.php';
 $headerUnreadCount = 0;
+$headerNotificationsList = [];
 if (!empty($_SESSION['user_id'])) {
     try {
         if (!isset($pdo)) require_once __DIR__ . '/../config/config.php';
         $headerNotificationStmt = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0');
         $headerNotificationStmt->execute([(int)$_SESSION['user_id']]);
         $headerUnreadCount = (int)$headerNotificationStmt->fetchColumn();
-    } catch (Throwable $e) { $headerUnreadCount = 0; }
+        
+        $headerRecentStmt = $pdo->prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 5');
+        $headerRecentStmt->execute([(int)$_SESSION['user_id']]);
+        $headerNotificationsList = $headerRecentStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { $headerUnreadCount = 0; $headerNotificationsList = []; }
 }
 
 $mobileUser = null;
@@ -365,6 +370,110 @@ if (!empty($_SESSION['user_id'])) {
     flex-shrink: 0;
 }
 
+/* Dropdown เมนูแจ้งเตือน */
+.notification-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.notification-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: -20px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    width: 320px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    z-index: 1000;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+.notification-wrapper:hover .notification-dropdown,
+.notification-wrapper:focus-within .notification-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.notification-header {
+    padding: 12px 16px;
+    font-weight: 700;
+    color: var(--secondary-color);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+.notification-list {
+    max-height: 360px;
+    overflow-y: auto;
+}
+.notification-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text-dark);
+    text-decoration: none;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f6ede9;
+    align-items: start;
+}
+.notification-item:hover {
+    background-color: #fdf2ee;
+}
+.notification-item.unread {
+    background-color: #fcfaf9;
+    position: relative;
+}
+.notification-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+}
+.notification-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #f3e3d8;
+    color: var(--secondary-color);
+    font-size: 16px;
+}
+.notification-item.order .notification-icon { background: #e8eee5; color: #356a35; }
+.notification-content h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--secondary-color); line-height: 1.3; }
+.notification-content p { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.notification-time { display: block; margin-top: 5px; font-size: 11px; color: #99A1A6; }
+.notification-footer {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    font-size: 13px;
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    background: #faf9f8;
+    border-top: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+.notification-footer:hover { background: #fdf2ee; }
+.notification-empty {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1200px) {
     .header-topbar {
@@ -562,16 +671,50 @@ if (!empty($_SESSION['user_id'])) {
 
             <!-- การแจ้งเตือน -->
             <?php if (!empty($_SESSION['user_id'])): ?>
-            <a href="/pages/notifications.php" class="icon-btn" aria-label="การแจ้งเตือน">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-                </svg>
-                <!-- แสดง badge ถ้ามีการแจ้งเตือน -->
-                <?php if ($headerUnreadCount > 0): ?><span class="icon-btn__badge" title="<?=$headerUnreadCount?> รายการใหม่"></span><?php endif; ?>
-            </a>
+            <div class="notification-wrapper">
+                <a href="/pages/notifications.php" class="icon-btn" aria-label="การแจ้งเตือน">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <!-- แสดง badge ถ้ามีการแจ้งเตือน -->
+                    <span class="icon-btn__badge notification-live-badge" title="<?=$headerUnreadCount?> รายการใหม่" <?=$headerUnreadCount > 0 ? '' : 'hidden'?>><?=$headerUnreadCount > 99 ? '99+' : $headerUnreadCount?></span>
+                </a>
+                <div class="notification-dropdown">
+                    <div class="notification-header">การแจ้งเตือนล่าสุด</div>
+                    <div class="notification-list" id="headerNotificationList">
+                        <?php if (empty($headerNotificationsList)): ?>
+                            <div class="notification-empty" id="headerNotificationEmpty">ยังไม่มีการแจ้งเตือนในขณะนี้</div>
+                        <?php else: ?>
+                            <?php foreach ($headerNotificationsList as $notice): ?>
+                                <a href="/pages/notifications.php?read=<?=$notice['notification_id']?>" class="notification-item <?= htmlspecialchars($notice['notification_type']) ?> <?=$notice['is_read'] ? '' : 'unread'?>">
+                                    <span class="notification-icon">
+                                        <?php if ($notice['notification_type'] === 'order'): ?>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l1 13H5zM9 9V6a3 3 0 0 1 6 0v3"/></svg>
+                                        <?php elseif ($notice['notification_type'] === 'exchange'): ?>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
+                                        <?php elseif ($notice['notification_type'] === 'chat'): ?>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+                                        <?php elseif ($notice['notification_type'] === 'follow'): ?>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg>
+                                        <?php else: ?>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+                                        <?php endif; ?>
+                                    </span>
+                                    <span class="notification-content">
+                                        <h4><?= htmlspecialchars($notice['title']) ?></h4>
+                                        <p><?= htmlspecialchars($notice['message']) ?></p>
+                                        <span class="notification-time"><?= date('H:i', strtotime($notice['created_at'])) ?></span>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <a href="/pages/notifications.php" class="notification-footer">ดูการแจ้งเตือนทั้งหมด</a>
+                </div>
+            </div>
             <?php else: ?>
             <a href="#" class="icon-btn" aria-label="การแจ้งเตือน" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'คุณต้องเข้าสู่ระบบก่อนเพื่อดูการแจ้งเตือน')">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"

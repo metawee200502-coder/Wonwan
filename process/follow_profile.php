@@ -51,9 +51,8 @@ try {
             $recipientStmt->execute([$targetId]);
             $recipients=array_map('intval',$recipientStmt->fetchAll(PDO::FETCH_COLUMN));
         }
-        $notify=$pdo->prepare("INSERT INTO notifications(user_id,title,message,notification_type,related_user_id,is_read,sent_via) VALUES(?,'มีผู้ติดตามใหม่',?,'follow',?,0,'web')");
         foreach(array_unique($recipients) as $recipient){
-            if($recipient!==$viewerId)$notify->execute([$recipient,$followerName.' เริ่มติดตามโปรไฟล์ของคุณ',$viewerId]);
+            if($recipient!==$viewerId) wanawanNotifyUser($pdo, $recipient, 'มีผู้ติดตามใหม่', $followerName.' เริ่มติดตามโปรไฟล์ของคุณ', 'follow', ['related_user_id' => $viewerId]);
         }
     }
     $count = $pdo->prepare('SELECT COUNT(*) FROM profile_follows WHERE target_type=? AND target_id=?');

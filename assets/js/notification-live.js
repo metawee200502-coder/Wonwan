@@ -72,6 +72,53 @@
     window.setInterval(poll, 3000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
+    const enhanceHeaderDropdown = () => {
+        const list = document.getElementById('headerNotificationList');
+        if (!list) return;
+        const empty = document.getElementById('headerNotificationEmpty');
+        
+        const bell = '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>';
+        const noticeIcons = {
+            chat:'<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+            exchange:'<svg viewBox="0 0 24 24"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>',
+            follow:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg>',
+            order:'<svg viewBox="0 0 24 24"><path d="M6 8h12l1 13H5zM9 9V6a3 3 0 0 1 6 0v3"/></svg>',
+            general:bell
+        };
+
+        document.addEventListener('wanawan:notification', event => {
+            const notice = event.detail;
+            if (!notice) return;
+            if (empty && empty.parentNode) empty.remove();
+            
+            const link = document.createElement('a');
+            link.className = `notification-item ${notice.type} unread`;
+            link.href = notice.url;
+            
+            const iconWrap = document.createElement('span');
+            iconWrap.className = 'notification-icon';
+            iconWrap.innerHTML = noticeIcons[notice.type] || noticeIcons.general;
+            
+            const content = document.createElement('span');
+            content.className = 'notification-content';
+            const h4 = document.createElement('h4'); h4.textContent = notice.title;
+            const p = document.createElement('p'); p.textContent = notice.message;
+            const time = document.createElement('span'); time.className = 'notification-time'; time.textContent = 'เมื่อสักครู่';
+            
+            content.append(h4, p, time);
+            link.append(iconWrap, content);
+            
+            list.prepend(link);
+            
+            const items = list.querySelectorAll('.notification-item');
+            if (items.length > 5) {
+                for (let i = 5; i < items.length; i++) items[i].remove();
+            }
+        });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhanceHeaderDropdown);
+    else enhanceHeaderDropdown();
+
     const enhanceUserNotificationPage = () => {
         if (!/\/pages\/notifications\.php$/i.test(location.pathname)) return;
         const main = document.querySelector('main.wrap');
