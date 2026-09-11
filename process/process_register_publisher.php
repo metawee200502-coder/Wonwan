@@ -77,6 +77,38 @@ if (!move_uploaded_file($tmpPath, $destinationPath)) {
 // path/url ที่จะเก็บลงคอลัมน์ company_document_url
 $documentUrl = 'uploads/publisher_documents/' . $safeFileName;
 
+// อัปโหลดโลโก้ (บังคับ)
+$profileUrl = null;
+if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] === UPLOAD_ERR_NO_FILE) {
+    header('Location: ../pages/register_publisher_step2.php?error=empty_logo');
+    exit;
+}
+if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+    header('Location: ../pages/register_publisher_step2.php?error=upload_logo');
+    exit;
+}
+
+$profExt = strtolower(pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION));
+$profAllowed = ['jpg', 'jpeg', 'png'];
+if (!in_array($profExt, $profAllowed, true)) {
+    header('Location: ../pages/register_publisher_step2.php?error=filetype_logo');
+    exit;
+}
+if ($_FILES['profile_image']['size'] > 2 * 1024 * 1024) {
+    header('Location: ../pages/register_publisher_step2.php?error=filesize_logo');
+    exit;
+}
+
+$profUploadDir = __DIR__ . '/uploads/publisher_profiles/';
+if (!is_dir($profUploadDir)) mkdir($profUploadDir, 0755, true);
+$profFileName = uniqid('logo_', true) . '.' . $profExt;
+if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $profUploadDir . $profFileName)) {
+    $profileUrl = '/process/uploads/publisher_profiles/' . $profFileName;
+} else {
+    header('Location: ../pages/register_publisher_step2.php?error=upload_logo');
+    exit;
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -101,12 +133,13 @@ try {
              contact_name, contact_email, contact_position, contact_phone,
              followers_count, status, created_at)
          VALUES
-            (:company_name, NULL, NULL, :company_document_url,
+            (:company_name, NULL, :profile_image, :company_document_url,
              :contact_name, :contact_email, :contact_position, :contact_phone,
              0, :status, NOW())'
     );
     $stmtPublisher->execute([
         ':company_name'          => $company_name,
+        ':profile_image'         => $profileUrl,
         ':company_document_url'  => $documentUrl,
         ':contact_name'          => $contact_name,
         ':contact_email'         => $contact_email,

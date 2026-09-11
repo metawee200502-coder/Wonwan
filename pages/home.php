@@ -49,7 +49,7 @@ try {
             LIMIT :limit OFFSET :offset
         ");
     } else {
-        $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM books WHERE condition_level = :cond AND status = 'available'");
+        $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM books b LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id WHERE b.condition_level = :cond AND b.status = 'available' AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))");
         $count_stmt->execute([':cond' => $condition]);
         $total_books = (int)$count_stmt->fetchColumn();
         $stmt = $pdo->prepare("
@@ -61,7 +61,9 @@ try {
                     + COALESCE((SELECT SUM(ci.quantity) FROM cart_items ci WHERE ci.book_id=b.book_id),0)*2
                     + (SELECT COUNT(*) FROM chat_conversations cc WHERE cc.referenced_book_id=b.book_id)*2) recommendation_score
             FROM books b
-            WHERE b.condition_level = :cond AND b.status = 'available'
+            LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id
+            LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id
+            WHERE b.condition_level = :cond AND b.status = 'available' AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
             ORDER BY recommendation_score DESC, b.book_id DESC
             LIMIT :limit OFFSET :offset
         ");
@@ -86,7 +88,9 @@ try {
                b.image_cover, b.stock_quantity, b.seller_type,
                b.seller_lat, b.seller_lng, b.seller_province
         FROM books b
-        WHERE b.status = 'available'
+        LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id
+        LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id
+        WHERE b.status = 'available' AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
         ORDER BY b.book_id DESC
         LIMIT 12
     ");
@@ -100,7 +104,7 @@ try {
         LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id
         LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id
         LEFT JOIN users u ON b.seller_type='user' AND u.user_id=b.seller_id
-        WHERE b.status='available'
+        WHERE b.status='available' AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
         ORDER BY b.created_at DESC,b.book_id DESC
         LIMIT 10");
     $topBooks=$topStmt->fetchAll(PDO::FETCH_ASSOC);foreach($topBooks as &$topBook){$topBook['seller_name']=wanawanSellerName($topBook['seller_name'],$topBook['seller_type']);$topBook['image_url']=homeBookImage($topBook['image_cover']);}unset($topBook);

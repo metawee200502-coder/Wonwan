@@ -23,7 +23,7 @@ function searchImage(?string $value): ?string {
 if ($keyword !== '') {
     $like = '%'.$keyword.'%';
     if ($type !== 'exchange') {
-        $bookWhere = "b.status='available' AND (b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ? OR b.isbn_13 LIKE ? OR b.publisher_name LIKE ?)";
+        $bookWhere = "b.status='available' AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved')) AND (b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ? OR b.isbn_13 LIKE ? OR b.publisher_name LIKE ?)";
         $params = [$like,$like,$like,$like,$like];
         if ($type === 'new') $bookWhere .= " AND (b.book_type='new' OR b.condition_level='new')";
         elseif ($type === 'used') $bookWhere .= " AND b.book_type='used' AND b.condition_level<>'new'";

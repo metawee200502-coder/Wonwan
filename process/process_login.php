@@ -15,6 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // ตรวจสอบว่าพบผู้ใช้หรือไม่
         if ($user) {
+            // ตรวจสอบการแบน
+            $is_banned = (bool)$user['is_banned'];
+            $ban_until = $user['ban_until'] ? strtotime($user['ban_until']) : null;
+            if ($is_banned || ($ban_until && $ban_until > time())) {
+                header("Location: ../pages/login.php?error=banned");
+                exit;
+            }
+
             // ตรวจสอบรหัสผ่าน
             if (password_verify($password, $user['password_hash'])) {
                 // ล็อกอินสำเร็จ
@@ -33,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     case 'publisher_admin':
                         // เช็คว่า user คนนี้ถูกผูกกับสำนักพิมพ์ไหนหรือยัง
                         $stmtPub = $pdo->prepare(
-                            "SELECT p.publisher_id, p.company_name 
+                            "SELECT p.publisher_id, p.company_name, p.status 
                              FROM publisher_staff ps
                              JOIN publishers p ON ps.publisher_id = p.publisher_id
                              WHERE ps.user_id = :uid LIMIT 1"
@@ -42,6 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $publisher = $stmtPub->fetch(PDO::FETCH_ASSOC);
 
                         if ($publisher) {
+                            if ($publisher['status'] === 'pending') {
+                                // ยังไม่อนุมัติ ล้าง session ที่สร้างไปแล้ว
+                                session_destroy();
+                                header("Location: ../pages/login.php?error=pending");
+                                exit;
+                            }
                             $_SESSION['publisher_id'] = $publisher['publisher_id'];
                             header("Location: ../pages/dashboard.php");
                         } else {
@@ -53,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     case 'shop_admin':
                         // เช็คว่า user คนนี้ถูกผูกกับร้านไหนหรือยัง
                         $stmtShop = $pdo->prepare(
-                            "SELECT s.shop_id, s.shop_name 
+                            "SELECT s.shop_id, s.shop_name, s.status 
                              FROM shop_staff ss
                              JOIN shops s ON ss.shop_id = s.shop_id
                              WHERE ss.user_id = :uid LIMIT 1"
@@ -62,6 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $shop = $stmtShop->fetch(PDO::FETCH_ASSOC);
 
                         if ($shop) {
+                            if ($shop['status'] === 'pending') {
+                                // ยังไม่อนุมัติ ล้าง session ที่สร้างไปแล้ว
+                                session_destroy();
+                                header("Location: ../pages/login.php?error=pending");
+                                exit;
+                            }
                             $_SESSION['shop_id'] = $shop['shop_id'];
                             header("Location: ../pages/dashboard.php");
                         } else {

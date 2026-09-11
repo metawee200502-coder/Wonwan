@@ -8,7 +8,8 @@ $isShop=$type==='shop';$isUser=$type==='user';
 if($isUser){$table='users';$idCol='user_id';$nameCol='display_name';}
 elseif($isShop){$table='shops';$idCol='shop_id';$nameCol='shop_name';}
 else{$table='publishers';$idCol='publisher_id';$nameCol='company_name';}
-$stmt=$pdo->prepare("SELECT * FROM $table WHERE $idCol=?");$stmt->execute([$id]);$profile=$stmt->fetch(PDO::FETCH_ASSOC);
+if($isUser){$stmt=$pdo->prepare("SELECT * FROM $table WHERE $idCol=?");}else{$stmt=$pdo->prepare("SELECT * FROM $table WHERE $idCol=? AND status='approved'");}
+$stmt->execute([$id]);$profile=$stmt->fetch(PDO::FETCH_ASSOC);
 if(!$profile){http_response_code(404);exit('ไม่พบข้อมูลผู้ขาย');}
 $name=$isUser?($profile[$nameCol]?:$profile['email']):wanawanSellerName($profile[$nameCol],$type);
 $fallback=$isShop?'ร้านหนังสือบนวนวรรณ พื้นที่ส่งต่อเรื่องราวและหนังสือดี ๆ ให้แก่นักอ่าน':($isUser?'สมาชิกวนวรรณ ผู้ส่งต่อหนังสือและเรื่องราวดี ๆ':'สำนักพิมพ์พันธมิตรของวนวรรณ คัดสรรผลงานคุณภาพสำหรับนักอ่าน');

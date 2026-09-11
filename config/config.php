@@ -86,6 +86,31 @@ try {
 }
 
 // บัญชีสำนักพิมพ์และร้านค้าใช้งานเฉพาะระบบหลังบ้าน
+if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['user_id'])) {
+    if (empty($_SESSION['last_active_update']) || time() - $_SESSION['last_active_update'] > 60) {
+        try {
+            $stmt = $pdo->prepare("SELECT is_banned, ban_until FROM users WHERE user_id = ? LIMIT 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            if ($userCheck = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $is_banned = (bool)$userCheck['is_banned'];
+                $ban_until = $userCheck['ban_until'] ? strtotime($userCheck['ban_until']) : null;
+                
+                if ($is_banned || ($ban_until && $ban_until > time())) {
+                    session_destroy();
+                    header('Location: /pages/login.php?error=banned');
+                    exit;
+                } else {
+                    $pdo->prepare("UPDATE users SET last_active = NOW() WHERE user_id = ?")->execute([$_SESSION['user_id']]);
+                    $_SESSION['last_active_update'] = time();
+                }
+            }
+        } catch (Exception $e) {
+            // Ignore error
+        }
+    }
+}
+
+// บัญชีสำนักพิมพ์และร้านค้าใช้งานเฉพาะระบบหลังบ้าน
 if (session_status() === PHP_SESSION_ACTIVE
     && in_array($_SESSION['role'] ?? '', ['publisher_admin', 'shop_admin'], true)
 ) {

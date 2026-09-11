@@ -3,7 +3,7 @@ session_start(); require_once __DIR__.'/../config/config.php';
 $type=($_GET['type']??'publisher')==='shop'?'shop':'publisher'; $isShop=$type==='shop';
 $keyword=trim($_GET['q']??''); $sort=$_GET['sort']??'popular'; $page=max(1,(int)($_GET['page']??1)); $perPage=12; $offset=($page-1)*$perPage;
 $table=$isShop?'shops':'publishers'; $idCol=$isShop?'shop_id':'publisher_id'; $nameCol=$isShop?'shop_name':'company_name'; $title=$isShop?'พาร์ทเนอร์ทั้งหมด':'สำนักพิมพ์พันธมิตร';
-$where=$keyword!==''?"WHERE t.$nameCol LIKE :keyword":''; $params=$keyword!==''?[':keyword'=>"%$keyword%"]:[];
+$where=$keyword!==''?"WHERE t.$nameCol LIKE :keyword AND t.status='approved'":"WHERE t.status='approved'"; $params=$keyword!==''?[':keyword'=>"%$keyword%"]:[];
 $order=match($sort){'newest'=>'t.created_at DESC','books'=>'books_count DESC','name'=>"t.$nameCol ASC",default=>'t.followers_count DESC,books_count DESC'};
 $count=$pdo->prepare("SELECT COUNT(*) FROM $table t $where");$count->execute($params);$total=(int)$count->fetchColumn();$pages=max(1,(int)ceil($total/$perPage));
 $stmt=$pdo->prepare("SELECT t.$idCol partner_id,t.$nameCol partner_name,t.profile_image,t.followers_count,COUNT(b.book_id) books_count FROM $table t LEFT JOIN books b ON b.seller_type='$type' AND b.seller_id=t.$idCol AND b.status<>'hidden' $where GROUP BY t.$idCol,t.$nameCol,t.profile_image,t.followers_count,t.created_at ORDER BY $order LIMIT :lim OFFSET :off");foreach($params as $k=>$v)$stmt->bindValue($k,$v);$stmt->bindValue(':lim',$perPage,PDO::PARAM_INT);$stmt->bindValue(':off',$offset,PDO::PARAM_INT);$stmt->execute();$rows=$stmt->fetchAll(PDO::FETCH_ASSOC);

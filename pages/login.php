@@ -306,7 +306,11 @@ if (!empty($_SESSION['user_id'])) {
             <img src="../assets/image/minilogo.png" alt="โลโก้ วนวรรณ" class="login-logo">
             <h2 class="login-title">เข้าสู่ระบบ</h2>
 
-            <?php if (isset($_GET['error'])): ?>
+            <?php if (isset($_GET['error']) && $_GET['error'] === 'banned'): ?>
+                <p style="color: var(--accent-red); text-align: center; margin-bottom: 15px; font-size: var(--text-xs);">
+                    บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ
+                </p>
+            <?php elseif (isset($_GET['error']) && $_GET['error'] !== 'pending'): ?>
                 <p style="color: var(--accent-red); text-align: center; margin-bottom: 15px; font-size: var(--text-xs);">
                     อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้สมัครสมาชิก
                 </p>
@@ -378,6 +382,37 @@ if (!empty($_SESSION['user_id'])) {
             input.type = isPassword ? 'text' : 'password';
         }
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .wanawan-minimal-popup { border-radius: 16px !important; padding: 2.5rem 2rem !important; box-shadow: 0 15px 35px rgba(201, 123, 139, 0.12) !important; font-family: 'Prompt', sans-serif !important; }
+        .wanawan-minimal-title { font-size: 20px !important; font-weight: 500 !important; color: #175564 !important; margin-top: 15px !important; }
+        .wanawan-minimal-text { font-size: 14px !important; color: #666666 !important; font-weight: 300 !important; margin-top: 8px !important; }
+        .wanawan-minimal-btn { background-color: #C97B8B !important; color: #FFFFFF !important; border-radius: 8px !important; padding: 10px 30px !important; font-size: 14px !important; font-weight: 400 !important; box-shadow: none !important; transition: background-color 0.2s ease; }
+        .wanawan-minimal-btn:hover { background-color: #B5677A !important; }
+    </style>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'pending'): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'info',
+                title: 'อยู่ระหว่างการตรวจสอบ',
+                text: 'ระบบกำลังตรวจสอบข้อมูล โปรดรอ email ยืนยันเพื่อเข้าสู่ระบบอีกครั้ง',
+                confirmButtonText: 'ตกลง',
+                iconColor: '#175564',
+                background: '#FFFFFF',
+                customClass: {
+                    popup: 'wanawan-minimal-popup',
+                    title: 'wanawan-minimal-title',
+                    htmlContainer: 'wanawan-minimal-text',
+                    confirmButton: 'wanawan-minimal-btn'
+                }
+            }).then(() => {
+                window.history.replaceState(null, null, window.location.pathname);
+            });
+        });
+    </script>
+    <?php endif; ?>
 
 </body>
 </html>

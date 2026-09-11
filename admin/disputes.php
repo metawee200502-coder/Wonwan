@@ -84,7 +84,6 @@ $active_menu = 'disputes';
 </head>
 <body>
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
-    <?php
     <div class="admin-main-wrap">
     <main class="admin-wrap">
         <h1 class="admin-title">

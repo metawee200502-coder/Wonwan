@@ -16,7 +16,7 @@ $category = trim($_GET['category'] ?? '');
 $maxPrice = is_numeric($_GET['price'] ?? null) ? (float)$_GET['price'] : 0;
 $shopId = filter_input(INPUT_GET, 'shop_id', FILTER_VALIDATE_INT) ?: 0;
 
-$where = ["b.status='available'", "b.book_type='used'", "b.condition_level <> 'new'"];
+$where = ["b.status='available'", "b.book_type='used'", "b.condition_level <> 'new'", "(b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))"];
 $params = [];
 if ($keyword !== '') { $where[] = '(b.title LIKE :keyword OR b.author LIKE :keyword OR b.isbn LIKE :keyword OR b.isbn_13 LIKE :keyword)'; $params[':keyword'] = "%$keyword%"; }
 if (in_array($condition, ['good','fair','old'], true)) { $where[] = 'b.condition_level=:condition'; $params[':condition'] = $condition; }
@@ -46,7 +46,7 @@ $newArrivalBooks = $pdo->query("SELECT b.*,COALESCE(s.shop_name,p.company_name,N
     LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id
     LEFT JOIN users u ON b.seller_type='user' AND u.user_id=b.seller_id
     WHERE b.status='available' AND b.book_type='used' AND b.condition_level<>'new'
-      AND b.created_at>=DATE_SUB(NOW(),INTERVAL 1 MONTH)
+      AND b.created_at>=DATE_SUB(NOW(),INTERVAL 1 MONTH) AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
     ORDER BY b.created_at DESC,b.book_id DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 $newArrivalBooks = wanawanAnnotateBooks($pdo, $newArrivalBooks);
 
@@ -62,6 +62,7 @@ $recommendedSellers = $pdo->query("SELECT s.shop_id AS seller_id,'shop' AS selle
     LEFT JOIN books b ON b.seller_type='shop' AND b.seller_id=s.shop_id
         AND b.book_type='used' AND b.condition_level<>'new' AND b.status='available'
     LEFT JOIN book_reviews r ON r.book_id=b.book_id
+    WHERE s.status='approved'
     GROUP BY s.shop_id,s.shop_name,s.profile_image,s.created_at,s.followers_count
     ORDER BY sold_count DESC,rating DESC,s.followers_count DESC,s.shop_id DESC")->fetchAll(PDO::FETCH_ASSOC);
 $salesRank = 0;

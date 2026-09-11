@@ -16,7 +16,7 @@ $author    = trim($_GET['author'] ?? '');
 $maxPrice  = is_numeric($_GET['price'] ?? null) ? (float)$_GET['price'] : 0;
 $minRating = is_numeric($_GET['rating'] ?? null) ? (int)$_GET['rating'] : 0;
 
-$where = ["b.status = 'available'", "(b.book_type = 'new' OR b.condition_level = 'new')"];
+$where = ["b.status = 'available'", "(b.book_type = 'new' OR b.condition_level = 'new')", "(b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))"];
 $params = [];
 if ($keyword !== '') { $where[] = '(b.title LIKE :keyword OR b.author LIKE :keyword OR b.isbn LIKE :keyword OR b.isbn_13 LIKE :keyword)'; $params[':keyword'] = "%$keyword%"; }
 if ($category !== '') { $where[] = 'b.category = :category'; $params[':category'] = $category; }
@@ -52,7 +52,7 @@ $topStmt = $pdo->query("SELECT b.book_id,b.title,b.author,b.price,b.image_cover,
     LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id
     LEFT JOIN users u ON b.seller_type='user' AND u.user_id=b.seller_id
     WHERE o.payment_status NOT IN('cancelled','failed') AND b.status='available'
-      AND (b.book_type='new' OR b.condition_level='new')
+      AND (b.book_type='new' OR b.condition_level='new') AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
     GROUP BY b.book_id,b.title,b.author,b.price,b.image_cover,b.seller_type,
              p.company_name,s.shop_name,u.display_name,u.email
     ORDER BY sold_count DESC,b.book_id DESC LIMIT 10");
@@ -68,7 +68,7 @@ $publishers = $pdo->query("SELECT DISTINCT COALESCE(NULLIF(b.publisher_name,''),
     FROM books b
     LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id
     LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id
-    WHERE b.status='available' AND (b.book_type='new' OR b.condition_level='new')
+    WHERE b.status='available' AND (b.book_type='new' OR b.condition_level='new') AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))
       AND COALESCE(NULLIF(b.publisher_name,''), p.company_name, s.shop_name) IS NOT NULL
     ORDER BY publisher_name")->fetchAll(PDO::FETCH_COLUMN);
 $authors = $pdo->query("SELECT DISTINCT author FROM books WHERE author IS NOT NULL AND author <> '' AND (book_type='new' OR condition_level='new') ORDER BY author LIMIT 100")->fetchAll(PDO::FETCH_COLUMN);
@@ -79,7 +79,7 @@ $partnerPublishers = $pdo->query("SELECT p.publisher_id,p.company_name,p.profile
         AND (sb.book_type='new' OR sb.condition_level='new') AND o.payment_status NOT IN('cancelled','failed')),0) sold_count
     FROM publishers p
     INNER JOIN books b ON b.seller_type='publisher' AND b.seller_id=p.publisher_id
-        AND b.status='available' AND (b.book_type='new' OR b.condition_level='new')
+        AND b.status='available' AND (b.book_type='new' OR b.condition_level='new') AND p.status='approved'
     LEFT JOIN book_reviews r ON r.book_id=b.book_id
     GROUP BY p.publisher_id,p.company_name,p.profile_image,p.created_at,p.followers_count
     ORDER BY sold_count DESC,rating DESC,p.followers_count DESC,p.publisher_id DESC")->fetchAll(PDO::FETCH_ASSOC);
@@ -92,8 +92,8 @@ foreach ($partnerPublishers as &$partner) {
     else $partner['store_badge'] = '';
 }
 unset($partner);
-$statBooks = (int)$pdo->query("SELECT COUNT(*) FROM books WHERE status='available' AND (book_type='new' OR condition_level='new')")->fetchColumn();
-$statPublishers = (int)$pdo->query("SELECT COUNT(DISTINCT seller_id) FROM books WHERE seller_type='publisher' AND status='available' AND (book_type='new' OR condition_level='new')")->fetchColumn();
+$statBooks = (int)$pdo->query("SELECT COUNT(*) FROM books b LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id WHERE b.status='available' AND (b.book_type='new' OR b.condition_level='new') AND (b.seller_type='user' OR (b.seller_type='publisher' AND p.status='approved') OR (b.seller_type='shop' AND s.status='approved'))")->fetchColumn();
+$statPublishers = (int)$pdo->query("SELECT COUNT(DISTINCT b.seller_id) FROM books b LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id WHERE b.seller_type='publisher' AND b.status='available' AND (b.book_type='new' OR b.condition_level='new') AND p.status='approved'")->fetchColumn();
 
 function zoneImage(?string $value): ?string {
     if (!$value) return null;
