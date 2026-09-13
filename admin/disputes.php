@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['dis
         $stmt2 = $pdo->prepare("UPDATE orders SET payout_status = 'refunded', shipping_status = 'returned' WHERE order_id = ?");
         $stmt2->execute([$order_id]);
         
+        $order_number = $pdo->query("SELECT order_number FROM orders WHERE order_id = " . (int)$order_id)->fetchColumn() ?: "#" . $order_id;
+        logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'RESOLVE_DISPUTE_REFUND', (string)$dispute_id, "ตัดสินข้อพิพาทให้คืนเงินลูกค้า สำหรับออเดอร์ {$order_number}. หมายเหตุ: {$admin_note}");
+        
         $_SESSION['flash_msg'] = "บันทึกการคืนเงินให้ลูกค้าเรียบร้อยแล้ว";
     } elseif ($action === 'reject') {
         $stmt = $pdo->prepare("UPDATE disputes SET status = 'resolved', resolution = 'rejected', admin_note = ? WHERE dispute_id = ?");
@@ -27,6 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['dis
         // Payout status goes back to pending so we can transfer money to seller
         $stmt2 = $pdo->prepare("UPDATE orders SET payout_status = 'pending' WHERE order_id = ?");
         $stmt2->execute([$order_id]);
+        
+        $order_number = $pdo->query("SELECT order_number FROM orders WHERE order_id = " . (int)$order_id)->fetchColumn() ?: "#" . $order_id;
+        logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'RESOLVE_DISPUTE_REJECT', (string)$dispute_id, "ปฏิเสธข้อพิพาทและโอนเงินให้ร้านค้า สำหรับออเดอร์ {$order_number}. หมายเหตุ: {$admin_note}");
         
         $_SESSION['flash_msg'] = "ปฏิเสธข้อพิพาทเรียบร้อย ยอดเงินถูกส่งกลับไปยังสถานะรอโอนให้ร้านค้า";
     }

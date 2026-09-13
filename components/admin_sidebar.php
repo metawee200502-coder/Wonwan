@@ -49,8 +49,16 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         </a>
         <a href="/admin/escrow.php" class="nav-item <?= $active_menu === 'escrow' ? 'active' : '' ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-            ระบบเงินกลาง (Escrow)
+            จัดการคำสั่งซื้อ
             <?php if($slipPendingBadge):?><span class="admin-order-badge"><?=$slipPendingBadge>99?'99+':$slipPendingBadge?></span><?php endif;?>
+        </a>
+        <a href="/admin/revenue.php" class="nav-item <?= $active_menu === 'revenue' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            รายได้ของระบบ
+        </a>
+        <a href="/admin/withdraw_approvals.php" class="nav-item <?= $active_menu === 'withdraw_approvals' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-9 5 18 3-10h6"></path></svg>
+            อนุมัติการถอนเงิน
         </a>
         <a href="/admin/disputes.php" class="nav-item <?= $active_menu === 'disputes' ? 'active' : '' ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -66,6 +74,16 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             จัดการผู้ใช้งาน
         </a>
+        <?php if(($_SESSION['email'] ?? '') === 'admin1@wonwan'): ?>
+        <a href="/admin/manage_admins.php" class="nav-item <?= $active_menu === 'manage_admins' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            จัดการผู้ดูแลระบบ
+        </a>
+        <a href="/admin/action_logs.php" class="nav-item <?= $active_menu === 'action_logs' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            ประวัติการทำรายการ
+        </a>
+        <?php endif; ?>
     </nav>
     <a class="sidebar-profile sidebar-profile-link" href="#" title="โปรไฟล์ผู้ดูแลระบบ">
         <div class="profile-avatar">
@@ -91,3 +109,22 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         </button>
     </form>
 </aside>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    
+    // Restore scroll position
+    const savedScrollTop = sessionStorage.getItem('adminSidebarScrollTop');
+    if (savedScrollTop !== null && sidebarNav) {
+        sidebarNav.scrollTop = parseInt(savedScrollTop, 10);
+    }
+    
+    // Save scroll position before leaving the page
+    window.addEventListener('beforeunload', function() {
+        if (sidebarNav) {
+            sessionStorage.setItem('adminSidebarScrollTop', sidebarNav.scrollTop);
+        }
+    });
+});
+</script>

@@ -8,8 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'];
 
     try {
-        // ดึงข้อมูลผู้ใช้
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
+        // ดึงข้อมูลผู้ใช้ (รองรับทั้งอีเมลและ Username)
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email OR username = :email LIMIT 1");
         $stmt->execute(['email' => $email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -110,7 +110,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo "<script>alert('รหัสผ่านไม่ถูกต้อง'); window.location='login.php';</script>";
             }
         } else {
-            echo "<script>alert('ไม่พบอีเมลนี้ในระบบ'); window.location='login.php';</script>";
+            // ตรวจสอบในตาราง admins (Sub-Admin)
+            $stmtAdmin = $pdo->prepare("SELECT * FROM admins WHERE email = :email OR username = :email LIMIT 1");
+            $stmtAdmin->execute(['email' => $email]);
+            $adminUser = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+
+            if ($adminUser) {
+                if ($adminUser['status'] === 'suspended') {
+                    header("Location: ../pages/login.php?error=banned");
+                    exit;
+                }
+                
+                if (password_verify($password, $adminUser['password_hash'])) {
+                    $_SESSION['user_id'] = 'ADMIN_' . $adminUser['admin_id'];
+                    $_SESSION['role']    = 'super_admin';
+                    $_SESSION['email']   = $adminUser['email'];
+                    $_SESSION['display_name'] = $adminUser['name'];
+                    $_SESSION['avatar'] = '';
+                    
+                    header("Location: ../admin/index.php");
+                    exit;
+                } else {
+                    echo "<script>alert('รหัสผ่านไม่ถูกต้อง'); window.location='../pages/login.php';</script>";
+                    exit;
+                }
+            } else {
+                echo "<script>alert('ไม่พบอีเมลหรือชื่อผู้ใช้งานนี้ในระบบ'); window.location='../pages/login.php';</script>";
+                exit;
+            }
         }
     } catch (PDOException $e) {
         die("เกิดข้อผิดพลาด: " . $e->getMessage());

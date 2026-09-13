@@ -12,18 +12,20 @@ $seller_name = $seller_name ?? '';
 $seller_profile_image = $seller_profile_image ?? '';
 $seller_profile_id = $seller_profile_id ?? 0;
 $role = $role ?? ($_SESSION['role'] ?? '');
+$staff_role = 'sub_admin';
 if (($seller_name === '' || $seller_profile_id === 0) && !empty($_SESSION['user_id']) && isset($pdo)) {
     try {
         if ($role === 'publisher_admin') {
-            $sellerStmt = $pdo->prepare('SELECT p.company_name,p.profile_image,p.publisher_id FROM publisher_staff ps JOIN publishers p ON p.publisher_id=ps.publisher_id WHERE ps.user_id=? LIMIT 1');
+            $sellerStmt = $pdo->prepare('SELECT p.company_name,p.profile_image,p.publisher_id,ps.staff_role FROM publisher_staff ps JOIN publishers p ON p.publisher_id=ps.publisher_id WHERE ps.user_id=? LIMIT 1');
         } else {
-            $sellerStmt = $pdo->prepare('SELECT s.shop_name,s.profile_image,s.shop_id FROM shop_staff ss JOIN shops s ON s.shop_id=ss.shop_id WHERE ss.user_id=? LIMIT 1');
+            $sellerStmt = $pdo->prepare('SELECT s.shop_name,s.profile_image,s.shop_id,ss.staff_role FROM shop_staff ss JOIN shops s ON s.shop_id=ss.shop_id WHERE ss.user_id=? LIMIT 1');
         }
         $sellerStmt->execute([$_SESSION['user_id']]);
         $sellerRow = $sellerStmt->fetch(PDO::FETCH_NUM);
         $seller_name = (string)($sellerRow[0] ?? '');
         $seller_profile_image = (string)($sellerRow[1] ?? '');
         $seller_profile_id = (int)($sellerRow[2] ?? 0);
+        $staff_role = (string)($sellerRow[3] ?? 'sub_admin');
     } catch (Throwable $e) {}
 }
 $admin_order_badge = 0;
@@ -38,6 +40,22 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
 }
 ?>
 <link rel="stylesheet" href="../assets/css/admin-sidebar.css">
+<style>
+/* Seller Admin Pastel Pink Theme Overrides */
+.sidebar { background: #fce1e6 !important; border-right: 1px solid #eabac2 !important; }
+.sidebar-logo { border-bottom: 1px solid #f2e1e3 !important; }
+.sidebar-logo-text { color: #6e404a !important; }
+.sidebar-logo-sub { color: #a1747e !important; }
+.sidebar .nav-item { color: #704850 !important; }
+.sidebar .nav-item:hover, .sidebar .nav-item.active { background: #C97B8B !important; color: #fff !important; font-weight: 600 !important; }
+.sidebar-profile { border-top: 1px solid #f2e1e3 !important; }
+.profile-avatar { color: #C97B8B !important; }
+.profile-seller, .profile-name { color: #6e404a !important; }
+.profile-role { color: #a1747e !important; }
+.sidebar-logout { border: 1px solid #C97B8B !important; color: #C97B8B !important; }
+.sidebar-logout:hover { background: #C97B8B !important; color: #fff !important; }
+.profile-admin-name { font-size: 11px !important; color: #a1747e !important; margin-top: 3px !important; font-weight: 500 !important; line-height: 1.2 !important; }
+</style>
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="../assets/image/minilogo.png" alt="Logo">
@@ -65,6 +83,10 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             ติดตามคำสั่งซื้อ
             <?php if ($admin_order_badge > 0): ?><span class="admin-order-badge"><?= $admin_order_badge ?></span><?php endif; ?>
         </a>
+        <a href="seller_wallet.php" class="nav-item <?= $active_menu === 'wallet' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            รายได้ทั้งหมด
+        </a>
         <a href="admin_promotions.php" class="nav-item <?= $active_menu === 'promotions' ? 'active' : '' ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 7v13"/><path d="M12 7H7.5a2.5 2.5 0 1 1 2.2-3.7L12 7zm0 0h4.5a2.5 2.5 0 1 0-2.2-3.7L12 7z"/></svg>
             จัดการโปรโมชั่น
@@ -88,6 +110,16 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             ?>
             <?php if($adminUnread): ?><span class="admin-order-badge"><?=$adminUnread?></span><?php endif; ?>
         </a>
+        <?php if ($staff_role === 'owner'): ?>
+        <a href="manage_seller_admins.php" class="nav-item <?= $active_menu === 'manage_seller_admins' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            จัดการผู้ดูแลระบบ
+        </a>
+        <a href="seller_action_logs.php" class="nav-item <?= $active_menu === 'seller_action_logs' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            ประวัติการทำรายการ
+        </a>
+        <?php endif; ?>
     </nav>
     <a class="sidebar-profile sidebar-profile-link" href="/pages/admin_profile.php" title="<?= $role==='publisher_admin'?'แก้ไขโปรไฟล์สำนักพิมพ์':'แก้ไขโปรไฟล์ร้านหนังสือ' ?>">
         <div class="profile-avatar">
@@ -100,6 +132,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         <div>
             <div class="profile-role"><?= $role === 'publisher_admin' ? 'สำนักพิมพ์' : 'ร้านหนังสือ' ?></div>
             <div class="profile-seller"><?= htmlspecialchars($seller_name ?: '-') ?></div>
+            <div class="profile-admin-name">แอดมิน <?= htmlspecialchars($_SESSION['display_name'] ?? '') ?></div>
         </div>
     </a>
     <form class="sidebar-logout-form" action="/process/logout.php" method="post">
@@ -113,6 +146,18 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         </button>
     </form>
 </aside>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var nav = document.querySelector('.sidebar-nav');
+    if (nav) {
+        var pos = sessionStorage.getItem('sellerSidebarScroll');
+        if (pos) nav.scrollTop = parseInt(pos, 10);
+        nav.addEventListener('scroll', function() {
+            sessionStorage.setItem('sellerSidebarScroll', nav.scrollTop);
+        });
+    }
+});
+</script>
 <script src="/assets/js/notification-live.js?v=<?=filemtime(__DIR__.'/../assets/js/notification-live.js')?>" defer></script>
 <?php if($active_menu==='promotions'):?>
 <script>window.wanawanPromotionOptions=<?=json_encode(['categories'=>$categories??[],'books'=>$sellerBooks??[],'promotions'=>$promotions??[]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;</script>

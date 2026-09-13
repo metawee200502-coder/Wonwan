@@ -2,13 +2,14 @@
 $profile_active=$profile_active??'profile';$profileUnread=0;$profileOrders=0;
 if(!empty($_SESSION['user_id'])&&isset($pdo)){try{$s=$pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0');$s->execute([$_SESSION['user_id']]);$profileUnread=(int)$s->fetchColumn();$s=$pdo->prepare("SELECT COUNT(*) FROM orders WHERE user_id=? AND payment_status='pending'");$s->execute([$_SESSION['user_id']]);$profileOrders=(int)$s->fetchColumn();$s=$pdo->prepare("SELECT COUNT(*) FROM exchange_requests er JOIN exchanges e ON e.exchange_id=er.exchange_id WHERE e.owner_id=? AND er.status='pending'");$s->execute([$_SESSION['user_id']]);$profileExchangeRequests=(int)$s->fetchColumn();}catch(Throwable $e){}}
 $profileMenus=[
- ['profile','โปรไฟล์','/pages/profile.php'],['market','ตลาดซื้อขาย','/pages/seller_market.php'],['exchange','ลานแลกเปลี่ยน','/pages/exchange_requests.php',$profileExchangeRequests??0],['messages','กล่องข้อความ','/pages/chat.php'],['orders','รายการการสั่งซื้อ','/pages/orders.php',$profileOrders],['location','ตั้งค่าตำแหน่ง','/pages/location_settings.php'],['notify','ตั้งค่าการแจ้งเตือน','/pages/profile.php?tab=notify']
+ ['profile','โปรไฟล์','/pages/profile.php'],['market','ตลาดซื้อขาย','/pages/seller_market.php'],['exchange','ลานแลกเปลี่ยน','/pages/exchange_requests.php',$profileExchangeRequests??0],['wallet','Wonwan Wallet','/pages/user_wallet.php'],['messages','กล่องข้อความ','/pages/chat.php'],['orders','รายการการสั่งซื้อ','/pages/orders.php',$profileOrders],['location','ตั้งค่าตำแหน่ง','/pages/location_settings.php'],['notify','ตั้งค่าการแจ้งเตือน','/pages/profile.php?tab=notify']
 ];
 $profileMenuIcons=[
  'profile'=>'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
  'location'=>'<svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
  'market'=>'<svg viewBox="0 0 24 24"><path d="M4 9h16l-1 12H5zM7 9V6a5 5 0 0 1 10 0v3M9 13h6"/></svg>',
  'exchange'=>'<svg viewBox="0 0 24 24"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>',
+ 'wallet'=>'<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
  'messages'=>'<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4zM8 10h8M8 14h5"/></svg>',
  'orders'=>'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg>',
  'notify'=>'<svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'

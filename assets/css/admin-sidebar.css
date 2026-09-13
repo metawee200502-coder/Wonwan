@@ -1,6 +1,7 @@
 .sidebar{
+    box-sizing:border-box!important;
     width:260px!important;
-    min-height:100vh!important;
+    height:100vh!important;
     background:#e8f3ef!important;
     display:flex!important;
     flex-direction:column!important;
@@ -17,11 +18,13 @@
     gap:10px!important;
     padding:0 12px 30px!important;
     border-bottom:1px solid #cde3db!important;
+    flex-shrink:0!important;
 }
 .sidebar-logo img{width:74px!important;height:64px!important;object-fit:contain!important}
 .sidebar-logo-text{font-size:24px!important;font-weight:700!important;color:#175564!important;line-height:1.1!important}
 .sidebar-logo-sub{font-size:11px!important;color:#408575!important}
-.sidebar-nav{display:flex!important;flex:1!important;flex-direction:column!important;gap:9px!important;padding:22px 0!important}
+.sidebar-nav{display:flex!important;flex:1!important;min-height:0!important;height:0!important;flex-direction:column!important;gap:9px!important;padding:22px 0!important;overflow-y:auto!important;scrollbar-width:none!important;-ms-overflow-style:none!important;}
+.sidebar-nav::-webkit-scrollbar{display:none!important;}
 .sidebar .nav-item{
     display:flex!important;
     align-items:center!important;
@@ -38,14 +41,14 @@
 .sidebar .nav-item svg{width:21px!important;height:21px!important;flex-shrink:0!important}
 .sidebar .nav-item:hover,.sidebar .nav-item.active{background:#2F6E63!important;color:#fff!important;font-weight:600!important}
 .sidebar .admin-order-badge{margin-left:auto!important;background:#d9534f!important;color:#fff!important;border-radius:20px!important;min-width:23px!important;padding:3px 7px!important;text-align:center!important;font-size:11px!important}
-.sidebar-profile{display:flex!important;align-items:center!important;gap:10px!important;padding:15px 10px!important;border-top:1px solid #cde3db!important}
+.sidebar-profile{display:flex!important;align-items:center!important;gap:10px!important;padding:15px 10px!important;border-top:1px solid #cde3db!important;flex-shrink:0!important;}
 .sidebar-profile-link{color:inherit!important;text-decoration:none!important;border-radius:10px!important;transition:background .2s ease!important}
 .sidebar-profile-link:hover{background:rgba(255,255,255,.55)!important}
 .profile-avatar{width:42px!important;height:42px!important;border-radius:50%!important;background:#fff!important;display:grid!important;place-items:center!important;overflow:hidden!important;color:#2F6E63!important;font-weight:700!important}
 .profile-avatar img{width:100%!important;height:100%!important;object-fit:cover!important}
 .profile-seller,.profile-name{font-size:12px!important;font-weight:700!important;color:#175564!important}
 .profile-role{font-size:11px!important;color:#408575!important}
-.sidebar-logout-form{margin:0!important;padding:0 10px 4px!important}
+.sidebar-logout-form{margin:0!important;padding:0 10px 10px!important;flex-shrink:0!important;}
 .sidebar-logout{width:100%!important;min-height:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:9px!important;border:1px solid #2F6E63!important;border-radius:8px!important;background:#fff!important;color:#2F6E63!important;font-family:var(--font-family)!important;font-size:14px!important;font-weight:600!important;cursor:pointer!important}
 .sidebar-logout svg{width:19px!important;height:19px!important}
 .sidebar-logout:hover{background:#2F6E63!important;color:#fff!important}

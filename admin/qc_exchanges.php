@@ -16,6 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $new_status = ($action === 'approve_post') ? 'approved' : 'rejected';
         $stmt = $pdo->prepare("UPDATE exchanges SET qc_status = ? WHERE exchange_id = ?");
         $stmt->execute([$new_status, $exchange_id]);
+        
+        $actionLogType = ($action === 'approve_post') ? 'APPROVE_EXCHANGE_POST' : 'REJECT_EXCHANGE_POST';
+        $actionLogDetails = ($action === 'approve_post') ? "อนุมัติโพสต์แลกเปลี่ยน ID: {$exchange_id}" : "ปฏิเสธโพสต์แลกเปลี่ยน ID: {$exchange_id}";
+        logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', $actionLogType, (string)$exchange_id, $actionLogDetails);
+        
         $_SESSION['flash_msg'] = "ตรวจสอบโพสต์เรียบร้อยแล้ว";
     } elseif ($action === 'physical_qc') {
         $request_id = (int)$_POST['request_id'];
@@ -28,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt = $pdo->prepare("UPDATE exchange_requests SET admin_qc_offer_status = ? WHERE request_id = ?");
         }
         $stmt->execute([$qc_result, $request_id]);
+        
+        $sideLabel = ($side === 'requester') ? 'ผู้ขอแลก' : 'ผู้ลงประกาศ';
+        $resultLabel = ($qc_result === 'passed') ? 'ผ่าน' : 'ไม่ผ่าน';
+        logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'PHYSICAL_QC', (string)$request_id, "บันทึกผลตรวจสภาพหนังสือของ {$sideLabel} ว่า {$resultLabel} สำหรับรายการแลกเปลี่ยนคำขอที่ {$request_id}");
+        
         $_SESSION['flash_msg'] = "บันทึกผลการตรวจสภาพหนังสือเรียบร้อยแล้ว";
     } elseif ($action === 'admin_ship') {
         $request_id = (int)$_POST['request_id'];
@@ -42,6 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($req) {
             $pdo->query("UPDATE exchanges SET status = 'completed' WHERE exchange_id IN ({$req['exchange_id']}, {$req['offered_exchange_id']})");
         }
+        
+        logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'COMPLETE_EXCHANGE', (string)$request_id, "บันทึกเลขพัสดุและจบการแลกเปลี่ยนสำหรับคำขอที่ {$request_id}");
+        
         $_SESSION['flash_msg'] = "บันทึกเลขพัสดุและจบการแลกเปลี่ยนเรียบร้อยแล้ว";
     }
 

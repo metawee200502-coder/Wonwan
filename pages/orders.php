@@ -4,7 +4,53 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  $orderId=(int)($_POST['order_id']??0);$stmt=$pdo->prepare('SELECT * FROM orders WHERE order_id=? AND user_id=?');$stmt->execute([$orderId,$userId]);$target=$stmt->fetch(PDO::FETCH_ASSOC);
  if($target&&isset($_POST['cancel'])&&$target['payment_status']==='pending'){if(!wanawanCancelReservedOrder($pdo,$orderId,$userId))$pdo->prepare("UPDATE orders SET payment_status='cancelled',shipping_status='cancelled' WHERE order_id=?")->execute([$orderId]);wanawanNotifyUser($pdo, $userId, 'ยกเลิกคำสั่งซื้อแล้ว', 'คำสั่งซื้อ #'.$target['order_number'].' ถูกยกเลิกและคืนสินค้าที่สำรองแล้ว', 'order');}
  if($target&&isset($_POST['buy_again'])){$items=$pdo->prepare('SELECT book_id,quantity FROM order_items WHERE order_id=? AND book_id IS NOT NULL');$items->execute([$orderId]);$add=$pdo->prepare('INSERT INTO cart_items(user_id,book_id,quantity) VALUES(?,?,?) ON DUPLICATE KEY UPDATE quantity=quantity+VALUES(quantity)');foreach($items as $i)$add->execute([$userId,$i['book_id'],$i['quantity']]);header('Location:/pages/cart.php');exit;}
- if($target&&isset($_POST['confirm_received'])&&$target['shipping_status']==='shipped'){$pdo->beginTransaction();try{$pdo->prepare("UPDATE orders SET shipping_status='delivered',delivered_at=NOW() WHERE order_id=?")->execute([$orderId]);wanawanNotifyUser($pdo, $userId, 'ยืนยันการรับสินค้าแล้ว', 'คำสั่งซื้อ #'.$target['order_number'].' ยืนยันรับสินค้าแล้ว', 'order');$pdo->commit();}catch(Throwable $e){$pdo->rollBack();}}
+ if($target&&isset($_POST['confirm_received'])&&$target['shipping_status']==='shipped'){
+  $pdo->beginTransaction();
+  try{
+   // 1. เปลี่ยนสถานะออเดอร์เป็น delivered
+   $pdo->prepare("UPDATE orders SET shipping_status='delivered',delivered_at=NOW() WHERE order_id=?")->execute([$orderId]);
+   
+   // 2. คำนวณเงินเข้า Wallet ร้านค้า
+   $shopIdQuery = $pdo->prepare("SELECT b.seller_type, b.seller_id FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=? AND b.seller_type IN ('shop','publisher','user') LIMIT 1");
+   $shopIdQuery->execute([$orderId]);
+   $seller = $shopIdQuery->fetch(PDO::FETCH_ASSOC);
+   
+   if ($seller) {
+       $sellerType = $seller['seller_type'];
+       $sellerId = $seller['seller_id'];
+       
+       $subtotal = array_sum(array_map(function($i){ return (float)($i['price_at_purchase']*$i['quantity']); }, $pdo->query("SELECT price_at_purchase, quantity FROM order_items WHERE order_id=$orderId")->fetchAll(PDO::FETCH_ASSOC)));
+       $shippingFee = (float)($target['shipping_fee'] ?? 0);
+       
+       // หัก GP: 10% สำหรับร้านค้า/สำนักพิมพ์, 15% สำหรับ user ปกติ
+       $gpRate = ($sellerType === 'user') ? 0.15 : 0.10;
+       $gpAmount = $subtotal * $gpRate;
+       $netPayout = ($subtotal - $gpAmount) + $shippingFee;
+
+       // บันทึก GP ในออเดอร์
+       $pdo->prepare("UPDATE orders SET gp_amount=?, net_payout=? WHERE order_id=?")->execute([$gpAmount, $netPayout, $orderId]);
+
+       // ตรวจสอบและสร้าง Wallet หากไม่มี
+       $walletQuery = $pdo->prepare("SELECT wallet_id FROM vendor_wallets WHERE seller_type=? AND seller_id=? FOR UPDATE");
+       $walletQuery->execute([$sellerType, $sellerId]);
+       $wallet = $walletQuery->fetch(PDO::FETCH_ASSOC);
+       
+       if (!$wallet) {
+           $pdo->prepare("INSERT INTO vendor_wallets (seller_type, seller_id, available_balance) VALUES (?, ?, ?)")->execute([$sellerType, $sellerId, $netPayout]);
+           $walletId = $pdo->lastInsertId();
+       } else {
+           $walletId = $wallet['wallet_id'];
+           $pdo->prepare("UPDATE vendor_wallets SET available_balance = available_balance + ? WHERE wallet_id=?")->execute([$netPayout, $walletId]);
+       }
+
+       // เพิ่ม log
+       $pdo->prepare("INSERT INTO wallet_transactions (wallet_id, order_id, type, amount, status) VALUES (?, ?, 'EARNING', ?, 'SUCCESS')")->execute([$walletId, $orderId, $netPayout]);
+   }
+   
+   wanawanNotifyUser($pdo, $userId, 'ยืนยันการรับสินค้าแล้ว', 'คำสั่งซื้อ #'.$target['order_number'].' ยืนยันรับสินค้าแล้ว (เงินโอนเข้ากระเป๋าร้านค้าแล้ว)', 'order');
+   $pdo->commit();
+  }catch(Throwable $e){$pdo->rollBack();}
+ }
  header('Location:/pages/orders.php?tab='.urlencode($_GET['tab']??'all'));exit;
 }
 $tab=$_GET['tab']??'all';$q=trim($_GET['q']??'');$where=['o.user_id=:uid'];$params=[':uid'=>$userId];

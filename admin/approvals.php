@@ -60,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['typ
         sendSystemEmail($targetEmail, $subject, $body);
     }
 
+    // --- Audit Log ---
+    $actionType = ($action === 'approve') ? "APPROVE_" . strtoupper($type) : "REJECT_" . strtoupper($type);
+    $details = ($action === 'approve') ? "อนุมัติ{$typeLabel} ID: {$id}" : "ปฏิเสธ{$typeLabel} ID: {$id} เหตุผล: " . $reason;
+    logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', $actionType, (string)$id, $details);
+
     $_SESSION['flash_msg'] = "ดำเนินการเรียบร้อยแล้ว";
     header('Location: approvals.php');
     exit;

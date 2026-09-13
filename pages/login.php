@@ -324,7 +324,7 @@ if (!empty($_SESSION['user_id'])) {
 
             <form action="../process/process_login.php" method="POST">
                 <div class="input-group">
-                    <label for="email">อีเมล</label>
+                    <label for="email">อีเมล หรือ ชื่อผู้ใช้งาน</label>
                     <div class="input-wrapper">
                         <span class="input-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -333,7 +333,7 @@ if (!empty($_SESSION['user_id'])) {
                                 <path d="m22 6-10 7L2 6"></path>
                             </svg>
                         </span>
-                        <input type="email" id="email" name="email" placeholder="กรอกอีเมลของคุณ" required>
+                        <input type="text" id="email" name="email" placeholder="กรอกอีเมล หรือ ชื่อผู้ใช้งาน" required>
                     </div>
                 </div>
 

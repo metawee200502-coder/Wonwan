@@ -6,39 +6,121 @@ if (empty($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
     exit;
 }
 
-$tab = $_GET['tab'] ?? 'slips';
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['order_id'])) {
-    $action = $_POST['action'];
-    $order_id = (int)$_POST['order_id'];
+    if (empty($_SESSION['admin_escrow_csrf']) || !hash_equals($_SESSION['admin_escrow_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
+        $_SESSION['flash_error'] = "คำขอหมดอายุ กรุณาลองใหม่";
+    } else {
+        $action = $_POST['action'];
+        $order_id = (int)$_POST['order_id'];
 
-    if ($action === 'approve_slip') {
-        $stmt = $pdo->prepare("UPDATE orders SET payment_status = 'paid', paid_at = NOW() WHERE order_id = ? AND payment_status = 'reviewing'");
-        $stmt->execute([$order_id]);
-        $_SESSION['flash_msg'] = "ยืนยันการโอนเงินเรียบร้อยแล้ว";
-    } elseif ($action === 'reject_slip') {
-        // Can optionally set to 'pending' or 'failed'
-        $stmt = $pdo->prepare("UPDATE orders SET payment_status = 'pending', payment_slip_url = NULL WHERE order_id = ? AND payment_status = 'reviewing'");
-        $stmt->execute([$order_id]);
-        $_SESSION['flash_msg'] = "ปฏิเสธสลิปแล้ว ลูกค้าต้องอัปโหลดใหม่";
-    } elseif ($action === 'transfer_payout') {
-        $stmt = $pdo->prepare("UPDATE orders SET payout_status = 'paid_to_seller' WHERE order_id = ? AND payout_status = 'pending'");
-        $stmt->execute([$order_id]);
-        $_SESSION['flash_msg'] = "บันทึกการโอนเงินให้ร้านค้าเรียบร้อยแล้ว";
+        if ($action === 'approve_slip') {
+            $stmt = $pdo->prepare("UPDATE orders SET payment_status = 'paid', paid_at = NOW() WHERE order_id = ? AND payment_status = 'reviewing'");
+            $stmt->execute([$order_id]);
+            $order_number = $pdo->query("SELECT order_number FROM orders WHERE order_id = " . (int)$order_id)->fetchColumn() ?: "#" . $order_id;
+            logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'APPROVE_SLIP', (string)$order_number, "อนุมัติสลิปโอนเงินสำหรับออเดอร์ {$order_number}");
+            $_SESSION['flash_msg'] = "อนุมัติสลิปเรียบร้อยแล้ว";
+        } elseif ($action === 'reject_slip') {
+            $stmt = $pdo->prepare("UPDATE orders SET payment_status = 'pending', payment_slip_url = NULL WHERE order_id = ? AND payment_status = 'reviewing'");
+            $stmt->execute([$order_id]);
+            $order_number = $pdo->query("SELECT order_number FROM orders WHERE order_id = " . (int)$order_id)->fetchColumn() ?: "#" . $order_id;
+            logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'REJECT_SLIP', (string)$order_number, "ปฏิเสธสลิปโอนเงินสำหรับออเดอร์ {$order_number}");
+            $_SESSION['flash_msg'] = "ปฏิเสธสลิปแล้ว ระบบจะแจ้งให้ลูกค้าอัปโหลดใหม่";
+        }
     }
-
-    header("Location: escrow.php?tab=" . urlencode($tab));
+    header("Location: escrow.php?status=" . urlencode($_GET['status'] ?? 'reviewing'));
     exit;
 }
 
-if ($tab === 'slips') {
-    $orders = $pdo->query("SELECT * FROM orders WHERE payment_status = 'reviewing' ORDER BY created_at ASC")->fetchAll();
-} elseif ($tab === 'payouts') {
-    // tab = payouts
-    $orders = $pdo->query("SELECT * FROM orders WHERE shipping_status = 'delivered' AND payout_status = 'pending' AND payment_status = 'paid' ORDER BY created_at ASC")->fetchAll();
-} else {
-    // tab = cancelled
-    $orders = $pdo->query("SELECT * FROM orders WHERE payment_status IN ('failed', 'cancelled') OR shipping_status = 'cancelled' ORDER BY created_at DESC")->fetchAll();
+if (empty($_SESSION['admin_escrow_csrf'])) {
+    $_SESSION['admin_escrow_csrf'] = bin2hex(random_bytes(24));
+}
+
+$status = $_GET['status'] ?? 'reviewing';
+$search = ltrim(trim($_GET['search'] ?? ''), '#');
+
+// Stats
+$statsQuery = $pdo->query("
+    SELECT 
+        COUNT(CASE WHEN payment_status = 'reviewing' THEN 1 END) as reviewing_count,
+        COUNT(CASE WHEN DATE(paid_at) = CURDATE() THEN 1 END) as approved_today
+    FROM orders
+");
+$stats = $statsQuery->fetch(PDO::FETCH_ASSOC);
+
+// Fetch orders
+$where = "1=1";
+$params = [];
+
+if ($status === 'pending') {
+    $where .= " AND (o.payment_status = 'pending' AND o.created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY))";
+} elseif ($status === 'reviewing') {
+    $where .= " AND o.payment_status = 'reviewing'";
+} elseif ($status === 'packing') {
+    $where .= " AND o.payment_status = 'paid' AND o.shipping_status IN ('pending', 'packing')";
+} elseif ($status === 'shipped') {
+    $where .= " AND o.shipping_status = 'shipped'";
+} elseif ($status === 'completed') {
+    $where .= " AND o.shipping_status = 'delivered'";
+} elseif ($status === 'cancelled') {
+    $where .= " AND (o.payment_status = 'cancelled' OR o.shipping_status IN ('cancelled', 'returned') OR (o.payment_status = 'pending' AND o.created_at < DATE_SUB(NOW(), INTERVAL 1 DAY)))";
+}
+
+if ($search !== '') {
+    $where .= " AND (o.order_number LIKE :search OR o.shipping_name LIKE :search)";
+    $params['search'] = "%{$search}%";
+}
+
+$q = $pdo->prepare("SELECT o.* FROM orders o WHERE $where ORDER BY o.created_at DESC");
+$q->execute($params);
+$orders = $q->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch items for each order
+$iq = $pdo->prepare('SELECT oi.*, b.title, b.author, b.image_cover FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=?');
+foreach ($orders as &$o) {
+    $iq->execute([$o['order_id']]);
+    $o['items'] = $iq->fetchAll(PDO::FETCH_ASSOC);
+}
+unset($o);
+
+function adminBookImg(?string $v):string{
+    if(!$v)return '/assets/image/minilogo.png';
+    $v=str_replace('\\','/',trim($v));
+    if(preg_match('#^https?://#i',$v))return $v;
+    $v=ltrim($v,'/');
+    if(str_starts_with($v,'pages/uploads/'))return '/'.$v;
+    if(str_starts_with($v,'uploads/')){
+        if(is_file(__DIR__.'/../'.$v))return '/'.$v;
+        if(is_file(__DIR__.'/'.$v))return '/pages/'.$v;
+        return '/'.$v;
+    }
+    if(str_starts_with($v,'assets/'))return '/'.$v;
+    return '/assets/image/books/'.$v;
+}
+function adminSlip(?string $v):string{return $v?'/pages/'.ltrim(str_replace('\\','/',$v),'/'):'';}
+
+function orderStateLabel(array $o):array{
+    if ($o['payment_status'] === 'cancelled') {
+        return ['ยกเลิก (ไม่ได้ชำระเงิน)', 'cancelled'];
+    }
+    if ($o['shipping_status'] === 'returned') {
+        return ['คืนสินค้า / คืนเงิน', 'cancelled'];
+    }
+    if ($o['shipping_status'] === 'cancelled') {
+        return ['ยกเลิก (ชำระเงินแล้ว)', 'cancelled'];
+    }
+    
+    // Auto cancel logic (24 hrs)
+    if ($o['payment_status'] === 'pending' && strtotime($o['created_at']) < time() - 86400) {
+        return ['ยกเลิก (หมดเวลา)', 'cancelled'];
+    }
+
+    if ($o['payment_status'] === 'reviewing') return ['รอตรวจสอบสลิป', 'reviewing'];
+    if ($o['payment_status'] === 'paid') {
+        if ($o['shipping_status'] === 'delivered') return ['ลูกค้ายืนยัน / สำเร็จ', 'completed'];
+        if ($o['shipping_status'] === 'shipped') return ['ร้านส่งแล้ว', 'shipped'];
+        return ['รอร้านส่งของ', 'paid'];
+    }
+    return ['รอชำระเงิน', 'pending'];
 }
 
 $active_menu = 'escrow';
@@ -47,203 +129,344 @@ $active_menu = 'escrow';
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>ระบบเงินกลาง (Escrow) - วนวรรณ</title>
+    <title>จัดการคำสั่งซื้อ - วนวรรณ (Admin)</title>
     <link rel="stylesheet" href="/assets/css/styles.css">
     <style>
-        body {
-            font-family: 'Inter', 'Sarabun', sans-serif;
-            background-color: #f4f9f7;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            min-height: 100vh;
+        body { background: #fff; margin: 0; display: flex; min-height: 100vh; }
+        .admin-main-wrap { flex: 1; min-width: 0; padding: 40px 50px; }
+        .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+        .head h1 { color: var(--secondary-color); font-size: 30px; margin: 0; }
+        
+        .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 28px; }
+        .stat { border: 1px solid #dfbdc8; border-radius: 14px; padding: 25px; }
+        .stat strong { display: block; color: #d88fac; font-size: 28px; margin-top: 5px; }
+        
+        .notice { padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; }
+        .ok { background: #e9f5e5; color: #39703a; }
+        .bad { background: #fde5e1; color: #a33; }
+        
+        .toolbar { display: flex; flex-direction: column; gap: 15px; padding: 18px; border: 1px solid #e3c3ce; border-bottom: 0; border-radius: 14px 14px 0 0; }
+        .toolbar-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .toolbar h3 { margin: 0; color: #514348; }
+        .filters { display: flex; flex-wrap: wrap; gap: 5px; }
+        .filters a { display: inline-block; padding: 8px 13px; text-decoration: none; color: #765d66; border-radius: 18px; font-size: 14px; }
+        .filters a:hover { background: #f9f5f6; }
+        .filters a.active { background: #d18aa7; color: #fff; }
+        
+        .tablebox { overflow: auto; border: 1px solid #e3c3ce; border-radius: 0 0 14px 14px; }
+        .orders { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        .orders th, .orders td { padding: 15px; border-bottom: 1px solid #ead6dd; text-align: left; vertical-align: top; }
+        .orders th { background: #fafafa; font-weight: 600; color: #555; }
+        
+        .book { display: flex; align-items: flex-start; gap: 10px; }
+        .book img { width: 45px; height: 62px; object-fit: cover; border-radius: 5px; background: #eee; }
+        
+        .badge { padding: 6px 12px; border-radius: 18px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
+        .badge-reviewing { background: #fff0cf; color: #9b6b13; }
+        .badge-shipped { background: #f3e5f5; color: #8e24aa; }
+        .badge-paid { background: #e3f2fd; color: #1976d2; }
+        .badge-completed { background: #e9f5e5; color: #39703a; }
+        .badge-cancelled { background: #fde5e1; color: #c54848; }
+        .badge-pending { background: #f3f4f6; color: #4b5563; }
+        
+        .btn { border: 0; border-radius: 8px; padding: 9px 13px; background: var(--secondary-color); color: #fff; cursor: pointer; text-decoration: none; font-family: inherit; }
+        
+        /* Modal Styles */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 500; backdrop-filter: blur(3px); }
+        .modal.open { display: flex; }
+        .modalbox { background: #fffaf8; border-radius: 22px; width: min(850px, 100%); max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 80px rgba(69,42,47,0.28); display: flex; flex-direction: column; scrollbar-width: none; -ms-overflow-style: none; }
+        .modalbox::-webkit-scrollbar { display: none; }
+        .modalbox h2 { margin: 0; padding: 24px 30px; background: linear-gradient(135deg, #f8dce6, #fceee8); color: var(--secondary-color); font-size: 25px; border-bottom: 1px solid #e8cbd5; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { display: grid; grid-template-columns: 1fr 1fr; }
+        .modal-body section { padding: 28px 30px; }
+        .modal-body section + section { background: #fff; border-left: 1px solid #ead6dd; }
+        
+        .slip-view { width: 100%; height: 100%; min-height: 300px; max-height: 500px; object-fit: contain; border: 1px dashed #d7b8c3; border-radius: 12px; background: #f9f5f3; cursor: pointer; transition: transform 0.2s; }
+        .slip-view:hover { transform: scale(1.02); }
+        .no-slip { display: flex; align-items: center; justify-content: center; height: 300px; color: #9a8b90; background: #f8f4f2; border: 1px dashed #d7b8c3; border-radius: 12px; text-align: center; padding: 20px; line-height: 1.5; }
+        
+        #mItems { scrollbar-width: none; -ms-overflow-style: none; }
+        #mItems::-webkit-scrollbar { display: none; }
+        #mItems p { display: flex; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 10px 12px; background: #fff; border: 1px solid #eadce0; border-radius: 8px; color: #514348; font-size: 14px; }
+        
+        .actions { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; }
+        .btn-approve { background: #2e7d32; flex: 1; padding: 12px; font-weight: bold; font-size: 15px; }
+        .btn-reject { background: #fff; color: #d32f2f; border: 1px solid #d32f2f; flex: 1; padding: 12px; font-weight: bold; font-size: 15px; }
+        .btn-reject:hover { background: #ffebee; }
+        
+        @media(max-width: 768px) {
+            .modal-body { grid-template-columns: 1fr; }
+            .modal-body section + section { border-left: 0; border-top: 1px solid #ead6dd; }
+            .stats { grid-template-columns: 1fr; }
         }
-        .admin-main-wrap {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .admin-wrap { margin: 40px; padding: 0 20px; min-height: 60vh; }
-        .admin-title { font-size: 28px; color: #1a4f44; margin-bottom: 32px; font-weight: 700; letter-spacing: -0.5px; }
-        
-        .tabs { display: flex; gap: 32px; margin-bottom: 32px; border-bottom: 2px solid #eef2f0; padding-bottom: 0; }
-        .tab-btn { padding: 12px 0; color: #64748b; text-decoration: none; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.2s; margin-bottom: -2px; font-size: 15px; }
-        .tab-btn:hover { color: #2F6E63; }
-        .tab-btn.active { color: #2F6E63; border-bottom-color: #2F6E63; }
-        
-        .order-list { display: flex; flex-direction: column; gap: 20px; }
-        .order-card { background: #fff; border-radius: 16px; padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); transition: transform 0.2s; border: 1px solid #f4f9f7; }
-        .order-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.05); }
-        
-        .order-info { flex: 1; }
-        .order-number { font-size: 16px; font-weight: 700; color: #2F6E63; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .order-number svg { width: 18px; height: 18px; color: #2F6E63; }
-        
-        .order-meta { font-size: 14px; color: #64748b; margin-bottom: 16px; line-height: 1.6; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #f1f5f9; display: inline-block; min-width: 300px; }
-        .order-price { font-size: 24px; font-weight: 800; color: #1e293b; margin-bottom: 16px; display: flex; align-items: baseline; gap: 4px; }
-        .order-price span { font-size: 14px; color: #64748b; font-weight: 500; }
-        
-        .slip-container { margin-top: 16px; display: inline-block; }
-        .slip-label { font-size: 13px; color: #64748b; margin-bottom: 8px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
-        .slip-img { width: 140px; height: 180px; border-radius: 10px; object-fit: cover; background: #f1f5f9; border: 2px solid #e2e8f0; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .slip-img:hover { border-color: #3b82f6; transform: scale(1.02); }
-        
-        .order-actions { display: flex; flex-direction: column; gap: 12px; justify-content: center; min-width: 180px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; }
-        .btn-action { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; padding: 12px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px; text-align: center; }
-        .btn-approve { background: #10b981; color: #fff; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2); }
-        .btn-approve:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-        .btn-reject { background: #fff; color: #ef4444; border: 1px solid #ef4444; }
-        .btn-reject:hover { background: #fef2f2; }
-        
-        .empty-state { padding: 60px 40px; text-align: center; color: #94a3b8; background: #fff; border-radius: 16px; border: 2px dashed #e2e8f0; margin-top: 20px; font-weight: 500; font-size: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-        
-        /* Modal for viewing slip */
-        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(15, 23, 42, 0.9); backdrop-filter: blur(4px); }
-        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; margin-top: 5vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .modal-close { position: absolute; top: 20px; right: 35px; color: #fff; font-size: 40px; font-weight: 300; cursor: pointer; transition: color 0.2s; }
-        .modal-close:hover { color: #ef4444; }
     </style>
 </head>
 <body>
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
     <div class="admin-main-wrap">
-    <main class="admin-wrap">
-        <h1 class="admin-title">ระบบเงินกลาง (Escrow)</h1>
-
-        <div class="tabs">
-            <a href="?tab=slips" class="tab-btn <?= $tab === 'slips' ? 'active' : '' ?>">ตรวจสอบสลิปโอนเงิน</a>
-            <a href="?tab=payouts" class="tab-btn <?= $tab === 'payouts' ? 'active' : '' ?>">รอโอนเงินให้ร้านค้า</a>
-            <a href="?tab=cancelled" class="tab-btn <?= $tab === 'cancelled' ? 'active' : '' ?>">ถูกยกเลิก / หมดเวลา</a>
+        <div class="head">
+            <h1>จัดการคำสั่งซื้อ (Orders)</h1>
         </div>
 
-        <?php
- if (isset($_SESSION['flash_msg'])): ?>
-            <div style="background: #e6f4ea; color: #1e8e3e; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
-                <?= htmlspecialchars($_SESSION['flash_msg']) ?>
+        <div class="stats">
+            <div class="stat">รอตรวจสอบสลิป (รายการ)<strong><?= number_format($stats['reviewing_count'] ?? 0) ?></strong></div>
+            <div class="stat">อนุมัติแล้ววันนี้ (รายการ)<strong><?= number_format($stats['approved_today'] ?? 0) ?></strong></div>
+        </div>
+
+        <?php if(isset($_SESSION['flash_msg'])): ?>
+            <div class="notice ok"><?= htmlspecialchars($_SESSION['flash_msg']) ?></div>
+            <?php unset($_SESSION['flash_msg']); ?>
+        <?php endif; ?>
+        <?php if(isset($_SESSION['flash_error'])): ?>
+            <div class="notice bad"><?= htmlspecialchars($_SESSION['flash_error']) ?></div>
+            <?php unset($_SESSION['flash_error']); ?>
+        <?php endif; ?>
+
+        <div class="toolbar">
+            <div class="toolbar-top">
+                <h3>รายการคำสั่งซื้อทั้งหมด</h3>
+                <form method="get" style="display:flex;gap:8px;align-items:center;">
+                    <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="ค้นหาเลขคำสั่งซื้อ, ชื่อลูกค้า..." style="padding:8px 12px;border:1px solid #d8c9c4;border-radius:8px;outline:none;font-size:13px;width:240px">
+                    <button type="submit" class="btn" style="padding:8px 15px;min-height:0">ค้นหา</button>
+                    <a href="?status=<?= htmlspecialchars($status) ?>" class="btn" style="padding:8px 15px;min-height:0;background:#f3f4f6;color:#555;border:1px solid #ddd;">ล้าง</a>
+                </form>
             </div>
-            <?php
- unset($_SESSION['flash_msg']); ?>
-        <?php
- endif; ?>
-
-        <?php
- if (empty($orders)): ?>
-            <div class="empty-state">ไม่มีรายการตกค้างในหมวดหมู่นี้</div>
-        <?php
- else: ?>
-            <div class="order-list">
-                <?php foreach ($orders as $order): 
-                    $stmtItems = $pdo->prepare("SELECT oi.*, b.title, b.image_cover FROM order_items oi LEFT JOIN books b ON oi.book_id = b.book_id WHERE oi.order_id = ?");
-                    $stmtItems->execute([$order['order_id']]);
-                    $items = $stmtItems->fetchAll();
-                ?>
-                    <div class="order-card">
-                        <div class="order-info" style="flex: 0 0 320px;">
-                            <div class="order-number">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                                ออเดอร์: <?= htmlspecialchars($order['order_number']) ?>
-                            </div>
-                            <div class="order-meta" style="min-width: unset; width: 100%; box-sizing: border-box;">
-                                <strong>ลูกค้า:</strong> <?= htmlspecialchars($order['shipping_name']) ?> (<?= htmlspecialchars($order['shipping_phone']) ?>)<br>
-                                <strong>วันที่สั่งซื้อ:</strong> <?= htmlspecialchars($order['created_at']) ?>
-                            </div>
-                            <div class="order-price">
-                                <span>ยอดรวม:</span> ฿<?= number_format($order['total_amount'], 2) ?>
-                            </div>
-                            
-                            <?php if ($tab === 'slips' && !empty($order['payment_slip_url'])): 
-                                $slipUrl = strpos($order['payment_slip_url'], 'http') === 0 ? $order['payment_slip_url'] : '/' . ltrim($order['payment_slip_url'], '/');
-                            ?>
-                                <div class="slip-container">
-                                    <div class="slip-label">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                        หลักฐานการโอนเงิน (คลิกเพื่อขยาย)
-                                    </div>
-                                    <img src="<?= htmlspecialchars($slipUrl) ?>" alt="Slip" class="slip-img" onclick="openModal(this.src)">
-                                </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- เพิ่มส่วนแสดงรายละเอียดสินค้าตรงกลาง -->
-                        <div class="order-details" style="flex: 1; border-left: 1px dashed #cbd5e1; padding-left: 24px;">
-                            <div style="font-size: 14px; font-weight: 600; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                                รายการสินค้า (<?= count($items) ?> รายการ)
-                            </div>
-                            <div style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto; padding-right: 12px;">
-                                <?php foreach ($items as $item): 
-                                    $itemImg = !empty($item['image_cover']) ? (strpos($item['image_cover'], 'http') === 0 ? $item['image_cover'] : '/' . ltrim($item['image_cover'], '/')) : '/assets/images/default_book.png';
-                                ?>
-                                    <div style="display: flex; gap: 12px; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;">
-                                        <img src="<?= htmlspecialchars($itemImg) ?>" style="width: 44px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff;">
-                                        <div style="flex: 1;">
-                                            <div style="font-weight: 600; font-size: 14px; color: #334155; line-height: 1.4; margin-bottom: 4px;"><?= htmlspecialchars($item['title'] ?? 'หนังสือไม่ทราบชื่อ') ?></div>
-                                            <div style="font-size: 13px; color: #64748b;">
-                                                <span style="color: #2F6E63; font-weight: 600;">฿<?= number_format($item['price_at_purchase'], 2) ?></span> &times; <?= $item['quantity'] ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <?php if (!empty($order['promotion_name']) || $order['discount_amount'] > 0): ?>
-                                <div style="margin-top: 16px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; font-size: 13px; color: #b45309; display: flex; align-items: flex-start; gap: 8px;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <nav class="filters">
+                <a class="<?= $status === 'all' ? 'active' : '' ?>" href="?status=all<?= $search ? '&search='.urlencode($search) : '' ?>">ทั้งหมด</a>
+                <a class="<?= $status === 'pending' ? 'active' : '' ?>" href="?status=pending<?= $search ? '&search='.urlencode($search) : '' ?>">รอชำระเงิน</a>
+                <a class="<?= $status === 'reviewing' ? 'active' : '' ?>" href="?status=reviewing<?= $search ? '&search='.urlencode($search) : '' ?>">รอตรวจสอบสลิป</a>
+                <a class="<?= $status === 'packing' ? 'active' : '' ?>" href="?status=packing<?= $search ? '&search='.urlencode($search) : '' ?>">รอร้านส่งของ</a>
+                <a class="<?= $status === 'shipped' ? 'active' : '' ?>" href="?status=shipped<?= $search ? '&search='.urlencode($search) : '' ?>">ร้านส่งแล้ว</a>
+                <a class="<?= $status === 'completed' ? 'active' : '' ?>" href="?status=completed<?= $search ? '&search='.urlencode($search) : '' ?>">ส่งสำเร็จ / ลูกค้ายืนยัน</a>
+                <a class="<?= $status === 'cancelled' ? 'active' : '' ?>" href="?status=cancelled<?= $search ? '&search='.urlencode($search) : '' ?>">ยกเลิก / คืนเงิน</a>
+            </nav>
+        </div>
+        
+        <div class="tablebox">
+            <table class="orders">
+                <thead>
+                    <tr>
+                        <th>รหัสคำสั่งซื้อ</th>
+                        <th>รายละเอียด</th>
+                        <th>ลูกค้า</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!$orders): ?>
+                        <tr><td colspan="5" style="text-align:center;padding:70px;color:#888;">ไม่พบคำสั่งซื้อในหมวดนี้</td></tr>
+                    <?php else: foreach ($orders as $o): 
+                        $first = $o['items'][0] ?? [];
+                        list($statusText, $statusClass) = orderStateLabel($o);
+                        $orderData = [
+                            'id' => $o['order_id'],
+                            'number' => $o['order_number'],
+                            'date' => $o['created_at'],
+                            'paid_at' => $o['paid_at'],
+                            'status' => $o['payment_status'],
+                            'shipping_status' => $o['shipping_status'],
+                            'buyer' => $o['shipping_name'],
+                            'phone' => $o['shipping_phone'],
+                            'address' => $o['shipping_address'],
+                            'courier' => $o['shipping_courier'],
+                            'tracking' => $o['tracking_number'],
+                            'items' => array_map(function($i) {
+                                return [
+                                    'title' => $i['title'] ?: 'หนังสือ',
+                                    'qty' => $i['quantity'],
+                                    'price' => (float)$i['price_at_purchase']
+                                ];
+                            }, $o['items']),
+                            'subtotal' => (float)$o['subtotal'],
+                            'discount' => (float)$o['discount_amount'],
+                            'shipping' => (float)$o['shipping_fee'],
+                            'total' => (float)$o['total_amount'],
+                            'slip' => adminSlip($o['payment_slip_url'] ?? null)
+                        ];
+                    ?>
+                        <tr>
+                            <td>
+                                <strong>#<?= htmlspecialchars($o['order_number']) ?></strong><br>
+                                <span style="font-size:12px; color:#888;"><?= date('d/m/Y H:i', strtotime($o['created_at'])) ?></span>
+                            </td>
+                            <td>
+                                <div class="book">
+                                    <img src="<?= htmlspecialchars(adminBookImg($first['image_cover'] ?? null)) ?>">
                                     <div>
-                                        <strong>โค้ดส่วนลดที่ใช้:</strong> <?= htmlspecialchars($order['promotion_name'] ?: 'ส่วนลดพิเศษ') ?><br>
-                                        <span style="font-weight: 600; color: #d97706;">หักลดไป ฿<?= number_format($order['discount_amount'], 2) ?></span>
+                                        <strong><?= htmlspecialchars($first['title'] ?? 'ไม่ระบุ') ?></strong><br>
+                                        <small><?= count($o['items']) ?> รายการ · ฿<?= number_format($o['total_amount'], 2) ?></small>
                                     </div>
                                 </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="order-actions">
-                            <form method="POST" onsubmit="return confirm('ยืนยันการดำเนินการ?');" style="display:flex; flex-direction:column; gap:10px; width:100%;">
-                                <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
-                                <?php if ($tab === 'slips'): ?>
-                                    <button type="submit" name="action" value="approve_slip" class="btn-action btn-approve">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                        อนุมัติสลิป
-                                    </button>
-                                    <button type="submit" name="action" value="reject_slip" class="btn-action btn-reject">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                        ปฏิเสธสลิป
-                                    </button>
-                                <?php elseif ($tab === 'payouts'): ?>
-                                    <button type="submit" name="action" value="transfer_payout" class="btn-action btn-approve" style="background:#f0a500; box-shadow: 0 2px 10px rgba(240, 165, 0, 0.2);">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                                        โอนเงินให้ร้านค้าแล้ว
-                                    </button>
-                                <?php elseif ($tab === 'cancelled'): ?>
-                                    <div style="color: #ef4444; font-weight: 600; text-align: center; padding: 12px; background: #fef2f2; border-radius: 8px; font-size: 14px; border: 1px solid #fee2e2;">
-                                        ถูกยกเลิก / หมดเวลา
-                                    </div>
-                                <?php endif; ?>
-                            </form>
-                        </div>
-                    </div>
-                <?php
- endforeach; ?>
-            </div>
-        <?php
- endif; ?>
-
-    </main>
+                            </td>
+                            <td>
+                                <strong><?= htmlspecialchars($o['shipping_name']) ?></strong><br>
+                                <small><?= htmlspecialchars($o['shipping_phone']) ?></small>
+                            </td>
+                            <td>
+                                <span class="badge badge-<?= $statusClass ?>"><?= $statusText ?></span>
+                            </td>
+                            <td>
+                                <button class="btn detail" data-order='<?= htmlspecialchars(json_encode($orderData, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>' <?= $o['payment_status'] === 'reviewing' ? 'style="background:#f0a500; color:#fff;"' : 'style="background:#fff; color:#91576d; border:1px solid #91576d;"' ?>>
+                                    <?= $o['payment_status'] === 'reviewing' ? 'ตรวจสอบสลิป' : 'ดูรายละเอียด' ?>
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Modal -->
-    <div id="imgModal" class="modal" onclick="this.style.display='none'">
-        <span class="modal-close">&times;</span>
-        <img class="modal-content" id="imgModalContent">
+    <div class="modal" id="modal">
+        <div class="modalbox">
+            <h2>
+                <span id="mNumber"></span>
+                <span id="mStatusBadge" class="badge"></span>
+            </h2>
+            <div class="modal-body">
+                <!-- Left: Slip Image -->
+                <section style="background: #fdfbfb;">
+                    <h3 style="color:var(--secondary-color); margin:0 0 15px; font-size:16px;">หลักฐานการชำระเงิน</h3>
+                    <div id="mSlipContainer"></div>
+                </section>
+                
+                <!-- Right: Details -->
+                <section>
+                    <div style="font-size: 13px; color: #777; margin-bottom: 15px;">
+                        <strong>สั่งซื้อเมื่อ:</strong> <span id="mDate"></span><br>
+                        <strong>อนุมัติเมื่อ:</strong> <span id="mPaidDate"></span>
+                    </div>
+                    
+                    <h3 style="color:var(--secondary-color); margin:0 0 10px; font-size:15px;">รายการสินค้า</h3>
+                    <div id="mItems" style="max-height:180px; overflow-y:auto; margin-bottom:15px; padding-right:5px;"></div>
+                    
+                    <div style="background:#f9f9f9; padding: 15px; border-radius: 8px; font-size: 14px; margin-bottom: 15px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                            <span>รวมค่าสินค้า</span><strong id="mSubtotal"></strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                            <span>ส่วนลด</span><strong id="mDiscount" style="color: #2e7d32;"></strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
+                            <span>ค่าจัดส่ง</span><strong id="mShippingFee"></strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size: 16px;">
+                            <strong>ยอดรวมสุทธิ</strong><strong id="mTotal" style="color:var(--secondary-color)"></strong>
+                        </div>
+                    </div>
+                    
+                    <div id="mShippingInfo" style="display:none; background:#e8f4fd; padding:15px; border-radius:8px; font-size:14px; border:1px solid #b6defc;">
+                        <h4 style="margin: 0 0 8px; color: #1976d2;">ข้อมูลการจัดส่ง</h4>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                            <span>บริษัทขนส่ง:</span><strong id="mCourier"></strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>เลขพัสดุ:</span><strong id="mTracking" style="color:#d32f2f"></strong>
+                        </div>
+                    </div>
+                    
+                    <div id="mActions" class="actions"></div>
+                </section>
+            </div>
+            <div style="padding: 0 30px 25px;">
+                <button class="btn" id="close" style="width:100%; background:#fff; color:#91576d; border:1px solid #e3c3ce; padding: 12px;">ปิดหน้าต่าง</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        function openModal(src) {
-            document.getElementById('imgModal').style.display = "block";
-            document.getElementById('imgModalContent').src = src;
+        const token = <?= json_encode($_SESSION['admin_escrow_csrf']) ?>;
+        const modal = document.getElementById('modal');
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        
+        function getActionForm(id) {
+            return `
+                <form method="post" style="display:flex; width:100%; gap:10px;" onsubmit="return confirm('ยืนยันการดำเนินการนี้?');">
+                    <input type="hidden" name="csrf_token" value="${token}">
+                    <input type="hidden" name="order_id" value="${id}">
+                    <button type="submit" class="btn btn-reject" name="action" value="reject_slip">ไม่อนุมัติ (สลิปไม่ถูกต้อง)</button>
+                    <button type="submit" class="btn btn-approve" name="action" value="approve_slip">✓ อนุมัติสลิปโอนเงิน</button>
+                </form>
+            `;
         }
+
+        document.querySelectorAll('.detail').forEach(b => {
+            b.onclick = () => {
+                const o = JSON.parse(b.dataset.order);
+                document.getElementById('mNumber').textContent = 'คำสั่งซื้อ #' + o.number;
+                document.getElementById('mDate').textContent = o.date || '-';
+                document.getElementById('mPaidDate').textContent = o.paid_at || (o.status === 'paid' || o.status === 'completed' ? '(ชำระแล้ว ไม่ระบุเวลา)' : '-');
+                
+                // Slip Image
+                const slipContainer = document.getElementById('mSlipContainer');
+                if (o.slip) {
+                    slipContainer.innerHTML = `<a href="${esc(o.slip)}" target="_blank" title="คลิกเพื่อดูรูปเต็ม"><img src="${esc(o.slip)}" class="slip-view" alt="Slip"></a>`;
+                } else {
+                    slipContainer.innerHTML = `<div class="no-slip">ไม่มีรูปสลิปแนบมา<br><small style="margin-top:10px;">(หรือออเดอร์ถูกปฏิเสธสลิป / ยกเลิกไปแล้ว)</small></div>`;
+                }
+                
+                // Items
+                document.getElementById('mItems').innerHTML = o.items.map(i => `
+                    <p>
+                        <span style="flex:1;"><strong>${esc(i.title)}</strong> <br><small style="color:#888;">จำนวน: ${i.qty}</small></span>
+                        <span>฿${Number(i.price * i.qty).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    </p>
+                `).join('');
+                
+                // Summary
+                document.getElementById('mSubtotal').textContent = '฿' + Number(o.subtotal).toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('mDiscount').textContent = '-฿' + Number(o.discount).toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('mShippingFee').textContent = '฿' + Number(o.shipping).toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('mTotal').textContent = '฿' + Number(o.total).toLocaleString(undefined, {minimumFractionDigits: 2});
+                
+                // Shipping Info
+                const shipInfo = document.getElementById('mShippingInfo');
+                if (o.tracking) {
+                    shipInfo.style.display = 'block';
+                    document.getElementById('mCourier').textContent = o.courier || 'ไม่ระบุ';
+                    document.getElementById('mTracking').textContent = o.tracking;
+                } else {
+                    shipInfo.style.display = 'none';
+                }
+                
+                // Status Badge in Modal Header
+                const badge = document.getElementById('mStatusBadge');
+                let badgeClass = 'pending';
+                let badgeText = 'รอชำระเงิน';
+                
+                if (o.status === 'cancelled') { badgeClass = 'cancelled'; badgeText = 'ยกเลิก (ไม่ได้ชำระเงิน)'; }
+                else if (o.shipping_status === 'returned') { badgeClass = 'cancelled'; badgeText = 'คืนสินค้า / คืนเงิน'; }
+                else if (o.shipping_status === 'cancelled') { badgeClass = 'cancelled'; badgeText = 'ยกเลิก (ชำระเงินแล้ว)'; }
+                else if (o.status === 'pending' && (new Date(o.date).getTime() < Date.now() - 86400000)) { badgeClass = 'cancelled'; badgeText = 'ยกเลิก (หมดเวลา)'; }
+                else if (o.status === 'reviewing') { badgeClass = 'reviewing'; badgeText = 'รอตรวจสอบสลิป'; }
+                else if (o.status === 'paid') {
+                    if (o.shipping_status === 'delivered') { badgeClass = 'completed'; badgeText = 'ลูกค้ายืนยัน / สำเร็จ'; }
+                    else if (o.shipping_status === 'shipped') { badgeClass = 'shipped'; badgeText = 'ร้านส่งแล้ว'; }
+                    else { badgeClass = 'paid'; badgeText = 'รอร้านส่งของ'; }
+                }
+                
+                badge.className = 'badge badge-' + badgeClass;
+                badge.textContent = badgeText;
+                
+                // Actions
+                const actionContainer = document.getElementById('mActions');
+                if (o.status === 'reviewing') {
+                    actionContainer.innerHTML = getActionForm(o.id);
+                    actionContainer.style.display = 'flex';
+                } else {
+                    actionContainer.innerHTML = '';
+                    actionContainer.style.display = 'none';
+                }
+                
+                modal.classList.add('open');
+            };
+        });
+        
+        document.getElementById('close').onclick = () => modal.classList.remove('open');
+        modal.onclick = e => { if (e.target === modal) modal.classList.remove('open'); };
     </script>
-    <?php
- require_once __DIR__ . '/../components/footer.php'; ?>
 </body>
 </html>

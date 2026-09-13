@@ -120,7 +120,7 @@ if (session_status() === PHP_SESSION_ACTIVE
         'admin_notifications.php', 'admin_chat.php', 'add_book.php', 'edit_book.php',
         'publisher_setup.php', 'shop_setup.php', 'admin_profile.php', 'partner_detail.php',
         'book_detail.php', 'seller_review_management.php', 'seller_reviews.php',
-        'admin_promotions.php'
+        'admin_promotions.php', 'seller_wallet.php', 'manage_seller_admins.php', 'seller_action_logs.php'
     ];
     $currentPage = basename($scriptPath);
     $isBackendAction = str_contains($scriptPath, '/process/')
@@ -129,5 +129,30 @@ if (session_status() === PHP_SESSION_ACTIVE
     if (!$isBackendAction && !in_array($currentPage, $adminPages, true)) {
         header('Location: /pages/dashboard.php');
         exit;
+    }
+}
+
+// ==========================================
+// ADMIN ACTION LOGGING
+// ==========================================
+if (!function_exists('logAdminAction')) {
+    function logAdminAction(PDO $pdo, string $admin_email, string $action_type, string $target_id, string $details = ''): void {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO admin_action_logs (admin_email, action_type, target_id, details) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$admin_email, $action_type, $target_id, $details]);
+        } catch (PDOException $e) {
+            error_log("Failed to log admin action: " . $e->getMessage());
+        }
+    }
+}
+
+if (!function_exists('logSellerAction')) {
+    function logSellerAction(PDO $pdo, string $seller_type, int $seller_id, int $user_id, string $action_type, string $target_id, string $details = ''): void {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO seller_action_logs (seller_type, seller_id, user_id, action_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$seller_type, $seller_id, $user_id, $action_type, $target_id, $details]);
+        } catch (PDOException $e) {
+            error_log("Failed to log seller action: " . $e->getMessage());
+        }
     }
 }
