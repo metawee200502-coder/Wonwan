@@ -1,12 +1,14 @@
 <?php
-session_start();
-require_once __DIR__.'/../config/config.php';
-
-$userId = $_SESSION['user_id'] ?? 2; // Default to user 2 (assuming they are seller)
-
-$q=$pdo->prepare('SELECT s.shop_id id, s.shop_name name, s.bank_name, s.bank_account_number, s.bank_account_name FROM shop_staff ss JOIN shops s ON s.shop_id=ss.shop_id WHERE ss.user_id=? LIMIT 1');
-if (!$q->execute([$userId])) {
-    print_r($q->errorInfo());
-} else {
-    print_r($q->fetch(PDO::FETCH_ASSOC));
-}
+require 'config/config.php';
+$reqs = $pdo->query("
+                SELECT r.*,
+                       e_req.title as req_title, e_req.image_cover as req_img,
+                       e_off.title as off_title, e_off.image_cover as off_img
+                FROM exchange_requests r
+                JOIN exchanges e_req ON r.exchange_id = e_req.exchange_id
+                JOIN exchanges e_off ON r.offered_exchange_id = e_off.exchange_id
+                WHERE r.status = 'accepted'
+                ORDER BY r.updated_at ASC
+            ")->fetchAll();
+echo "Number of rows: " . count($reqs) . "\n";
+print_r($reqs);

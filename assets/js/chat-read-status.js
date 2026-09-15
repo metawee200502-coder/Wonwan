@@ -104,6 +104,24 @@ document.addEventListener('DOMContentLoaded', () => {
         bubble.className = `bubble${message.mine ? ' mine' : ''}`;
         bubble.dataset.messageId = String(message.id);
         bubble.dataset.date = message.date_key || '';
+        
+        if (message.is_system) {
+            bubble.classList.add('system');
+            bubble.style.background = 'transparent';
+            bubble.style.padding = '0';
+            bubble.style.border = '0';
+            bubble.style.boxShadow = 'none';
+            if (message.html_content) {
+                bubble.innerHTML = message.html_content;
+            }
+            const time = document.createElement('time');
+            time.textContent = message.time;
+            bubble.appendChild(time);
+            messagesContainer.appendChild(bubble);
+            wrapBubble(bubble);
+            return;
+        }
+
         if (message.image) {
             if (message.media_type === 'video') {
                 const video = document.createElement('video');

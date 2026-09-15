@@ -81,96 +81,118 @@ $active_menu = 'approvals';
     <meta charset="UTF-8">
     <title>อนุมัติร้านค้า - ระบบหลังบ้าน</title>
     <link rel="stylesheet" href="/assets/css/styles.css">
-    <style>
-        .admin-wrap { max-width: 1000px; margin: 40px 20px; padding: 0 20px; min-height: 60vh; font-family: 'Prompt', sans-serif; }
-        .admin-title { font-size: 24px; color: var(--secondary-color); margin-bottom: 24px; font-weight: 600; font-family: 'Prompt', sans-serif; }
+        <style>
+        body { background: #f8fafc; margin: 0; display: flex; min-height: 100vh; font-family: 'Prompt', sans-serif; }
+        .admin-main-wrap { flex: 1; min-width: 0; padding: 30px 40px; }
         
-        .segmented-control {
-            display: inline-flex;
-            background-color: #fdfaf8;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 24px;
-            gap: 4px;
-        }
-        .segment-btn {
-            padding: 8px 32px;
-            border-radius: 6px;
-            font-size: 15px;
-            color: var(--text-dark);
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
-            border: none;
-            background: transparent;
-            font-family: inherit;
-        }
-        .segment-btn.active {
-            background-color: #0b5963;
-            color: #fff;
-        }
-        .segment-btn:hover:not(.active) {
-            background-color: #f5f0ee;
-        }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+        .page-title { margin: 0; color: #0f172a; font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        .page-subtitle { color: #64748b; font-size: 13px; margin-top: 8px; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #ecfdf5; color: #10b981; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid #a7f3d0; }
+        .status-badge::before { content: ""; width: 6px; height: 6px; background: #10b981; border-radius: 50%; }
         
+        .header-actions { display: flex; gap: 12px; }
+        .btn-outline { background: white; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 8px; color: #475569; font-size: 13px; font-family: inherit; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; color: #0f172a; }
+        
+        /* History Tabs Structure */
+        .history-wrap { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px 30px; }
+        .history-tabs-container { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; }
+        .history-tabs { display: flex; gap: 30px; }
+        .history-tab { color: #64748b; text-decoration: none; font-size: 15px; font-weight: 600; position: relative; padding-bottom: 12px; transition: color 0.2s; cursor: pointer; background: transparent; border: none; font-family: inherit; }
+        .history-tab.active { color: #0f172a; }
+        .history-tab.active::after { content: ''; position: absolute; bottom: -13px; left: 0; right: 0; height: 2px; background: #0f172a; border-radius: 2px 2px 0 0; }
+        .tab-count { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px; font-weight: 600; }
+        .history-tab.active .tab-count { background: #044b3f; color: white; }
+        
+        /* Filters */
+        .history-filters { display: flex; gap: 12px; align-items: center; margin-bottom: 25px; }
+        .history-search { flex: 1; position: relative; }
+        .history-search i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+        .history-search input { width: 100%; padding: 10px 15px 10px 40px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box; }
+        .filter-select { padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #475569; outline: none; background: white; cursor: pointer; }
+        
+        /* List */
         .section-container { display: none; }
         .section-container.active { display: block; }
+        .approval-list { display: flex; flex-direction: column; gap: 20px; }
         
-        .section-title { font-size: 20px; color: var(--text-dark); margin: 30px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border-color); }
-        .approval-list { display: flex; flex-direction: column; gap: 16px; }
+        /* Card Redesign */
         .approval-card { 
-            background: #fff; border: 1px solid var(--border-color); border-radius: 12px; 
-            padding: 20px; display: flex; gap: 20px; align-items: flex-start;
-            cursor: pointer; transition: box-shadow 0.2s, border-color 0.2s;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; 
+            padding: 25px; display: flex; gap: 25px; align-items: flex-start;
+            position: relative; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01);
         }
-        .approval-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #ddd; }
+        .approval-card:hover { border-color: #cbd5e1; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.03); }
         
-        .approval-card img { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; background: #f0f0f0; }
-        .approval-info { flex: 1; }
-        .approval-name { font-size: 18px; font-weight: 600; color: var(--text-dark); margin-bottom: 4px; }
-        .approval-meta { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.6; }
-        .approval-doc { 
-            display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; 
-            background: #fdf2ee; color: var(--primary-color); border-radius: 6px; 
-            font-size: 13px; font-weight: 500; text-decoration: none; margin-bottom: 16px; 
-            transition: background 0.2s;
+        .avatar-initial { 
+            width: 65px; height: 65px; border-radius: 12px; display: flex; align-items: center; justify-content: center; 
+            font-size: 28px; font-weight: 800; color: #044b3f; background: #e0f2fe; flex-shrink: 0;
         }
-        .approval-doc:hover { background: #fce4da; }
-        .approval-actions { display: flex; gap: 10px; }
-        .btn-approve { font-family: inherit; background: #5cb85c; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-approve:hover { background: #4cae4c; }
-        .btn-reject { font-family: inherit; background: #e8546a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-reject:hover { background: #c84155; }
-        .empty-state { padding: 40px; text-align: center; color: var(--text-muted); background: #f9f9f9; border-radius: 12px; border: 1px dashed var(--border-color); }
+        .avatar-initial.pub { background: #dcfce7; color: #166534; }
+        .avatar-initial.shop { background: #e0f2fe; color: #0369a1; }
+        
+        .approval-info { flex: 1; }
+        
+        .doc-btn { 
+            display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; 
+            background: #fef2f2; color: #dc2626; border-radius: 6px; 
+            font-size: 12px; font-weight: 600; text-decoration: none; border: 1px solid #fecaca;
+            transition: background 0.2s; margin-bottom: 15px;
+        }
+        .doc-btn:hover { background: #fee2e2; }
+        
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 20px; font-size: 13px; color: #475569; line-height: 1.6; }
+        .info-grid span { color: #94a3b8; display: inline-block; width: 60px; }
+        .info-grid strong { color: #0f172a; font-weight: 500; }
+        
+        .docs-section { font-size: 12px; color: #64748b; margin-top: 20px; }
+        .docs-section .title { margin-bottom: 10px; }
+        
+        .approval-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; min-width: 140px; }
+        .btn-approve { font-family: inherit; width: 100%; background: #10b981; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-approve:hover { background: #059669; }
+        .btn-reject { font-family: inherit; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+        .btn-reject:hover { background: #fee2e2; }
+        .btn-req-doc { font-family: inherit; background: white; color: #64748b; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .btn-req-doc:hover { background: #f1f5f9; color: #0f172a; }
+        .secondary-actions { display: flex; gap: 8px; width: 100%; justify-content: space-between; }
+        
+        .empty-state { padding: 60px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 12px; font-size: 14px; }
+        
+        .pagination-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 12px; color: #64748b; }
+        .pagination-controls { display: flex; gap: 5px; }
+        .page-btn { border: 1px solid #e2e8f0; background: white; padding: 6px 12px; border-radius: 6px; color: #64748b; cursor: pointer; font-family: inherit; font-size: 12px; transition: all 0.2s; }
+        .page-btn.active { background: #044b3f; color: white; border-color: #044b3f; }
+        .page-btn:hover:not(.active) { background: #f1f5f9; }
+        
+        .info-alert { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 15px 20px; margin-top: 25px; display: flex; align-items: flex-start; gap: 12px; font-size: 12px; color: #047857; line-height: 1.6; }
+        .info-alert i { font-size: 16px; margin-top: 2px; }
         
         /* Modal Styles */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 1000;
+            background: rgba(15, 23, 42, 0.6); z-index: 1000;
             display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.2s;
+            opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(4px);
         }
         .modal-overlay.active { display: flex; opacity: 1; }
         .modal-content {
-            background: #fff; border-radius: 12px; width: 90%; max-width: 600px;
-            max-height: 90vh; overflow-y: auto; padding: 24px; position: relative;
+            background: #fff; border-radius: 20px; width: 90%; max-width: 600px;
+            max-height: 90vh; overflow-y: auto; padding: 30px; position: relative;
             transform: scale(0.95); transition: transform 0.2s;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
         .modal-overlay.active .modal-content { transform: scale(1); }
         .modal-close {
-            position: absolute; top: 16px; right: 16px; cursor: pointer;
-            background: #f0f0f0; border-radius: 50%; width: 32px; height: 32px;
+            position: absolute; top: 20px; right: 20px; cursor: pointer;
+            background: #f1f5f9; border-radius: 50%; width: 36px; height: 36px;
             display: flex; align-items: center; justify-content: center;
-            color: var(--text-dark); transition: background 0.2s;
+            color: #475569; transition: background 0.2s; border: none; font-size: 18px;
         }
-        .modal-close:hover { background: #e0e0e0; }
-        .modal-title { font-size: 20px; font-weight: 600; color: var(--text-dark); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
-        .modal-body { font-size: 15px; color: var(--text-dark); line-height: 1.6; }
-        .modal-body p { margin-bottom: 10px; }
-        .modal-body strong { display: inline-block; width: 140px; color: var(--secondary-color); }
+        .modal-close:hover { background: #e2e8f0; color: #0f172a; }
+        .modal-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
+        .modal-body { font-size: 14px; color: #334155; line-height: 1.6; }
         .swal-prompt-font { font-family: 'Prompt', sans-serif !important; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -178,12 +200,15 @@ $active_menu = 'approvals';
 <body>
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
     <div class="admin-main-wrap">
-    <main class="admin-wrap">
-        <h1 class="admin-title">คำขอเปิดร้านรออนุมัติ</h1>
-
-        <div class="segmented-control">
-            <button class="segment-btn active" onclick="switchTab('publisher')">สำนักพิมพ์</button>
-            <button class="segment-btn" onclick="switchTab('shop')">ร้านค้ามือสอง</button>
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">คำขอเปิดร้านรออนุมัติ <span class="status-badge">รอตรวจสอบ <?= count($pendingPubs) + count($pendingShops) ?> รายการ</span></h1>
+                <div class="page-subtitle">ตรวจสอบคุณสมบัติ เอกสารรับรองทางกฎหมาย และหนังสือรับรองบริษัทก่อนอนุมัติการเปิดร้านบนแพลตฟอร์ม</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-outline"><i class="fas fa-history"></i> ประวัติการอนุมัติ (History)</button>
+                <button class="btn-outline" style="background:#475569; color:white; border:none;" onclick="location.reload()"><i class="fas fa-sync-alt"></i> รีเฟรชสถานะ</button>
+            </div>
         </div>
 
         <?php if (isset($_SESSION['flash_msg'])): ?>
@@ -193,106 +218,112 @@ $active_menu = 'approvals';
                         icon: 'success',
                         title: 'สำเร็จ',
                         text: <?= json_encode($_SESSION['flash_msg']) ?>,
-                        confirmButtonColor: '#0b5963',
-                        customClass: {
-                            popup: 'swal-prompt-font',
-                            title: 'swal-prompt-font',
-                            htmlContainer: 'swal-prompt-font',
-                            confirmButton: 'swal-prompt-font'
-                        }
+                        confirmButtonColor: '#0f172a',
+                        customClass: { popup: 'swal-prompt-font', title: 'swal-prompt-font', htmlContainer: 'swal-prompt-font', confirmButton: 'swal-prompt-font' }
                     });
                 });
             </script>
             <?php unset($_SESSION['flash_msg']); ?>
         <?php endif; ?>
 
-        <div id="section-publisher" class="section-container active">
-            <?php if (empty($pendingPubs)): ?>
-                <div class="empty-state">ไม่มีคำขอเปิดสำนักพิมพ์ใหม่</div>
-            <?php else: ?>
-                <div class="approval-list">
-                    <?php foreach ($pendingPubs as $pub): ?>
-                        <div class="approval-card" onclick="showDetails('publisher', <?= htmlspecialchars(json_encode([
-                            'name' => $pub['company_name'],
-                            'contact_name' => $pub['contact_name'],
-                            'contact_position' => $pub['contact_position'],
-                            'contact_email' => $pub['contact_email'],
-                            'contact_phone' => $pub['contact_phone']
-                        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)) ?>)">
-                            <img src="<?= htmlspecialchars($pub['profile_image'] ?: '/assets/image/placeholder.png') ?>" alt="Logo">
-                            <div class="approval-info">
-                                <div class="approval-name"><?= htmlspecialchars($pub['company_name']) ?></div>
-                                <div class="approval-meta">
-                                    ติดต่อ: <?= htmlspecialchars($pub['contact_name']) ?> (<?= htmlspecialchars($pub['contact_position']) ?>)<br>
-                                    อีเมล: <?= htmlspecialchars($pub['contact_email']) ?> | โทร: <?= htmlspecialchars($pub['contact_phone']) ?>
-                                </div>
-                                <?php if (!empty($pub['company_document_url'])): ?>
-                                    <a href="javascript:void(0)" onclick="event.stopPropagation(); showDocument('/process/<?= htmlspecialchars($pub['company_document_url']) ?>')" class="approval-doc">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                        ดูเอกสารหนังสือรับรอง
-                                    </a>
-                                <?php endif; ?>
-                                <form method="POST" class="approval-actions" onsubmit="event.preventDefault();">
-                                    <input type="hidden" name="type" value="publisher">
-                                    <input type="hidden" name="id" value="<?= $pub['publisher_id'] ?>">
-                                    <button type="button" class="btn-approve" onclick="confirmApproval(event, this.form, 'approve')">อนุมัติสำนักพิมพ์</button>
-                                    <button type="button" class="btn-reject" onclick="confirmApproval(event, this.form, 'reject')">ไม่อนุมัติ</button>
-                                </form>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+        <div class="history-wrap">
+            <div class="history-tabs-container">
+                <div class="history-tabs">
+                    <button class="history-tab active" onclick="switchTab('all')">ทั้งหมด (All Requests) <span class="tab-count"><?= count($pendingPubs) + count($pendingShops) ?></span></button>
+                    <button class="history-tab" onclick="switchTab('publisher')">สำนักพิมพ์ (Publishers) <span class="tab-count"><?= count($pendingPubs) ?></span></button>
+                    <button class="history-tab" onclick="switchTab('shop')">ร้านค้ามือสอง (Used Bookstores) <span class="tab-count"><?= count($pendingShops) ?></span></button>
                 </div>
-            <?php endif; ?>
+            </div>
+
+            <div class="history-filters">
+                <div class="history-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="ค้นหาชื่อร้านค้า, ชื่อเจ้าของ, อีเมล หรือเบอร์โทร...">
+                </div>
+                <select class="filter-select">
+                    <option>สถานะ: รอตรวจสอบทั้งหมด</option>
+                </select>
+                <select class="filter-select">
+                    <option>ช่วงวันที่: 30 วันล่าสุด</option>
+                </select>
+                <button class="btn-outline" style="padding:10px 15px;"><i class="fas fa-filter"></i></button>
+            </div>
+
+            <?php
+            // Prepare unified list for "All" tab
+            $allRequests = [];
+            foreach($pendingPubs as $p) {
+                $p['req_type'] = 'publisher';
+                $allRequests[] = $p;
+            }
+            foreach($pendingShops as $s) {
+                $s['req_type'] = 'shop';
+                $allRequests[] = $s;
+            }
+            // In a real app we'd sort by created_at, but we'll just merge for now.
+            ?>
+
+            <!-- ALL TAB -->
+            <div id="section-all" class="section-container active">
+                <?php if (empty($allRequests)): ?>
+                    <div class="empty-state">ไม่มีคำขอเปิดร้านค้าใหม่</div>
+                <?php else: ?>
+                    <div class="approval-list">
+                        <?php foreach ($allRequests as $req): 
+                            if ($req['req_type'] === 'publisher') {
+                                renderPublisherCard($req);
+                            } else {
+                                renderShopCard($req);
+                            }
+                        endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- PUBLISHER TAB -->
+            <div id="section-publisher" class="section-container">
+                <?php if (empty($pendingPubs)): ?>
+                    <div class="empty-state">ไม่มีคำขอเปิดสำนักพิมพ์ใหม่</div>
+                <?php else: ?>
+                    <div class="approval-list">
+                        <?php foreach ($pendingPubs as $pub): renderPublisherCard($pub); endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- SHOP TAB -->
+            <div id="section-shop" class="section-container">
+                <?php if (empty($pendingShops)): ?>
+                    <div class="empty-state">ไม่มีคำขอเปิดร้านค้าใหม่</div>
+                <?php else: ?>
+                    <div class="approval-list">
+                        <?php foreach ($pendingShops as $shop): renderShopCard($shop); endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <div class="pagination-footer">
+                <div>แสดง <strong>1 - <?= count($allRequests) ?></strong> จากทั้งหมด <strong><?= count($allRequests) ?></strong> รายการคำขอ</div>
+                <div class="pagination-controls">
+                    <button class="page-btn">ก่อนหน้า</button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">ถัดไป</button>
+                </div>
+            </div>
         </div>
 
-        <div id="section-shop" class="section-container">
-            <?php if (empty($pendingShops)): ?>
-                <div class="empty-state">ไม่มีคำขอเปิดร้านค้าใหม่</div>
-            <?php else: ?>
-                <div class="approval-list">
-                    <?php foreach ($pendingShops as $shop): ?>
-                        <div class="approval-card" onclick="showDetails('shop', <?= htmlspecialchars(json_encode([
-                            'name' => $shop['shop_name'],
-                            'id_card_number' => $shop['id_card_number'],
-                            'bank_name' => $shop['bank_name'],
-                            'bank_account_number' => $shop['bank_account_number'],
-                            'bank_account_name' => $shop['bank_account_name']
-                        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)) ?>)">
-                            <img src="<?= htmlspecialchars($shop['profile_image'] ?: '/assets/image/placeholder.png') ?>" alt="Logo">
-                            <div class="approval-info">
-                                <div class="approval-name"><?= htmlspecialchars($shop['shop_name']) ?></div>
-                                <div class="approval-meta">
-                                    บัตรประชาชน: <?= htmlspecialchars($shop['id_card_number']) ?><br>
-                                    บัญชีธนาคาร: <?= htmlspecialchars($shop['bank_name']) ?> - <?= htmlspecialchars($shop['bank_account_number']) ?> (<?= htmlspecialchars($shop['bank_account_name']) ?>)
-                                </div>
-                                <?php if (!empty($shop['id_card_document_url'])): ?>
-                                    <a href="javascript:void(0)" onclick="event.stopPropagation(); showDocument('/pages/<?= htmlspecialchars($shop['id_card_document_url']) ?>')" class="approval-doc">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                        ดูภาพถ่ายบัตรประชาชน
-                                    </a>
-                                <?php endif; ?>
-                                <form method="POST" class="approval-actions" onsubmit="event.preventDefault();">
-                                    <input type="hidden" name="type" value="shop">
-                                    <input type="hidden" name="id" value="<?= $shop['shop_id'] ?>">
-                                    <button type="button" class="btn-approve" onclick="confirmApproval(event, this.form, 'approve')">อนุมัติร้านค้า</button>
-                                    <button type="button" class="btn-reject" onclick="confirmApproval(event, this.form, 'reject')">ไม่อนุมัติ</button>
-                                </form>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
+        <div class="info-alert">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>เกณฑ์การตรวจสอบและอนุมัติร้านค้า (Merchant Verification SOP):</strong> เจ้าหน้าที่ส่วนกลางต้องตรวจสอบความถูกต้องของเลขประจำตัวผู้เสียภาษีและชื่อนิติบุคคลในหนังสือรับรองกระทรวงพาณิชย์ให้ตรงกับชื่อบัญชีรับเงิน เมื่ออนุมัติแล้วระบบจะส่งอีเมลแจ้งรหัสผ่านและเปิดสิทธิ์การวางขายหนังสือทันที
+            </div>
         </div>
-
-    </main>
     </div>
 
     <!-- Modal Template -->
     <div class="modal-overlay" id="customModal" onclick="if(event.target===this) closeModal()">
         <div class="modal-content">
-            <div class="modal-close" onclick="closeModal()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
             <div class="modal-title" id="modalTitle">รายละเอียด</div>
             <div class="modal-body" id="modalBody"></div>
         </div>
@@ -300,12 +331,108 @@ $active_menu = 'approvals';
 
     <?php require_once __DIR__ . '/../components/footer.php'; ?>
 
+<?php
+function renderPublisherCard($pub) {
+    $initial = mb_substr(strtoupper(trim($pub['company_name'])), 0, 1) ?: 'P';
+    // For English names like "Asia Book", we might want the first two letters, but 1 is fine.
+    if(preg_match('/^[A-Za-z]+ [A-Za-z]+/', $pub['company_name'])) {
+        $words = explode(' ', $pub['company_name']);
+        $initial = strtoupper(substr($words[0],0,1) . substr($words[1],0,1));
+    }
+?>
+    <div class="approval-card">
+        <div class="avatar-initial pub"><?= htmlspecialchars($initial) ?></div>
+        <div class="approval-info">
+            <?php if (!empty($pub['company_document_url'])): ?>
+                <a href="javascript:void(0)" onclick="showDocument('/process/<?= htmlspecialchars($pub['company_document_url']) ?>')" class="doc-btn">
+                    <i class="fas fa-file-pdf"></i> หนังสือรับรองบริษัท / ใบอนุญาต (DBD.pdf)
+                </a>
+            <?php endif; ?>
+            
+            <div class="info-grid">
+                <div><span>ติดต่อ:</span> <strong>คุณ <?= htmlspecialchars($pub['contact_name']) ?> (<?= htmlspecialchars($pub['contact_position']) ?>)</strong></div>
+                <div><span>อีเมล:</span> <strong><?= htmlspecialchars($pub['contact_email']) ?></strong></div>
+                <div><span>โทรศัพท์:</span> <strong><?= htmlspecialchars($pub['contact_phone']) ?></strong></div>
+                <div><span>พื้นที่จดทะเบียน:</span> <strong>กรุงเทพมหานคร</strong></div>
+            </div>
+            
+            <div class="docs-section">
+                <div class="title">เอกสารประกอบการพิจารณา</div>
+                <?php if (!empty($pub['company_document_url'])): ?>
+                    <a href="javascript:void(0)" onclick="showDocument('/process/<?= htmlspecialchars($pub['company_document_url']) ?>')" class="doc-btn" style="background:#fff; border-color:#e2e8f0; color:#dc2626;">
+                        <i class="fas fa-file-pdf"></i> หนังสือรับรองบริษัท / ใบอนุญาต (DBD & ภ.พ.20).pdf
+                    </a>
+                <?php else: ?>
+                    -
+                <?php endif; ?>
+            </div>
+        </div>
+        <form method="POST" class="approval-actions" onsubmit="event.preventDefault();">
+            <input type="hidden" name="type" value="publisher">
+            <input type="hidden" name="id" value="<?= $pub['publisher_id'] ?>">
+            <button type="button" class="btn-approve" onclick="confirmApproval(event, this.form, 'approve')">
+                <i class="fas fa-check"></i> อนุมัติสำนักพิมพ์
+            </button>
+            <div class="secondary-actions">
+                <button type="button" class="btn-req-doc" onclick="confirmApproval(event, this.form, 'reject')">ขอเอกสารเพิ่ม</button>
+                <button type="button" class="btn-reject" onclick="confirmApproval(event, this.form, 'reject')">ไม่อนุมัติ</button>
+            </div>
+        </form>
+    </div>
+<?php
+}
+
+function renderShopCard($shop) {
+    $initial = mb_substr(strtoupper(trim($shop['shop_name'])), 0, 1) ?: 'S';
+?>
+    <div class="approval-card">
+        <div class="avatar-initial shop"><?= htmlspecialchars($initial) ?></div>
+        <div class="approval-info">
+            <?php if (!empty($shop['id_card_document_url'])): ?>
+                <a href="javascript:void(0)" onclick="showDocument('/pages/<?= htmlspecialchars($shop['id_card_document_url']) ?>')" class="doc-btn">
+                    <i class="fas fa-file-pdf"></i> สำเนาบัตรประชาชน.pdf
+                </a>
+            <?php endif; ?>
+            
+            <div class="info-grid">
+                <div><span>ชื่อร้าน:</span> <strong><?= htmlspecialchars($shop['shop_name']) ?></strong></div>
+                <div><span>บัตรประชาชน:</span> <strong><?= htmlspecialchars($shop['id_card_number']) ?></strong></div>
+                <div><span>ธนาคาร:</span> <strong><?= htmlspecialchars($shop['bank_name']) ?></strong></div>
+                <div><span>เลขบัญชี:</span> <strong><?= htmlspecialchars($shop['bank_account_number']) ?> (<?= htmlspecialchars($shop['bank_account_name']) ?>)</strong></div>
+            </div>
+            
+            <div class="docs-section">
+                <div class="title">เอกสารประกอบการพิจารณา</div>
+                <?php if (!empty($shop['id_card_document_url'])): ?>
+                    <a href="javascript:void(0)" onclick="showDocument('/pages/<?= htmlspecialchars($shop['id_card_document_url']) ?>')" class="doc-btn" style="background:#fff; border-color:#e2e8f0; color:#dc2626;">
+                        <i class="fas fa-file-pdf"></i> สำเนาบัตรประชาชน / บุ๊คแบงก์.pdf
+                    </a>
+                <?php else: ?>
+                    -
+                <?php endif; ?>
+            </div>
+        </div>
+        <form method="POST" class="approval-actions" onsubmit="event.preventDefault();">
+            <input type="hidden" name="type" value="shop">
+            <input type="hidden" name="id" value="<?= $shop['shop_id'] ?>">
+            <button type="button" class="btn-approve" onclick="confirmApproval(event, this.form, 'approve')">
+                <i class="fas fa-check"></i> อนุมัติร้านค้า
+            </button>
+            <div class="secondary-actions">
+                <button type="button" class="btn-req-doc" onclick="confirmApproval(event, this.form, 'reject')">ขอเอกสารเพิ่ม</button>
+                <button type="button" class="btn-reject" onclick="confirmApproval(event, this.form, 'reject')">ไม่อนุมัติ</button>
+            </div>
+        </form>
+    </div>
+<?php
+}
+?>
+
     <script>
         function confirmApproval(event, form, actionValue) {
-            event.stopPropagation();
             let isReject = actionValue === 'reject';
-            let actionText = isReject ? 'ไม่อนุมัติ' : 'อนุมัติ';
-            let confirmBtnColor = isReject ? '#e8546a' : '#0b5963';
+            let actionText = isReject ? 'ไม่อนุมัติ / ขอเอกสารเพิ่ม' : 'อนุมัติ';
+            let confirmBtnColor = isReject ? '#dc2626' : '#10b981';
             
             let swalConfig = {
                 title: 'ยืนยันการดำเนินการ?',
@@ -313,30 +440,18 @@ $active_menu = 'approvals';
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: confirmBtnColor,
-                cancelButtonColor: '#999',
+                cancelButtonColor: '#94a3b8',
                 confirmButtonText: 'ยืนยัน',
                 cancelButtonText: 'ยกเลิก',
-                customClass: {
-                    popup: 'swal-prompt-font',
-                    title: 'swal-prompt-font',
-                    htmlContainer: 'swal-prompt-font',
-                    confirmButton: 'swal-prompt-font',
-                    cancelButton: 'swal-prompt-font'
-                }
+                customClass: { popup: 'swal-prompt-font', title: 'swal-prompt-font', htmlContainer: 'swal-prompt-font', confirmButton: 'swal-prompt-font', cancelButton: 'swal-prompt-font' }
             };
 
             if (isReject) {
                 swalConfig.input = 'textarea';
-                swalConfig.inputLabel = 'ระบุหมายเหตุ/เหตุผลที่ไม่อนุมัติ';
+                swalConfig.inputLabel = 'ระบุหมายเหตุ/เหตุผลที่ไม่อนุมัติ หรือ ขอเอกสารเพิ่ม';
                 swalConfig.inputPlaceholder = 'เช่น เอกสารไม่ชัดเจน, ข้อมูลไม่ครบถ้วน...';
-                swalConfig.inputAttributes = {
-                    'aria-label': 'ระบุหมายเหตุที่ไม่อนุมัติ'
-                };
                 swalConfig.preConfirm = (reason) => {
-                    if (!reason) {
-                        Swal.showValidationMessage('กรุณาระบุหมายเหตุเพื่อแจ้งให้ผู้ใช้งานทราบ');
-                        return false;
-                    }
+                    if (!reason) { Swal.showValidationMessage('กรุณาระบุหมายเหตุเพื่อแจ้งให้ผู้ใช้งานทราบ'); return false; }
                     return reason;
                 }
             }
@@ -348,7 +463,6 @@ $active_menu = 'approvals';
                     input.name = 'action';
                     input.value = actionValue;
                     form.appendChild(input);
-
                     if (isReject && result.value) {
                         let reasonInput = document.createElement('input');
                         reasonInput.type = 'hidden';
@@ -356,49 +470,30 @@ $active_menu = 'approvals';
                         reasonInput.value = result.value;
                         form.appendChild(reasonInput);
                     }
-
                     form.submit();
                 }
             });
         }
 
         function switchTab(tab) {
-            document.querySelectorAll('.segment-btn').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.history-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.section-container').forEach(el => el.classList.remove('active'));
             
-            if(tab === 'publisher') {
-                document.querySelectorAll('.segment-btn')[0].classList.add('active');
+            if(tab === 'all') {
+                document.querySelectorAll('.history-tab')[0].classList.add('active');
+                document.getElementById('section-all').classList.add('active');
+            } else if(tab === 'publisher') {
+                document.querySelectorAll('.history-tab')[1].classList.add('active');
                 document.getElementById('section-publisher').classList.add('active');
             } else {
-                document.querySelectorAll('.segment-btn')[1].classList.add('active');
+                document.querySelectorAll('.history-tab')[2].classList.add('active');
                 document.getElementById('section-shop').classList.add('active');
             }
-        }
-
-        function showDetails(type, data) {
-            document.getElementById('modalTitle').innerText = data.name;
-            let html = '';
             
-            if (type === 'publisher') {
-                html += `
-                    <p><strong>ประเภท:</strong> สำนักพิมพ์</p>
-                    <p><strong>ชื่อผู้ติดต่อ:</strong> ${data.contact_name}</p>
-                    <p><strong>ตำแหน่ง:</strong> ${data.contact_position}</p>
-                    <p><strong>อีเมล:</strong> ${data.contact_email}</p>
-                    <p><strong>เบอร์โทร:</strong> ${data.contact_phone}</p>
-                `;
-            } else {
-                html += `
-                    <p><strong>ประเภท:</strong> ร้านค้ามือสอง</p>
-                    <p><strong>เลขบัตรประชาชน:</strong> ${data.id_card_number}</p>
-                    <p><strong>ธนาคาร:</strong> ${data.bank_name}</p>
-                    <p><strong>เลขที่บัญชี:</strong> ${data.bank_account_number}</p>
-                    <p><strong>ชื่อบัญชี:</strong> ${data.bank_account_name}</p>
-                `;
-            }
-            
-            document.getElementById('modalBody').innerHTML = html;
-            document.getElementById('customModal').classList.add('active');
+            // Update total label based on active tab
+            const countStr = document.querySelector('.history-tab.active .tab-count').innerText;
+            const badge = document.querySelector('.status-badge');
+            if(badge) badge.innerHTML = `รอตรวจสอบ ${countStr} รายการ`;
         }
 
         function showDocument(url) {

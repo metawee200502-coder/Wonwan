@@ -1,8 +1,4 @@
 <?php
-require_once __DIR__ . '/../config/config.php';
-$tables = ['users', 'shops', 'publishers'];
-foreach ($tables as $table) {
-    $stmt = $pdo->query("DESCRIBE $table");
-    $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    echo "$table columns: " . implode(', ', $cols) . "<br>";
-}
+$pdo = new PDO('mysql:host=127.0.0.1;dbname=wanawan_db', 'root', '');
+$stmt = $pdo->query('SELECT * FROM exchange_requests ORDER BY request_id DESC LIMIT 1');
+print_r($stmt->fetch(PDO::FETCH_ASSOC));

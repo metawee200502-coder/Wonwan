@@ -14,7 +14,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  if(!hash_equals($_SESSION['exchange_request_csrf'],$_POST['csrf_token']??''))$error='คำขอไม่ถูกต้อง กรุณาลองใหม่';
  else{$offeredId=(int)($_POST['offered_exchange_id']??0);$message=trim($_POST['message']??'');
   if($offeredId){$valid=$pdo->prepare("SELECT 1 FROM exchanges WHERE exchange_id=? AND owner_id=? AND status='open'");$valid->execute([$offeredId,$viewerId]);if(!$valid->fetchColumn())$error='หนังสือที่คุณเสนอไม่พร้อมแลกเปลี่ยน';}
-  if(!$error){$pdo->beginTransaction();try{$save=$pdo->prepare("INSERT INTO exchange_requests(exchange_id,requester_id,offered_exchange_id,message,status) VALUES(?,?,?,?,'pending') ON DUPLICATE KEY UPDATE offered_exchange_id=VALUES(offered_exchange_id),message=VALUES(message),status='pending',updated_at=CURRENT_TIMESTAMP");$save->execute([$exchangeId,$viewerId,$offeredId?:null,$message?:null]);$requester=$pdo->prepare("SELECT COALESCE(NULLIF(display_name,''),email) FROM users WHERE user_id=?");$requester->execute([$viewerId]);$requesterName=$requester->fetchColumn()?:'สมาชิกวนวรรณ';wanawanNotifyUser($pdo, (int)$target['owner_id'], 'มีคำขอแลกเปลี่ยนใหม่', $requesterName.' ยื่นคำขอแลกเปลี่ยนหนังสือ “'.$target['title'].'”', 'exchange');$pdo->commit();$success='ส่งคำขอแลกเปลี่ยนเรียบร้อยแล้ว';}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$error='ไม่สามารถส่งคำขอได้ กรุณาลองใหม่';}}
+  
+  // Check if there is an active request
+  $checkActive = $pdo->prepare("SELECT 1 FROM exchange_requests WHERE exchange_id=? AND requester_id=? AND status IN ('pending', 'accepted')");
+  $checkActive->execute([$exchangeId, $viewerId]);
+  if ($checkActive->fetchColumn()) {
+      $error = 'คุณได้ยื่นคำขอสำหรับรายการนี้ไปแล้ว และกำลังอยู่ในสถานะรอตอบรับหรือกำลังเจรจา';
+  }
+  
+  if(!$error){$pdo->beginTransaction();try{$save=$pdo->prepare("INSERT INTO exchange_requests(exchange_id,requester_id,offered_exchange_id,message,status) VALUES(?,?,?,?,'pending')");$save->execute([$exchangeId,$viewerId,$offeredId?:null,$message?:null]);$requester=$pdo->prepare("SELECT COALESCE(NULLIF(display_name,''),email) FROM users WHERE user_id=?");$requester->execute([$viewerId]);$requesterName=$requester->fetchColumn()?:'สมาชิกวนวรรณ';wanawanNotifyUser($pdo, (int)$target['owner_id'], 'มีคำขอแลกเปลี่ยนใหม่', $requesterName.' ยื่นคำขอแลกเปลี่ยนหนังสือ “'.$target['title'].'”', 'exchange');$pdo->commit();$success='ส่งคำขอแลกเปลี่ยนเรียบร้อยแล้ว';}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$error='ไม่สามารถส่งคำขอได้ กรุณาลองใหม่';}}
  }
 }
 function erImage(?string $v):?string{if(!$v)return null;if(preg_match('#^https?://#i',$v))return $v;$v=ltrim(str_replace('\\','/',$v),'/');return str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v;}

@@ -6,6 +6,26 @@ if (empty($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['form_id']) && isset($_GET['tab']) && $_GET['tab'] === 'p2p') {
+    if (empty($_SESSION['admin_escrow_csrf']) || !hash_equals($_SESSION['admin_escrow_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
+        $_SESSION['flash_error'] = "คำขอหมดอายุ กรุณาลองใหม่";
+    } else {
+        $action = $_POST['action'];
+        $form_id = (int)$_POST['form_id'];
+        if ($action === 'approve_slip') {
+            $stmt = $pdo->prepare("UPDATE trade_condition_forms SET deposit_status = 'approved', deposit_approved_at = NOW() WHERE form_id = ?");
+            $stmt->execute([$form_id]);
+            $_SESSION['flash_msg'] = "อนุมัติสลิปมัดจำ P2P เรียบร้อยแล้ว";
+        } elseif ($action === 'reject_slip') {
+            $stmt = $pdo->prepare("UPDATE trade_condition_forms SET deposit_status = 'pending', deposit_slip_url = NULL WHERE form_id = ?");
+            $stmt->execute([$form_id]);
+            $_SESSION['flash_msg'] = "ปฏิเสธสลิปแล้ว ระบบจะแจ้งให้ผู้ใช้แนบใหม่";
+        }
+    }
+    header("Location: escrow.php?tab=p2p&status=" . urlencode($_GET['status'] ?? 'reviewing'));
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['order_id'])) {
     if (empty($_SESSION['admin_escrow_csrf']) || !hash_equals($_SESSION['admin_escrow_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
         $_SESSION['flash_error'] = "คำขอหมดอายุ กรุณาลองใหม่";
@@ -35,8 +55,39 @@ if (empty($_SESSION['admin_escrow_csrf'])) {
     $_SESSION['admin_escrow_csrf'] = bin2hex(random_bytes(24));
 }
 
+$tab = $_GET['tab'] ?? 'orders';
 $status = $_GET['status'] ?? 'reviewing';
 $search = ltrim(trim($_GET['search'] ?? ''), '#');
+
+if ($tab === 'p2p') {
+    $statsQuery = $pdo->query("
+        SELECT 
+            COUNT(CASE WHEN deposit_status = 'pending_verification' THEN 1 END) as reviewing_count,
+            COUNT(CASE WHEN DATE(deposit_approved_at) = CURDATE() THEN 1 END) as approved_today
+        FROM trade_condition_forms WHERE required_deposit_amount > 0
+    ");
+    $stats = $statsQuery->fetch(PDO::FETCH_ASSOC);
+
+    $where = "t.required_deposit_amount > 0";
+    $params = [];
+
+    if ($status === 'pending') {
+        $where .= " AND t.deposit_status = 'pending'";
+    } elseif ($status === 'reviewing') {
+        $where .= " AND t.deposit_status = 'pending_verification'";
+    } elseif ($status === 'completed') {
+        $where .= " AND t.deposit_status = 'approved'";
+    }
+    
+    if ($search !== '') {
+        $where .= " AND (u.display_name LIKE :search OR u.email LIKE :search OR t.request_id = :search)";
+        $params['search'] = "%$search%";
+    }
+
+    $q = $pdo->prepare("SELECT t.*, u.display_name, u.email, u.profile_image FROM trade_condition_forms t JOIN users u ON u.user_id = t.owner_id WHERE $where ORDER BY t.form_id DESC");
+    $q->execute($params);
+    $p2p_forms = $q->fetchAll(PDO::FETCH_ASSOC);
+} else {
 
 // Stats
 $statsQuery = $pdo->query("
@@ -123,6 +174,7 @@ function orderStateLabel(array $o):array{
     return ['รอชำระเงิน', 'pending'];
 }
 
+} // End else
 $active_menu = 'escrow';
 ?>
 <!DOCTYPE html>
@@ -204,8 +256,12 @@ $active_menu = 'escrow';
 <body>
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
     <div class="admin-main-wrap">
-        <div class="head">
-            <h1>จัดการคำสั่งซื้อ (Orders)</h1>
+        <div class="head" style="margin-bottom:15px;">
+            <h1>จัดการการชำระเงิน / มัดจำ</h1>
+        </div>
+        <div style="margin-bottom:28px; display:flex; gap:10px;">
+            <a href="escrow.php" class="btn" style="<?= $tab !== 'p2p' ? 'background:#91576d;color:#fff;' : 'background:#eee;color:#555;' ?>">คำสั่งซื้อปกติ</a>
+            <a href="escrow.php?tab=p2p" class="btn" style="<?= $tab === 'p2p' ? 'background:#91576d;color:#fff;' : 'background:#eee;color:#555;' ?>">เงินมัดจำแลกเปลี่ยน (P2P)</a>
         </div>
 
         <div class="stats">
@@ -245,6 +301,48 @@ $active_menu = 'escrow';
         
         <div class="tablebox">
             <table class="orders">
+                <?php if ($tab === 'p2p'): ?>
+                <thead>
+                    <tr>
+                        <th>รหัสคำขอแลกเปลี่ยน</th>
+                        <th>ผู้ใช้งาน</th>
+                        <th>ยอดมัดจำที่ต้องชำระ</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($p2p_forms)): ?>
+                        <tr><td colspan="5" style="text-align:center;padding:70px;color:#888;">ไม่พบรายการในหมวดนี้</td></tr>
+                    <?php else: foreach ($p2p_forms as $p2p): 
+                        $statusText = 'รอตรวจสอบสลิป';
+                        $statusClass = 'reviewing';
+                        if ($p2p['deposit_status'] === 'approved') { $statusText = 'ตรวจสอบผ่านแล้ว'; $statusClass = 'completed'; }
+                        elseif ($p2p['deposit_status'] === 'pending') { $statusText = 'รอผู้ใช้ชำระเงิน'; $statusClass = 'pending'; }
+                    ?>
+                        <tr>
+                            <td>
+                                <strong>REQ-#<?= htmlspecialchars($p2p['request_id']) ?></strong><br>
+                                <span style="font-size:12px; color:#888;">Form ID: <?= $p2p['form_id'] ?></span>
+                            </td>
+                            <td>
+                                <strong><?= htmlspecialchars($p2p['display_name'] ?: $p2p['email']) ?></strong>
+                            </td>
+                            <td>
+                                <strong style="color:#c53030;">฿<?= number_format($p2p['required_deposit_amount'], 2) ?></strong>
+                            </td>
+                            <td>
+                                <span class="badge badge-<?= $statusClass ?>"><?= $statusText ?></span>
+                            </td>
+                            <td>
+                                <button class="btn detail-p2p" data-form='<?= htmlspecialchars(json_encode($p2p, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>' <?= $p2p['deposit_status'] === 'pending_verification' ? 'style="background:#f0a500; color:#fff;"' : 'style="background:#fff; color:#91576d; border:1px solid #91576d;"' ?>>
+                                    <?= $p2p['deposit_status'] === 'pending_verification' ? 'ตรวจสอบสลิป' : 'ดูรายละเอียด' ?>
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+                <?php else: ?>
                 <thead>
                     <tr>
                         <th>รหัสคำสั่งซื้อ</th>
@@ -315,6 +413,7 @@ $active_menu = 'escrow';
                         </tr>
                     <?php endforeach; endif; ?>
                 </tbody>
+                <?php endif; ?>
             </table>
         </div>
     </div>
@@ -392,6 +491,67 @@ $active_menu = 'escrow';
                 </form>
             `;
         }
+
+        function getP2PActionForm(id) {
+            return `
+                <form method="post" style="display:flex; width:100%; gap:10px;" onsubmit="return confirm('ยืนยันการดำเนินการนี้?');">
+                    <input type="hidden" name="csrf_token" value="${token}">
+                    <input type="hidden" name="form_id" value="${id}">
+                    <button type="submit" class="btn btn-reject" name="action" value="reject_slip">ไม่อนุมัติ (สลิปไม่ถูกต้อง)</button>
+                    <button type="submit" class="btn btn-approve" name="action" value="approve_slip">✓ อนุมัติสลิปโอนเงินมัดจำ (P2P)</button>
+                </form>
+            `;
+        }
+
+        document.querySelectorAll('.detail-p2p').forEach(b => {
+            b.onclick = () => {
+                const o = JSON.parse(b.dataset.form);
+                document.getElementById('mNumber').textContent = 'มัดจำคำขอ #' + o.request_id;
+                document.getElementById('mDate').textContent = o.updated_at || '-';
+                document.getElementById('mPaidDate').textContent = o.deposit_approved_at || '-';
+                
+                // Slip Image
+                const slipContainer = document.getElementById('mSlipContainer');
+                let slipUrl = o.deposit_slip_url ? esc(o.deposit_slip_url) : '';
+                if (slipUrl) {
+                    slipContainer.innerHTML = `<a href="${slipUrl}" target="_blank" title="คลิกเพื่อดูรูปเต็ม"><img src="${slipUrl}" class="slip-view" alt="Slip"></a>`;
+                } else {
+                    slipContainer.innerHTML = `<div class="no-slip">ไม่มีรูปสลิปแนบมา</div>`;
+                }
+                
+                // Details
+                document.getElementById('mItems').innerHTML = `
+                    <p>
+                        <span style="flex:1;"><strong>ยอดมัดจำที่ต้องชำระ:</strong> <br><strong style="color:#c53030; font-size:18px;">฿${parseFloat(o.required_deposit_amount).toFixed(2)}</strong></span>
+                    </p>
+                    <p>
+                        <span style="flex:1;"><strong>ผู้ชำระเงิน:</strong> <br>${esc(o.display_name || o.email)}</span>
+                    </p>
+                `;
+                
+                // Hide unnecessary sections
+                document.getElementById('mSubtotal').parentElement.parentElement.style.display = 'none';
+                document.getElementById('mShippingInfo').style.display = 'none';
+                
+                const actions = document.getElementById('mActions');
+                if (o.deposit_status === 'pending_verification') {
+                    actions.innerHTML = getP2PActionForm(o.form_id);
+                } else {
+                    actions.innerHTML = '';
+                }
+                
+                let badge = document.getElementById('mStatusBadge');
+                if (o.deposit_status === 'approved') {
+                    badge.className = 'badge badge-completed'; badge.textContent = 'ตรวจสอบผ่านแล้ว';
+                } else if (o.deposit_status === 'pending_verification') {
+                    badge.className = 'badge badge-reviewing'; badge.textContent = 'รอตรวจสอบสลิป';
+                } else {
+                    badge.className = 'badge badge-pending'; badge.textContent = 'รอชำระเงิน';
+                }
+                
+                modal.classList.add('open');
+            };
+        });
 
         document.querySelectorAll('.detail').forEach(b => {
             b.onclick = () => {

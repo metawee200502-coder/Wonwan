@@ -1,6 +1,4 @@
 <?php
-require_once __DIR__ . '/config/config.php';
-$q = $pdo->query("DESCRIBE users");
-while($row = $q->fetch(PDO::FETCH_ASSOC)) {
-    echo $row['Field'] . " - " . $row['Type'] . "\n";
-}
+require 'config/config.php';
+$stmt = $pdo->query('SELECT user_id, email, role FROM users');
+print_r($stmt->fetchAll(PDO::FETCH_ASSOC));

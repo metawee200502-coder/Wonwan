@@ -1,1 +1,4 @@
-<?php require c:/laragon/www/wanawan_project/config/config.php;  = ->query(SHOW COLUMNS FROM orders); print_r(->fetchAll(PDO::FETCH_ASSOC));  = ->query(SHOW COLUMNS FROM order_items); print_r(->fetchAll(PDO::FETCH_ASSOC));
+<?php
+require 'config/config.php';
+$stmt = $pdo->query('DESCRIBE trade_condition_forms');
+print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
