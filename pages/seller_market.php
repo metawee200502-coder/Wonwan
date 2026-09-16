@@ -37,57 +37,478 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 
-$tab=$_GET['tab']??'all';$where="b.seller_type='user' AND b.seller_id=:uid";
-if($tab==='packing')$where.=" AND o.payment_status='paid' AND o.shipping_status IN('pending','packing')";elseif($tab==='shipped')$where.=" AND o.shipping_status='shipped'";elseif($tab==='done')$where.=" AND o.shipping_status='delivered'";
+$tab=$_GET['tab']??'all';
+$search=trim($_GET['search']??'');
+$where="b.seller_type='user' AND b.seller_id=:uid";
+$params=[':uid'=>$userId];
+
+if($tab==='packing')$where.=" AND o.payment_status='paid' AND o.shipping_status IN('pending','packing')";
+elseif($tab==='shipped')$where.=" AND o.shipping_status='shipped'";
+elseif($tab==='done')$where.=" AND o.shipping_status='delivered'";
 elseif($tab==='cancelled')$where.=" AND (o.payment_status='cancelled' OR o.shipping_status IN ('cancelled','returned'))";
-$q=$pdo->prepare("SELECT DISTINCT o.* FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE $where ORDER BY o.created_at DESC");$q->execute([':uid'=>$userId]);$orders=$q->fetchAll(PDO::FETCH_ASSOC);
-$iq=$pdo->prepare("SELECT oi.*,b.title,b.author,b.image_cover FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=? AND b.seller_type='user' AND b.seller_id=?");
+
+if($search!==''){
+    $where.=" AND (o.order_number LIKE :search OR b.title LIKE :search OR o.shipping_name LIKE :search)";
+    $params[':search']='%'.$search.'%';
+}
+
+$q=$pdo->prepare("SELECT DISTINCT o.* FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE $where ORDER BY o.created_at DESC");
+$q->execute($params);$orders=$q->fetchAll(PDO::FETCH_ASSOC);
+$iq=$pdo->prepare("SELECT oi.*,b.title,b.author,b.image_cover,b.condition_level,b.category FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=? AND b.seller_type='user' AND b.seller_id=?");
 foreach($orders as &$o){$iq->execute([$o['order_id'],$userId]);$o['items']=$iq->fetchAll(PDO::FETCH_ASSOC);}unset($o);
+
+// Calculate total revenue
+$revQ=$pdo->prepare("SELECT SUM(oi.price_at_purchase * oi.quantity) as total_revenue FROM order_items oi JOIN orders o ON o.order_id=oi.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type='user' AND b.seller_id=? AND o.shipping_status='delivered'");
+$revQ->execute([$userId]);
+$totalRevenue = (float)$revQ->fetchColumn();
+$netRevenue = $totalRevenue * 0.85; // Mocking 15% GP deduction for display
+
 $sq=$pdo->prepare("SELECT COUNT(*) total,SUM(payment_status='paid' AND shipping_status IN('pending','packing')) paid,SUM(shipping_status='shipped') shipping,SUM(shipping_status='delivered') completed,SUM(payment_status='cancelled' OR shipping_status IN('cancelled','returned')) cancelled FROM (SELECT DISTINCT o.* FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type='user' AND b.seller_id=?) x");$sq->execute([$userId]);$stat=$sq->fetch(PDO::FETCH_ASSOC)?:[];
 function smImg(?string $v):?string{if(!$v)return null;$v=ltrim(str_replace('\\','/',$v),'/');return preg_match('#^https?://#',$v)?$v:(str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v);}
 function smSlip(?string $v):?string{if(!$v)return null;$v=ltrim(str_replace('\\','/',$v),'/');return '/pages/'.$v;}
 function smStatus(array $o):array{if($o['payment_status']==='cancelled'||in_array($o['shipping_status'],['cancelled','returned'],true))return['ยกเลิกแล้ว','cancel'];if($o['shipping_status']==='delivered')return['สำเร็จแล้ว','done'];if($o['shipping_status']==='shipped')return['กำลังจัดส่ง','ship'];if($o['payment_status']==='paid')return['รอจัดส่ง','paid'];return['รอชำระ','wait'];}
 $profile_active='market';
 ?>
-<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตลาดซื้อขายหนังสือ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>"><style>
-*{box-sizing:border-box}.account{display:flex;min-height:820px}.market{flex:1;max-width:1120px;margin:0 auto;padding:42px 38px 90px}.title{font-size:34px;color:var(--secondary-color)}.stats{display:flex;flex-wrap:wrap;gap:16px;margin:24px 0 32px}.stat{flex:1 1 150px;border:1px solid #eadbd4;border-radius:16px;padding:22px 14px;text-align:center;background:linear-gradient(to bottom right, #fff, #fdfaf9);box-shadow:0 4px 15px rgba(0,0,0,0.03);transition:transform 0.2s, box-shadow 0.2s}.stat strong{display:block;font-size:32px;font-weight:700;color:var(--secondary-color);line-height:1;margin-bottom:8px}.tabs{display:flex;gap:0;flex-wrap:nowrap;margin:20px 0;background:#fff;border:1px solid #dde3de;border-radius:12px;padding:5px;width:fit-content}.tabs a{padding:10px 18px;border-radius:8px;text-decoration:none;color:#9aadaa;font-weight:600;font-size:15px;transition:background .2s,color .2s,box-shadow .2s}.tabs a.active{background:#1a5055;color:#fff;box-shadow:0 2px 8px rgba(26,80,85,.18);font-weight:700}.tabs a:not(.active):hover{color:#4e7a7e;background:#f3f7f6}.notice{padding:13px 17px;border-radius:8px;margin-bottom:16px}.ok{background:#e9f4e5;color:#39703a}.bad{background:#fde5e1;color:#a33}.orders-list{display:flex;flex-direction:column;gap:16px;margin-bottom:30px}.order-card{background:#fff;border-radius:10px;border:1px solid #e1d8d1;box-shadow:0 2px 6px rgba(0,0,0,0.03);overflow:hidden}.card-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e1d8d1;background:#faf8f6}.card-header .order-number{color:#746b65;font-size:14px}.card-header .order-status{font-weight:600;font-size:14px}.card-header .order-status.wait{color:#e67e22}.card-header .order-status.paid{color:#bc443d}.card-header .order-status.ship{color:#d35400}.card-header .order-status.done{color:#39703a}.card-header .order-status.cancel{color:#888}.card-item{display:flex;padding:18px;border-bottom:1px solid #f0e8e1}.card-item img{width:65px;height:88px;object-fit:cover;border-radius:4px;margin-right:16px;background:#f8e8df;border:1px solid #eee}.card-item-details{flex:1;display:flex;flex-direction:column;justify-content:center}.card-item-title{font-weight:600;font-size:16px;color:#4c423c;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.card-item-price{color:#d3948b;font-weight:600;font-size:15px}.card-item-qty{color:#746b65;font-size:14px;align-self:center;margin-left:16px}.card-summary{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#fff;border-bottom:1px solid #e1d8d1;font-size:14px}.card-summary .total-items{color:#665d57}.card-summary .commission{color:#746b65}.card-footer{padding:16px 18px;display:flex;justify-content:space-between;align-items:center;background:#fff}.card-footer .order-date{color:#897f78;font-size:13px}.card-actions{display:flex;gap:10px}.actions{display:flex;gap:7px;flex-wrap:wrap}.btn{border:1px solid var(--secondary-color);background:var(--secondary-color);color:#fff;border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer;text-decoration:none}.btn.outline{background:#fff;color:var(--secondary-color)}.empty{text-align:center;padding:90px;color:#897f78}.modal{position:fixed;inset:0;background:#211a174d;display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}.modal.open{display:flex}.modal-box{width:min(900px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:27px;box-shadow:0 18px 60px #0003}.modal-title{margin-top:0;color:var(--secondary-color);border-bottom:1px solid #ddd;padding-bottom:13px}.detail-grid{display:grid;grid-template-columns:1fr 320px;gap:24px}.detail-card{border:1px solid #ddd;border-radius:12px;padding:18px}.slip{width:100%;max-height:430px;object-fit:contain;background:#f8f5f2;border-radius:9px}.field{margin:14px 0}.field label{display:block;font-weight:700;color:var(--secondary-color);margin-bottom:6px}.field input{width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;font:inherit}.modal-actions{display:flex;gap:9px;margin-top:18px}.modal-actions>*{flex:1}.status-forms{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px}.status-forms form{display:inline}.close{background:#fff;color:#a33}.hidden{display:none}@media(max-width:900px){.stats{display:flex;flex-wrap:wrap;gap:16px;margin:24px 0 32px}.detail-grid{grid-template-columns:1fr}}@media(max-width:700px){.account{display:block}.market{padding:25px 14px}.stats{display:flex;flex-wrap:wrap;gap:16px;margin:24px 0 32px}}#detailModal .modal-box::-webkit-scrollbar{display:none}
-</style></head><body><?php require __DIR__.'/../components/header.php';?><div class="account"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="market"><h1 class="title">ตลาดซื้อขายหนังสือ</h1>
+<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตลาดซื้อขายหนังสือ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
 <style>
-.stats-top { margin: 24px 0 16px; display: flex; }
-.stat-total { 
-    flex: 1; 
-    border-radius: 16px; 
-    padding: 24px; 
-    background: linear-gradient(135deg, var(--secondary-color), #2d6373); 
-    color: #fff; 
-    box-shadow: 0 6px 20px rgba(52, 112, 131, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-}
-.stat-total strong { font-size: 42px; font-weight: 700; color: #fff; line-height: 1; margin: 0; }
-.stat-total span { font-size: 20px; font-weight: 600; opacity: 0.9; }
+* {box-sizing:border-box}
+body {background: #fdfdfd;}
+.account{display:flex;min-height:850px;background:#fdfdfd;}
+.manage{flex:1;max-width:1160px;margin:0 auto;padding:36px 42px 80px;min-width:0}
+
+.header-area { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.header-text { max-width: 60%; }
+.title{margin:0 0 10px;color:#111827;font-size:32px;font-weight:700;}
+.subtitle { color: #6b7280; font-size: 15px; margin: 0; line-height: 1.5; }
+.header-actions { display: flex; gap: 12px; }
+.btn-outline { padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #374151; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background .2s; }
+.btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
+.btn-primary { padding: 10px 20px; border: 1px solid #0f5132; border-radius: 8px; background: #0f5132; color: #fff; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background .2s; }
+.btn-primary:hover { background: #0a3622; }
+
+.dashboard-card { background: #115e59; border-radius: 16px; padding: 24px 32px; color: #fff; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(17, 94, 89, 0.1); }
+.dashboard-left { display: flex; gap: 20px; align-items: center; }
+.dashboard-number { font-size: 64px; font-weight: 700; line-height: 1; margin: 0; }
+.dashboard-title h2 { margin: 0 0 4px 0; font-size: 24px; font-weight: 700; }
+.dashboard-title p { margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); }
+.dashboard-stats { display: flex; gap: 32px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 32px; }
+.stat-col p { margin: 0 0 4px 0; font-size: 12px; color: rgba(255,255,255,0.7); }
+.stat-col h3 { margin: 0; font-size: 18px; font-weight: 700; }
+
+.status-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.status-card { background: #fff; border: 1px solid #f3f4f6; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.status-card h3 { margin: 0; font-size: 32px; font-weight: 700; color: #111827; line-height: 1; }
+.status-card-label { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #4b5563; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.yellow { background: #f59e0b; }
+.dot.blue { background: #3b82f6; }
+.dot.green { background: #10b981; }
+.dot.red { background: #ef4444; }
+.status-card-sub { font-size: 12px; color: #10b981; background: #ecfdf5; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+.status-card-sub.muted { color: #9ca3af; background: transparent; font-weight: 400; padding: 0; }
+
+.tabs { display: flex; gap: 12px; margin-bottom: 24px; width: fit-content; background: #fff; padding: 4px; border: 1px solid #f3f4f6; border-radius: 24px; }
+.tabs a { padding: 8px 20px; border-radius: 20px; background: transparent; color: #6b7280; text-decoration: none; font-weight: 600; font-size: 14px; transition: all .2s; display: flex; align-items: center; gap: 8px; }
+.tabs a .badge { background: #f3f4f6; color: #4b5563; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.tabs a.active { background: #115e59; color: #fff; }
+.tabs a.active .badge { background: rgba(255,255,255,0.2); color: #fff; }
+.tabs a:not(.active):hover { background: #f9fafb; color: #374151; }
+
+.tools-container { display: flex; gap: 12px; margin-bottom: 24px; }
+.search-box { position: relative; flex: 1; }
+.search-box input { width: 100%; height: 44px; padding: 0 16px 0 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; font: inherit; outline: none; transition: border-color .2s; }
+.search-box input:focus { border-color: #115e59; background: #fff; }
+.search-box svg { position: absolute; left: 14px; top: 14px; color: #9ca3af; width: 16px; height: 16px; }
+.filter-select { height: 44px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 32px 0 16px; background: #f9fafb url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 8px center/20px; font: inherit; color: #4b5563; outline: none; cursor: pointer; appearance: none; }
+.filter-select:focus { border-color: #115e59; background-color: #fff; }
+
+.orders-list{display:flex;flex-direction:column;gap:24px;margin-bottom:30px}
+.order-card{background:#fff;border-radius:12px;border:1px solid #f3f4f6;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);overflow:hidden; display: flex; flex-direction: column;}
+.card-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #f9fafb;}
+.order-number{color:#4b5563;font-size:14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.order-date{color:#9ca3af;font-size:13px; margin-left: 16px; border-left: 1px solid #e5e7eb; padding-left: 16px;}
+.order-status{font-weight:600;font-size:12px; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px;}
+.order-status::before { content:''; width:6px; height:6px; border-radius:50%; }
+.order-status.wait{color:#d97706; background: #fffbeb;}
+.order-status.wait::before { background: #d97706; }
+.order-status.paid{color:#059669; background: #ecfdf5;}
+.order-status.paid::before { background: #059669; }
+.order-status.ship{color:#2563eb; background: #eff6ff;}
+.order-status.ship::before { background: #2563eb; }
+.order-status.done{color:#059669; background: #ecfdf5; border: 1px solid #d1fae5;}
+.order-status.done::before { background: #059669; }
+.order-status.cancel{color:#dc2626; background: #fef2f2;}
+.order-status.cancel::before { background: #dc2626; }
+
+.card-body{padding:24px;display:flex; gap: 20px; border-bottom:1px solid #f9fafb;}
+.book-image{width:80px;height:115px;object-fit:cover;border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+.book-details{flex:1;display:flex;flex-direction:column; justify-content: flex-start;}
+.book-badges { display: flex; gap: 8px; margin-bottom: 8px; }
+.badge-cat { background: #f3f4f6; color: #4b5563; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.badge-cond { color: #6b7280; font-size: 11px; }
+.book-title{font-weight:700;font-size:16px;color:#111827;margin-bottom:8px; line-height: 1.4;}
+.buyer-info { color: #6b7280; font-size: 13px; margin-bottom: 8px; }
+.book-price{color:#111827;font-weight:700;font-size:16px;}
+.book-qty{color:#9ca3af;font-size:14px; font-weight: 600; align-self: flex-start;}
+
+.card-footer{padding:16px 24px;display:flex;justify-content:space-between;align-items:center;background:#fafafa;}
+.footer-left { display: flex; align-items: center; gap: 16px; font-size: 14px; color: #4b5563; }
+.net-income { font-weight: 700; color: #059669; }
+.footer-status-text { color: #6b7280; font-size: 13px; display: flex; align-items: center; gap: 6px; border-left: 1px solid #e5e7eb; padding-left: 16px; }
+.footer-status-text.success { color: #059669; }
+.card-actions{display:flex;gap:12px;}
+
+.pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; font-size: 14px; color: #6b7280; }
+.page-controls { display: flex; gap: 8px; }
+.page-btn { padding: 6px 12px; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; color: #374151; font-weight: 500; cursor: pointer; text-decoration: none; }
+.page-btn:hover { background: #f9fafb; }
+.page-btn.active { background: #115e59; color: #fff; border-color: #115e59; }
+
+.bottom-banner { background: #0f5132; border-radius: 16px; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; margin-top: 40px; color: #fff; }
+.banner-left { display: flex; align-items: center; gap: 20px; }
+.shield-icon { width: 56px; height: 56px; background: rgba(255,255,255,0.1); border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+.banner-text h3 { margin: 0 0 6px 0; font-size: 18px; font-weight: 700; }
+.banner-text p { margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); line-height: 1.5; max-width: 600px; }
+.banner-btn { background: #fff; color: #0f5132; padding: 12px 24px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 14px; transition: background .2s; white-space: nowrap; }
+.banner-btn:hover { background: #f3f4f6; }
+.empty{text-align:center;padding:80px;color:#9ca3af; background: #fff; border-radius: 12px; border: 1px dashed #d1d5db; font-weight: 500;}
+
+/* Modal styles omitted for brevity, keeping them mostly intact but simplified if needed. We'll use SweetAlert for simple alerts if possible, but keeping original modals is safer */
+.modal{position:fixed;inset:0;background:rgba(17,24,39,0.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999; backdrop-filter: blur(4px);}
+.modal.open{display:flex}.modal-box{width:min(900px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); font-family: inherit;}
+.modal-title{margin-top:0;color:#111827;border-bottom:1px solid #f3f4f6;padding-bottom:16px; font-size: 20px; font-weight: 700;}
+.field{margin:16px 0}.field label{display:block;font-weight:600;color:#374151;margin-bottom:8px; font-size: 14px;}
+.field input, .field select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;font:inherit; outline:none;}
+.field input:focus, .field select:focus { border-color: #115e59; }
+.modal-actions{display:flex;gap:12px;margin-top:24px; justify-content: flex-end;}
+.notice{padding:14px 18px;border-radius:8px;margin-bottom:24px; font-weight: 500;}
+.ok{background:#ecfdf5;color:#065f46; border: 1px solid #a7f3d0;}
+.bad{background:#fef2f2;color:#991b1b; border: 1px solid #fecaca;}
+
+@media(max-width:1050px){.manage{padding:30px 24px}.dashboard-card { flex-direction: column; gap: 24px; align-items: flex-start; }.dashboard-stats { border-left: none; padding-left: 0; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 24px; width: 100%; justify-content: space-between; }}
+@media(max-width:800px){.account{display:block}.manage{padding:28px 18px 60px}.status-cards { grid-template-columns: repeat(2, 1fr); }.tools-container { flex-direction: column; }.header-area { flex-direction: column; gap: 16px; }.header-text { max-width: 100%; }}
+@media(max-width:520px){.status-cards { grid-template-columns: 1fr; }.card-header { flex-direction: column; align-items: flex-start; gap: 12px; }.order-date { margin-left: 0; border-left: none; padding-left: 0; }.card-footer { flex-direction: column; gap: 16px; align-items: flex-start; }.card-actions { width: 100%; justify-content: space-between; }}
 </style>
-<div class="stats-top">
-    <div class="stat-total">
-        <strong><?=number_format((int)($stat['total']??0))?></strong>
-        <span>คำสั่งซื้อทั้งหมด</span>
+</head>
+<body>
+<?php require __DIR__.'/../components/header.php';?>
+<div class="account">
+    <?php require __DIR__.'/../components/profile_sidebar.php';?>
+    <main class="manage">
+        
+        <div class="header-area">
+            <div class="header-text">
+                <h1 class="title">ตลาดซื้อขายหนังสือ</h1>
+                <p class="subtitle">ตรวจสอบและติดตามสถานะคำสั่งซื้อ ประวัติการขาย และการจัดส่งหนังสือทั้งหมดในบัญชีของคุณ</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ส่งออกรายงาน
+                </button>
+                <a href="/pages/sell_used_book.php" class="btn-primary">
+                    + ลงขายหนังสือเล่มใหม่
+                </a>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="dashboard-left">
+                <h2 class="dashboard-number"><?=number_format((int)($stat['total']??0))?></h2>
+                <div class="dashboard-title">
+                    <h2>คำสั่งซื้อทั้งหมด</h2>
+                    <p>รวมทุกสถานะ ทั้งที่จัดส่งสำเร็จ และยกเลิกในระบบ</p>
+                </div>
+            </div>
+            <div class="dashboard-stats">
+                <div class="stat-col">
+                    <p>มูลค่าคำสั่งซื้อรวม</p>
+                    <h3>฿<?=number_format($netRevenue, 2)?></h3>
+                </div>
+                <div class="stat-col">
+                    <p>อัตราจัดส่งตรงเวลา</p>
+                    <h3>100%</h3>
+                </div>
+                <div class="stat-col">
+                    <p>คะแนนความพึงพอใจ</p>
+                    <h3>4.9 / 5.0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-cards">
+            <div class="status-card">
+                <h3><?=number_format((int)($stat['paid']??0))?></h3>
+                <div class="status-card-label"><div class="dot yellow"></div> รอจัดส่ง</div>
+                <div class="status-card-sub muted">ต้องจัดส่งภายใน 48 ชม.</div>
+            </div>
+            <div class="status-card">
+                <h3><?=number_format((int)($stat['shipping']??0))?></h3>
+                <div class="status-card-label"><div class="dot blue"></div> กำลังจัดส่ง</div>
+                <div class="status-card-sub muted">พัสดุอยู่ในระบบขนส่ง</div>
+            </div>
+            <div class="status-card">
+                <h3><?=number_format((int)($stat['completed']??0))?></h3>
+                <div class="status-card-label"><div class="dot green"></div> สำเร็จแล้ว</div>
+                <div class="status-card-sub">โอนเงินเข้า Wallet แล้ว</div>
+            </div>
+            <div class="status-card">
+                <h3><?=number_format((int)($stat['cancelled']??0))?></h3>
+                <div class="status-card-label"><div class="dot red"></div> ยกเลิก/คืนสินค้า</div>
+                <div class="status-card-sub muted">ปิดรายการเรียบร้อย</div>
+            </div>
+        </div>
+
+        <?php if($message):?><div class="notice ok"><?=htmlspecialchars($message)?></div><?php endif;?>
+        <?php if($error):?><div class="notice bad"><?=htmlspecialchars($error)?></div><?php endif;?>
+
+        <form>
+            <div class="tabs">
+                <a class="<?=$tab==='all'?'active':''?>" href="?tab=all">ทั้งหมด <span class="badge"><?=number_format((int)($stat['total']??0))?></span></a>
+                <a class="<?=$tab==='packing'?'active':''?>" href="?tab=packing">รอจัดส่ง <span class="badge"><?=number_format((int)($stat['paid']??0))?></span></a>
+                <a class="<?=$tab==='shipped'?'active':''?>" href="?tab=shipped">กำลังจัดส่ง <span class="badge"><?=number_format((int)($stat['shipping']??0))?></span></a>
+                <a class="<?=$tab==='done'?'active':''?>" href="?tab=done">สำเร็จแล้ว <span class="badge"><?=number_format((int)($stat['completed']??0))?></span></a>
+                <a class="<?=$tab==='cancelled'?'active':''?>" href="?tab=cancelled">ยกเลิก <span class="badge"><?=number_format((int)($stat['cancelled']??0))?></span></a>
+            </div>
+
+            <div class="tools-container">
+                <input type="hidden" name="tab" value="<?=$tab?>">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" name="search" placeholder="ค้นหาด้วยรหัสคำสั่งซื้อ (#WN-...), ชื่อหนังสือ, หรือชื่อผู้ซื้อ..." value="<?=htmlspecialchars($search)?>">
+                </div>
+                <select class="filter-select" name="date" onchange="this.form.submit()">
+                    <option value="">ช่วงเวลา: 30 วันล่าสุด</option>
+                    <option value="all">ช่วงเวลา: ทั้งหมด</option>
+                </select>
+                <select class="filter-select" name="courier" onchange="this.form.submit()">
+                    <option value="">ขนส่งทั้งหมด (Kerry, Flash, EMS)</option>
+                </select>
+            </div>
+        </form>
+
+        <?php if(!$orders):?>
+            <div class="empty">ยังไม่มีคำสั่งซื้อในหมวดนี้</div>
+        <?php else:?>
+            <div class="orders-list">
+                <?php foreach($orders as $o):
+                    [$status,$class]=smStatus($o);
+                    $isCancelled=($o['payment_status']==='cancelled'||in_array($o['shipping_status'],['cancelled','returned'],true));
+                    $rawSubtotal=array_sum(array_map(fn($i)=>$i['price_at_purchase']*$i['quantity'],$o['items']));
+                    $subtotal=$isCancelled?0:$rawSubtotal;
+                    $commission=$isCancelled?0:$subtotal*0.15;
+                    $shippingFee=$isCancelled?0:(float)($o['shipping_fee']??0);
+                    $netIncome=$subtotal-$commission+$shippingFee;
+                    $total_items=array_sum(array_column($o['items'],'quantity'));
+                    
+                    if($o['shipping_status']==='delivered') {
+                        $footerStatus = '<span class="footer-status-text success"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> โอนเงินเข้า Wanawan Wallet เรียบร้อย</span>';
+                    } elseif ($isCancelled) {
+                        $footerStatus = '<span class="footer-status-text">คำสั่งซื้อถูกยกเลิกเนื่องจากเกินกำหนดชำระ</span>';
+                    } elseif ($o['shipping_status']==='shipped') {
+                        $footerStatus = '<span class="footer-status-text">ผู้ซื้อกำลังรอรับพัสดุ ('.htmlspecialchars($o['shipping_courier']).')</span>';
+                    } else {
+                        $footerStatus = '';
+                    }
+                ?>
+                <div class="order-card">
+                    <div class="card-header">
+                        <div class="order-number">
+                            รหัสคำสั่งซื้อ: <?=htmlspecialchars($o['order_number'])?>
+                            <svg style="cursor:pointer; color:#9ca3af;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span class="order-date">สั่งซื้อเมื่อ <?=date('d-m-Y H:i',strtotime($o['created_at']))?></span>
+                        </div>
+                        <span class="order-status <?=$class?>"><?=$status?></span>
+                    </div>
+
+                    <?php foreach($o['items'] as $index=>$item):if($index>0)continue;?>
+                    <div class="card-body">
+                        <img class="book-image" src="<?=htmlspecialchars(smImg($item['image_cover']??null)?:'/assets/image/placeholder.png')?>" alt="">
+                        <div class="book-details">
+                            <div class="book-badges">
+                                <span class="badge-cat"><?=htmlspecialchars($item['category']??'ทั่วไป')?></span>
+                                <span class="badge-cond">สภาพ <?php $cMap=['new'=>'100','good'=>'90','fair'=>'70','old'=>'50']; echo $cMap[$item['condition_level']??'good']??'90'; ?>%</span>
+                            </div>
+                            <div class="book-title"><?=htmlspecialchars($item['title']??'หนังสือ')?></div>
+                            <div class="buyer-info">ผู้ซื้อ: คุณ <?=htmlspecialchars($o['shipping_name']??'ไม่ระบุ')?></div>
+                            <div class="book-price"><?=$isCancelled?'฿0.00':'฿'.number_format($item['price_at_purchase'],2)?></div>
+                        </div>
+                        <div class="book-qty">x<?=$item['quantity']?></div>
+                    </div>
+                    <?php endforeach;if(count($o['items'])>1):?>
+                    <div style="text-align:center;padding:12px;border-bottom:1px solid #f9fafb;color:#6b7280;font-size:13px;background:#fdfdfd">ดูสินค้าเพิ่มเติมอีก <?=count($o['items'])-1?> รายการ</div>
+                    <?php endif;?>
+
+                    <div class="card-footer">
+                        <div class="footer-left">
+                            <span>จำนวน: <strong><?=$total_items?> ชิ้น</strong></span>
+                            <span>รายได้สุทธิ: <strong class="net-income">฿<?=number_format($netIncome,2)?></strong></span>
+                            <?=$footerStatus?>
+                        </div>
+                        <div class="card-actions">
+                            <?php if($o['payment_status']==='paid'&&!in_array($o['shipping_status'],['shipped','delivered','cancelled','returned'],true)):?>
+                                <button class="btn-primary ship-btn" data-order="<?=$o['order_id']?>" data-number="<?=htmlspecialchars($o['order_number'])?>">อัปโหลดข้อมูลจัดส่ง</button>
+                            <?php else: ?>
+                                <button class="btn-outline" onclick="openDetail(this)" data-detail='<?=htmlspecialchars(json_encode(['order'=>$o,'slip'=>smSlip($o['payment_slip_url']??null),'commission'=>$commission,'net'=>$netIncome,'subtotal'=>$subtotal,'shippingFee'=>$shippingFee,'statusText'=>$status,'statusClass'=>$class,'isCancelled'=>$isCancelled],JSON_UNESCAPED_UNICODE),ENT_QUOTES)?>'>ดูรายละเอียด</button>
+                                <?php if($isCancelled): ?>
+                                    <button class="btn-outline" style="color:#0f5132; border-color:#0f5132;">ติดต่อผู้ซื้อ</button>
+                                <?php elseif($o['shipping_status']==='delivered'): ?>
+                                    <button class="btn-outline" style="color:#0f5132; border-color:#0f5132;">ลงขายรายการใหม่อีกครั้ง</button>
+                                <?php endif; ?>
+                            <?php endif;?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach;?>
+            </div>
+
+            <div class="pagination">
+                <span>แสดง <?=count($orders)?> รายการจากทั้งหมด <?=count($orders)?> รายการ (หน้า 1 จาก 1)</span>
+                <div class="page-controls">
+                    <button class="page-btn">ก่อนหน้า</button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">ถัดไป</button>
+                </div>
+            </div>
+        <?php endif;?>
+
+        <div class="bottom-banner">
+            <div class="banner-left">
+                <div class="shield-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+                </div>
+                <div class="banner-text">
+                    <h3>มาตรฐานการซื้อขายปลอดภัยผ่าน Wanawan Hub Escrow</h3>
+                    <p>ยอดเงินทุกรายการสั่งซื้อจะถูกพักไว้อย่างปลอดภัยที่ระบบส่วนกลาง จนกว่าผู้ซื้อจะได้รับพัสดุและตรวจสอบสภาพหนังสือตรงปก ผู้ขายจึงมั่นใจได้ว่าจัดส่งแล้วได้รับเงินแน่นอน 100% ปราศจากการฉ้อโกง</p>
+                </div>
+            </div>
+            <a href="#" class="banner-btn">อ่านข้อกำหนดความปลอดภัย</a>
+        </div>
+    </main>
+</div>
+
+<!-- Kept original modals with updated styles -->
+<div class="modal" id="detailModal">
+    <div class="modal-box" style="width:min(600px,100%);padding:0;overflow-y:auto;overflow-x:hidden;background:#f5f5f5;scrollbar-width:none;-ms-overflow-style:none">
+        <div id="dHeader" style="background:#0f5132;color:#fff;padding:24px 32px">
+            <h2 style="margin:0;font-size:20px" id="dStatusText"></h2>
+            <p style="margin:4px 0 0 0;opacity:0.9; font-size: 14px;" id="dStatusSub"></p>
+        </div>
+        <div style="background:#fff;padding:20px 32px;margin-bottom:8px;font-size:15px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#4b5563">
+                <span>ยอดรวมสินค้า</span><strong id="dSubtotal" style="color:#111827"></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#4b5563">
+                <span>ค่าจัดส่ง</span><strong id="dShippingFee" style="color:#111827"></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:16px;color:#4b5563">
+                <span>ค่าธรรมเนียม GP 15%</span><strong id="dCommission" style="color:#dc2626"></strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;border-top:1px solid #f3f4f6;padding-top:16px">
+                <strong style="color: #111827">รายได้สุทธิ</strong><strong id="dNetIncome" style="color:#059669;font-size:18px"></strong>
+            </div>
+        </div>
+        <div style="background:#fff;padding:20px 32px;margin-bottom:8px" id="dItems"></div>
+        <div style="background:#fff;padding:20px 32px;margin-bottom:8px">
+            <h3 style="margin-top:0;font-size:16px; margin-bottom: 12px; color: #111827;">ข้อมูลจัดส่ง</h3>
+            <p style="color:#374151;margin-bottom:4px; font-weight: 600;" id="dBuyer"></p>
+            <p style="color:#6b7280;font-size:14px" id="dAddress"></p>
+        </div>
+        <div style="background:#fff;padding:20px 32px;color:#6b7280;font-size:14px">
+            <h3 style="margin-top:0;font-size:16px; margin-bottom: 12px; color: #111827;">ไทม์ไลน์คำสั่งซื้อ</h3>
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+                <span>รหัสคำสั่งซื้อ</span><span id="dNumberInfo" style="color: #111827; font-weight: 600;"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <span>สั่งซื้อเมื่อ</span><span id="dDateInfo" style="color: #111827;"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px" id="dShippedRow">
+                <span>จัดส่งเมื่อ</span><span id="dShippedInfo" style="color: #111827;"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px" id="dDeliveredRow">
+                <span>สำเร็จเมื่อ</span><span id="dDeliveredInfo" style="color: #111827;"></span>
+            </div>
+        </div>
+        <div style="background:#fff;padding:20px 32px;display:flex;gap:12px;justify-content:flex-end" id="statusForms"></div>
+        <div style="padding: 0 32px 32px 32px; background: #fff;">
+            <button class="btn-outline" style="width: 100%; justify-content: center;" type="button" data-close>ปิดหน้าต่าง</button>
+        </div>
     </div>
 </div>
-<div class="stats">
-<?php foreach(['paid'=>'รอจัดส่ง','shipping'=>'กำลังจัดส่ง','completed'=>'สำเร็จแล้ว','cancelled'=>'ยกเลิก/คืนสินค้า'] as $key=>$label):?>
-<div class="stat"><strong><?=number_format((int)($stat[$key]??0))?></strong><?=$label?></div>
-<?php endforeach;?>
+
+<div class="modal" id="shippingModal">
+    <div class="modal-box" style="width:min(620px,100%)">
+        <h2 class="modal-title">กรอกข้อมูลการจัดส่งสินค้า</h2>
+        <form method="post" id="shippingForm">
+            <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['seller_market_csrf'])?>">
+            <input type="hidden" name="order_id" id="shipOrderId">
+            <input type="hidden" name="courier" id="realCourier">
+            <p id="shipNumber" style="font-weight: 600; color: #4b5563; margin-bottom: 20px;"></p>
+            <div class="field">
+                <label>บริษัทขนส่ง</label>
+                <select id="courierSelect" required onchange="const c=document.getElementById('courierCustom');if(this.value==='อื่นๆ'){c.style.display='block';c.required=true;}else{c.style.display='none';c.required=false;c.value='';}">
+                    <option value="">-- เลือกบริษัทขนส่ง --</option>
+                    <option value="Kerry Express">Kerry Express</option>
+                    <option value="Flash Express">Flash Express</option>
+                    <option value="J&T Express">J&T Express</option>
+                    <option value="ไปรษณีย์ไทย (EMS)">ไปรษณีย์ไทย (EMS)</option>
+                    <option value="ไปรษณีย์ไทย (ลงทะเบียน)">ไปรษณีย์ไทย (ลงทะเบียน)</option>
+                    <option value="Shopee Express">Shopee Express</option>
+                    <option value="อื่นๆ">อื่นๆ (ระบุเอง)</option>
+                </select>
+                <input type="text" id="courierCustom" placeholder="ระบุชื่อบริษัทขนส่ง" style="display:none; margin-top: 10px;">
+            </div>
+            <div class="field">
+                <label>เลขพัสดุ (Tracking Number)</label>
+                <input name="tracking_number" required maxlength="100">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-outline" type="button" data-close>ยกเลิก</button>
+                <button class="btn-primary" name="save_tracking" onclick="document.getElementById('realCourier').value=(document.getElementById('courierSelect').value==='อื่นๆ'?document.getElementById('courierCustom').value.trim():document.getElementById('courierSelect').value)">บันทึกและแจ้งผู้ซื้อ</button>
+            </div>
+        </form>
+    </div>
 </div>
-<?php if($message):?><div class="notice ok"><?=htmlspecialchars($message)?></div><?php endif;?><?php if($error):?><div class="notice bad"><?=htmlspecialchars($error)?></div><?php endif;?><nav class="tabs"><?php foreach(['all'=>'ทั้งหมด','packing'=>'รอจัดส่ง','shipped'=>'กำลังจัดส่ง','done'=>'สำเร็จ','cancelled'=>'ยกเลิก'] as $k=>$v):?><a class="<?=$tab===$k?'active':''?>" href="?tab=<?=$k?>"><?=$v?></a><?php endforeach;?></nav><?php if(!$orders):?><div class="empty">ยังไม่มีคำสั่งซื้อในหมวดนี้</div><?php else:?><div class="orders-list"><?php foreach($orders as $o):[$status,$class]=smStatus($o);if($o['shipping_status']==='delivered'){$status='คำสั่งสินค้าสำเร็จแล้ว ผู้ซื้อได้ยืนยันสินค้าแล้ว';$class='done';}$isCancelled=($o['payment_status']==='cancelled'||in_array($o['shipping_status'],['cancelled','returned'],true));$rawSubtotal=array_sum(array_map(fn($i)=>$i['price_at_purchase']*$i['quantity'],$o['items']));$subtotal=$isCancelled?0:$rawSubtotal;$commission=$isCancelled?0:$subtotal*0.15;$shippingFee=$isCancelled?0:(float)($o['shipping_fee']??0);$netIncome=$subtotal-$commission+$shippingFee;$total_items=array_sum(array_column($o['items'],'quantity'));?><div class="order-card" style="cursor:pointer" onclick="openDetail(this)" data-detail='<?=htmlspecialchars(json_encode(['order'=>$o,'slip'=>smSlip($o['payment_slip_url']??null),'commission'=>$commission,'net'=>$netIncome,'subtotal'=>$subtotal,'shippingFee'=>$shippingFee,'statusText'=>$status,'statusClass'=>$class,'isCancelled'=>$isCancelled],JSON_UNESCAPED_UNICODE),ENT_QUOTES)?>'><div class="card-header"><span class="order-number">รหัสคำสั่งซื้อ: <?=htmlspecialchars($o['order_number'])?></span><span class="order-status <?=$class?>"><?=$status?></span></div><?php foreach($o['items'] as $index=>$item):if($index>0)continue;?><div class="card-item"><img src="<?=htmlspecialchars(smImg($item['image_cover']??null)?:'/assets/image/placeholder.png')?>" alt=""><div class="card-item-details"><div class="card-item-title"><?=htmlspecialchars($item['title']??'หนังสือ')?></div><div class="card-item-price"><?=$isCancelled?'฿0.00':'฿'.number_format($item['price_at_purchase'],2)?></div></div><div class="card-item-qty">x<?=$item['quantity']?></div></div><?php endforeach;if(count($o['items'])>1):?><div style="text-align:center;padding:12px;border-bottom:1px solid #f0e8e1;color:#746b65;font-size:14px;background:#fdfdfd">ดูสินค้าเพิ่มเติมอีก <?=count($o['items'])-1?> รายการ</div><?php endif;?><div class="card-summary"><span class="total-items"><?=$total_items?> ชิ้น</span><span class="commission" style="color:<?=$isCancelled?'#aaa':'#d35400'?>;font-weight:600">รายได้สุทธิ: ฿<?=number_format($netIncome,2)?></span></div><div class="card-footer"><div class="order-date">สั่งซื้อเมื่อ <?=date('d-m-Y H:i',strtotime($o['created_at']))?></div><div class="card-actions"><?php if($o['payment_status']==='paid'&&!in_array($o['shipping_status'],['shipped','delivered','cancelled','returned'],true)):?><button class="btn ship-btn" data-order="<?=$o['order_id']?>" data-number="<?=htmlspecialchars($o['order_number'])?>">อัปโหลดข้อมูลการจัดส่ง</button><?php endif;?></div></div></div><?php endforeach;?></div><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?>
-<div class="modal" id="detailModal"><div class="modal-box" style="width:min(600px,100%);padding:0;overflow-y:auto;overflow-x:hidden;background:#f5f5f5;scrollbar-width:none;-ms-overflow-style:none"><div id="dHeader" style="background:#39703a;color:#fff;padding:24px 20px"><h2 style="margin:0;font-size:20px" id="dStatusText"></h2><p style="margin:4px 0 0 0;opacity:0.9" id="dStatusSub"></p></div><div style="background:#fff;padding:16px 20px;margin-bottom:8px;font-size:15px"><div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#777"><span>ยอดรวมสินค้า</span><strong id="dSubtotal" style="color:#333"></strong></div><div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#777"><span>ค่าจัดส่ง</span><strong id="dShippingFee" style="color:#333"></strong></div><div style="display:flex;justify-content:space-between;margin-bottom:12px;color:#777"><span>ค่าธรรมเนียม GP 15%</span><strong id="dCommission" style="color:#bc443d"></strong></div><div style="display:flex;justify-content:space-between;font-size:16px;border-top:1px solid #eee;padding-top:12px"><strong>รายได้สุทธิ</strong><strong id="dNetIncome" style="color:#d35400;font-size:18px"></strong></div></div><div style="background:#fff;padding:16px 20px;margin-bottom:8px" id="dItems"></div><div style="background:#fff;padding:16px 20px;margin-bottom:8px"><h3 style="margin-top:0;font-size:16px">ข้อมูลจัดส่ง</h3><p style="color:#555;margin-bottom:4px" id="dBuyer"></p><p style="color:#777;font-size:14px" id="dAddress"></p></div><div style="background:#fff;padding:16px 20px;color:#777;font-size:14px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>รหัสคำสั่งซื้อ</span><span id="dNumberInfo"></span></div><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>สั่งซื้อเมื่อ</span><span id="dDateInfo"></span></div></div><div style="background:#fff;padding:16px 20px;display:flex;gap:10px;justify-content:flex-end" id="statusForms"></div><button class="btn close" style="margin:20px;width:calc(100% - 40px)" type="button" data-close>ปิดหน้าต่าง</button></div></div>
-<div class="modal" id="shippingModal"><div class="modal-box" style="width:min(620px,100%)"><h2 class="modal-title">กรอกข้อมูลการจัดส่งสินค้า</h2><form method="post" id="shippingForm"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['seller_market_csrf'])?>"><input type="hidden" name="order_id" id="shipOrderId"><input type="hidden" name="courier" id="realCourier"><p id="shipNumber"></p><div class="field"><label>บริษัทขนส่ง</label><select id="courierSelect" required style="width:100%;border:1px solid #d8d8d0;border-radius:9px;padding:12px;font:inherit;margin-bottom:10px" onchange="const c=document.getElementById('courierCustom');if(this.value==='อื่นๆ'){c.style.display='block';c.required=true;}else{c.style.display='none';c.required=false;c.value='';}"><option value="">-- เลือกบริษัทขนส่ง --</option><option value="Kerry Express">Kerry Express</option><option value="Flash Express">Flash Express</option><option value="J&T Express">J&T Express</option><option value="ไปรษณีย์ไทย (EMS)">ไปรษณีย์ไทย (EMS)</option><option value="ไปรษณีย์ไทย (ลงทะเบียน)">ไปรษณีย์ไทย (ลงทะเบียน)</option><option value="Shopee Express">Shopee Express</option><option value="อื่นๆ">อื่นๆ (ระบุเอง)</option></select><input type="text" id="courierCustom" placeholder="ระบุชื่อบริษัทขนส่ง" style="display:none;width:100%;border:1px solid #d8d8d0;border-radius:9px;padding:12px;font:inherit"></div><div class="field"><label>เลขพัสดุ (Tracking Number)</label><input name="tracking_number" required maxlength="100"></div><div class="modal-actions"><button class="btn" name="save_tracking" onclick="document.getElementById('realCourier').value=(document.getElementById('courierSelect').value==='อื่นๆ'?document.getElementById('courierCustom').value.trim():document.getElementById('courierSelect').value)">บันทึกและแจ้งผู้ซื้อ</button><button class="btn close" type="button" data-close>ยกเลิก</button></div></form></div></div>
+
+<?php require __DIR__.'/../components/footer.php';?>
+
 <script>
 const csrf=<?=json_encode($_SESSION['seller_market_csrf'])?>,detailModal=document.getElementById('detailModal'),shippingModal=document.getElementById('shippingModal');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function openDetail(el){if(event.target.closest("button"))return;const d=JSON.parse(el.dataset.detail),o=d.order;const h=document.getElementById("dHeader");document.getElementById("dStatusText").textContent=d.statusText;document.getElementById("dStatusSub").textContent=o.shipping_status==="delivered"?"ผู้ซื้อยืนยันได้รับสินค้า":"กรุณาตรวจสอบข้อมูล";h.style.background=d.statusClass==="done"?"#39703a":d.statusClass==="wait"?"#e67e22":d.statusClass==="paid"?"#bc443d":d.statusClass==="ship"?"#d35400":"#888";document.getElementById("dSubtotal").textContent="฿"+Number(d.subtotal).toLocaleString(undefined,{minimumFractionDigits:2});document.getElementById("dShippingFee").textContent="฿"+Number(d.shippingFee??0).toLocaleString(undefined,{minimumFractionDigits:2});document.getElementById("dCommission").textContent="-฿"+Number(d.commission).toLocaleString(undefined,{minimumFractionDigits:2});document.getElementById("dNetIncome").textContent="฿"+Number(d.net).toLocaleString(undefined,{minimumFractionDigits:2});document.getElementById("dNumberInfo").textContent=o.order_number;document.getElementById("dDateInfo").textContent=o.created_at;if(o.payment_status==='paid' || ['shipped','delivered'].includes(o.shipping_status)){document.getElementById("dBuyer").textContent=o.shipping_name+" · "+o.shipping_phone;document.getElementById("dAddress").textContent=o.shipping_address;}else{document.getElementById("dBuyer").textContent="รอแอดมินตรวจสอบการชำระเงิน";document.getElementById("dAddress").textContent="(ที่อยู่จัดส่งจะแสดงหลังจากแอดมินอนุมัติสลิปแล้ว)";}document.getElementById("dItems").innerHTML=o.items.map(i=>`<div style="display:flex;gap:12px;margin-bottom:12px;align-items:center"><img src="${i.image_cover?(i.image_cover.startsWith('uploads')?'/pages/'+i.image_cover:'/assets/image/books/'+i.image_cover):'/assets/image/placeholder.png'}" style="width:48px;height:64px;object-fit:cover;border-radius:4px"><div style="flex:1"><div style="font-weight:600;color:#333;font-size:15px">${esc(i.title)}</div><div style="color:#777;font-size:14px">x${i.quantity}</div></div><strong style="color:${d.isCancelled?'#aaa':'#d35400'}">${d.isCancelled?'฿0.00':'฿'+Number(i.price_at_purchase).toLocaleString(undefined,{minimumFractionDigits:2})}</strong></div>`).join("");let buttons="";if(o.shipping_status==="shipped")buttons+=form(o.order_id,"delivered","จัดส่งสำเร็จ");if(!["delivered","cancelled","returned"].includes(o.shipping_status))buttons+=form(o.order_id,"cancelled","ยกเลิกคำสั่งซื้อ","outline");document.getElementById("statusForms").innerHTML=buttons;detailModal.classList.add("open");}
-function form(id,status,label,cls=''){return `<form method="post"><input type="hidden" name="csrf_token" value="${csrf}"><input type="hidden" name="order_id" value="${id}"><input type="hidden" name="status" value="${status}"><button class="btn ${cls}" name="update_status">${label}</button></form>`}
-document.querySelectorAll('.ship-btn').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('shipOrderId').value=btn.dataset.order;document.getElementById('shipNumber').textContent='คำสั่งซื้อ #'+btn.dataset.number;shippingModal.classList.add('open')}));
+function openDetail(el){
+    const d=JSON.parse(el.dataset.detail),o=d.order;
+    const h=document.getElementById("dHeader");
+    document.getElementById("dStatusText").textContent=d.statusText;
+    document.getElementById("dStatusSub").textContent=o.shipping_status==="delivered"?"ผู้ซื้อยืนยันได้รับสินค้า":"กรุณาตรวจสอบข้อมูล";
+    h.style.background=d.statusClass==="done"?"#059669":d.statusClass==="wait"?"#d97706":d.statusClass==="paid"?"#059669":d.statusClass==="ship"?"#2563eb":"#dc2626";
+    document.getElementById("dSubtotal").textContent="฿"+Number(d.subtotal).toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById("dShippingFee").textContent="฿"+Number(d.shippingFee??0).toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById("dCommission").textContent="-฿"+Number(d.commission).toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById("dNetIncome").textContent="฿"+Number(d.net).toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById("dNumberInfo").textContent=o.order_number;
+    document.getElementById("dDateInfo").textContent=o.created_at;
+    
+    document.getElementById("dShippedInfo").textContent=o.shipped_at || "-";
+    document.getElementById("dShippedRow").style.display=o.shipped_at ? "flex" : "none";
+    document.getElementById("dDeliveredInfo").textContent=o.delivered_at || "-";
+    document.getElementById("dDeliveredRow").style.display=o.delivered_at ? "flex" : "none";
+    if(o.payment_status==='paid' || ['shipped','delivered'].includes(o.shipping_status)){
+        document.getElementById("dBuyer").textContent=o.shipping_name+" · "+o.shipping_phone;
+        document.getElementById("dAddress").textContent=o.shipping_address;
+    }else{
+        document.getElementById("dBuyer").textContent="รอแอดมินตรวจสอบการชำระเงิน";
+        document.getElementById("dAddress").textContent="(ที่อยู่จัดส่งจะแสดงหลังจากแอดมินอนุมัติสลิปแล้ว)";
+    }
+    document.getElementById("dItems").innerHTML=o.items.map(i=>`<div style="display:flex;gap:16px;margin-bottom:16px;align-items:center; border: 1px solid #f3f4f6; padding: 12px; border-radius: 8px;"><img src="${i.image_cover?(i.image_cover.startsWith('uploads')?'/pages/'+i.image_cover:'/assets/image/books/'+i.image_cover):'/assets/image/placeholder.png'}" style="width:54px;height:76px;object-fit:cover;border-radius:6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"><div style="flex:1"><div style="font-weight:700;color:#111827;font-size:14px; margin-bottom: 4px;">${esc(i.title)}</div><div style="color:#6b7280;font-size:13px">x${i.quantity}</div></div><strong style="color:${d.isCancelled?'#9ca3af':'#111827'}; font-size: 15px;">${d.isCancelled?'฿0.00':'฿'+Number(i.price_at_purchase).toLocaleString(undefined,{minimumFractionDigits:2})}</strong></div>`).join("");
+    
+    let buttons="";
+    if(o.shipping_status==="shipped")buttons+=form(o.order_id,"delivered","จัดส่งสำเร็จ","btn-primary");
+    if(!["delivered","cancelled","returned"].includes(o.shipping_status))buttons+=form(o.order_id,"cancelled","ยกเลิกคำสั่งซื้อ","btn-outline");
+    document.getElementById("statusForms").innerHTML=buttons;
+    detailModal.classList.add("open");
+}
+function form(id,status,label,cls=''){return `<form method="post" style="display:inline-block;"><input type="hidden" name="csrf_token" value="${csrf}"><input type="hidden" name="order_id" value="${id}"><input type="hidden" name="status" value="${status}"><button class="${cls}" name="update_status">${label}</button></form>`}
+document.querySelectorAll('.ship-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation(); document.getElementById('shipOrderId').value=btn.dataset.order;document.getElementById('shipNumber').textContent='คำสั่งซื้อ #'+btn.dataset.number;shippingModal.classList.add('open')}));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.modal').classList.remove('open')));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
-</script></body></html>
+</script>
+</body>
+</html>

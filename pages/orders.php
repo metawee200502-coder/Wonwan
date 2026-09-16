@@ -1,16 +1,36 @@
 <?php
-session_start();if(empty($_SESSION['user_id'])){header('Location:/pages/login.php');exit;}require_once __DIR__.'/../config/config.php';require_once __DIR__.'/../config/order_reservations.php';$userId=(int)$_SESSION['user_id'];wanawanExpirePendingOrders($pdo,$userId);
+session_start();
+if(empty($_SESSION['user_id'])){header('Location:/pages/login.php');exit;}
+require_once __DIR__.'/../config/config.php';
+require_once __DIR__.'/../config/order_reservations.php';
+$userId=(int)$_SESSION['user_id'];
+wanawanExpirePendingOrders($pdo,$userId);
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
- $orderId=(int)($_POST['order_id']??0);$stmt=$pdo->prepare('SELECT * FROM orders WHERE order_id=? AND user_id=?');$stmt->execute([$orderId,$userId]);$target=$stmt->fetch(PDO::FETCH_ASSOC);
- if($target&&isset($_POST['cancel'])&&$target['payment_status']==='pending'){if(!wanawanCancelReservedOrder($pdo,$orderId,$userId))$pdo->prepare("UPDATE orders SET payment_status='cancelled',shipping_status='cancelled' WHERE order_id=?")->execute([$orderId]);wanawanNotifyUser($pdo, $userId, 'ยกเลิกคำสั่งซื้อแล้ว', 'คำสั่งซื้อ #'.$target['order_number'].' ถูกยกเลิกและคืนสินค้าที่สำรองแล้ว', 'order');}
- if($target&&isset($_POST['buy_again'])){$items=$pdo->prepare('SELECT book_id,quantity FROM order_items WHERE order_id=? AND book_id IS NOT NULL');$items->execute([$orderId]);$add=$pdo->prepare('INSERT INTO cart_items(user_id,book_id,quantity) VALUES(?,?,?) ON DUPLICATE KEY UPDATE quantity=quantity+VALUES(quantity)');foreach($items as $i)$add->execute([$userId,$i['book_id'],$i['quantity']]);header('Location:/pages/cart.php');exit;}
+ $orderId=(int)($_POST['order_id']??0);
+ $stmt=$pdo->prepare('SELECT * FROM orders WHERE order_id=? AND user_id=?');
+ $stmt->execute([$orderId,$userId]);
+ $target=$stmt->fetch(PDO::FETCH_ASSOC);
+ 
+ if($target&&isset($_POST['cancel'])&&$target['payment_status']==='pending'){
+     if(!wanawanCancelReservedOrder($pdo,$orderId,$userId))
+         $pdo->prepare("UPDATE orders SET payment_status='cancelled',shipping_status='cancelled',cancellation_reason='ผู้ซื้อเป็นผู้ยกเลิกคำสั่งซื้อ' WHERE order_id=?")->execute([$orderId]);
+     wanawanNotifyUser($pdo, $userId, 'ยกเลิกคำสั่งซื้อแล้ว', 'คำสั่งซื้อ #'.$target['order_number'].' ถูกยกเลิกและคืนสินค้าที่สำรองแล้ว', 'order');
+ }
+ 
+ if($target&&isset($_POST['buy_again'])){
+     $items=$pdo->prepare('SELECT book_id,quantity FROM order_items WHERE order_id=? AND book_id IS NOT NULL');
+     $items->execute([$orderId]);
+     $add=$pdo->prepare('INSERT INTO cart_items(user_id,book_id,quantity) VALUES(?,?,?) ON DUPLICATE KEY UPDATE quantity=quantity+VALUES(quantity)');
+     foreach($items as $i)$add->execute([$userId,$i['book_id'],$i['quantity']]);
+     header('Location:/pages/cart.php');exit;
+ }
+ 
  if($target&&isset($_POST['confirm_received'])&&$target['shipping_status']==='shipped'){
   $pdo->beginTransaction();
   try{
-   // 1. เปลี่ยนสถานะออเดอร์เป็น delivered
    $pdo->prepare("UPDATE orders SET shipping_status='delivered',delivered_at=NOW() WHERE order_id=?")->execute([$orderId]);
    
-   // 2. คำนวณเงินเข้า Wallet ร้านค้า
    $shopIdQuery = $pdo->prepare("SELECT b.seller_type, b.seller_id FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=? AND b.seller_type IN ('shop','publisher','user') LIMIT 1");
    $shopIdQuery->execute([$orderId]);
    $seller = $shopIdQuery->fetch(PDO::FETCH_ASSOC);
@@ -22,15 +42,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
        $subtotal = array_sum(array_map(function($i){ return (float)($i['price_at_purchase']*$i['quantity']); }, $pdo->query("SELECT price_at_purchase, quantity FROM order_items WHERE order_id=$orderId")->fetchAll(PDO::FETCH_ASSOC)));
        $shippingFee = (float)($target['shipping_fee'] ?? 0);
        
-       // หัก GP: 10% สำหรับร้านค้า/สำนักพิมพ์, 15% สำหรับ user ปกติ
        $gpRate = ($sellerType === 'user') ? 0.15 : 0.10;
        $gpAmount = $subtotal * $gpRate;
        $netPayout = ($subtotal - $gpAmount) + $shippingFee;
 
-       // บันทึก GP ในออเดอร์
        $pdo->prepare("UPDATE orders SET gp_amount=?, net_payout=? WHERE order_id=?")->execute([$gpAmount, $netPayout, $orderId]);
 
-       // ตรวจสอบและสร้าง Wallet หากไม่มี
        $walletQuery = $pdo->prepare("SELECT wallet_id FROM vendor_wallets WHERE seller_type=? AND seller_id=? FOR UPDATE");
        $walletQuery->execute([$sellerType, $sellerId]);
        $wallet = $walletQuery->fetch(PDO::FETCH_ASSOC);
@@ -43,7 +60,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
            $pdo->prepare("UPDATE vendor_wallets SET available_balance = available_balance + ? WHERE wallet_id=?")->execute([$netPayout, $walletId]);
        }
 
-       // เพิ่ม log
        $pdo->prepare("INSERT INTO wallet_transactions (wallet_id, order_id, type, amount, status) VALUES (?, ?, 'EARNING', ?, 'SUCCESS')")->execute([$walletId, $orderId, $netPayout]);
    }
    
@@ -53,80 +69,465 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  }
  header('Location:/pages/orders.php?tab='.urlencode($_GET['tab']??'all'));exit;
 }
-$tab=$_GET['tab']??'all';$q=trim($_GET['q']??'');$where=['o.user_id=:uid'];$params=[':uid'=>$userId];
-if($tab==='pending')$where[]="o.payment_status='pending'";elseif($tab==='shipping')$where[]="o.payment_status='paid' AND o.shipping_status IN ('pending','packing','shipped')";elseif($tab==='completed')$where[]="o.shipping_status='delivered'";elseif($tab==='cancelled')$where[]="(o.payment_status='cancelled' OR o.shipping_status='cancelled')";
+
+// Counts for Tabs
+$counts = ['all'=>0, 'pending'=>0, 'shipping'=>0, 'completed'=>0, 'cancelled'=>0];
+$allOrdersStmt = $pdo->prepare("SELECT payment_status, shipping_status FROM orders WHERE user_id=?");
+$allOrdersStmt->execute([$userId]);
+foreach($allOrdersStmt as $row) {
+    $counts['all']++;
+    if ($row['payment_status'] === 'cancelled' || $row['shipping_status'] === 'cancelled') {
+        $counts['cancelled']++;
+    } elseif ($row['shipping_status'] === 'delivered') {
+        $counts['completed']++;
+    } elseif ($row['payment_status'] === 'pending') {
+        $counts['pending']++;
+    } elseif ($row['payment_status'] === 'paid' && in_array($row['shipping_status'], ['pending','packing','shipped'])) {
+        $counts['shipping']++;
+    }
+}
+
+$tab=$_GET['tab']??'all';
+$q=trim($_GET['q']??'');
+$where=['o.user_id=:uid'];
+$params=[':uid'=>$userId];
+
+if($tab==='pending') $where[]="o.payment_status='pending'";
+elseif($tab==='shipping') $where[]="o.payment_status='paid' AND o.shipping_status IN ('pending','packing','shipped')";
+elseif($tab==='completed') $where[]="o.shipping_status='delivered'";
+elseif($tab==='cancelled') $where[]="(o.payment_status='cancelled' OR o.shipping_status='cancelled')";
+
 if($q!==''){
     $where[]='(o.order_number LIKE :q_order OR EXISTS(SELECT 1 FROM order_items sx JOIN books bx ON bx.book_id=sx.book_id WHERE sx.order_id=o.order_id AND bx.title LIKE :q_title))';
     $params[':q_order']='%'.$q.'%';
     $params[':q_title']='%'.$q.'%';
 }
-$sql='SELECT o.* FROM orders o WHERE '.implode(' AND ',$where).' ORDER BY o.created_at DESC';$stmt=$pdo->prepare($sql);$stmt->execute($params);$orderRows=$stmt->fetchAll(PDO::FETCH_ASSOC);$orders=[];
-$itemStmt=$pdo->prepare("SELECT oi.*,b.title,b.author,b.image_cover,b.seller_type,b.seller_id,r.review_id,COALESCE(p.company_name,s.shop_name,NULLIF(u.display_name,''),u.email,'ร้านวนวรรณ') seller_name FROM order_items oi LEFT JOIN books b ON b.book_id=oi.book_id LEFT JOIN book_reviews r ON r.order_item_id=oi.order_item_id AND r.user_id=:review_user LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id LEFT JOIN users u ON b.seller_type='user' AND u.user_id=b.seller_id WHERE oi.order_id=:order_id");foreach($orderRows as $o){$itemStmt->execute([':review_user'=>$userId,':order_id'=>$o['order_id']]);$o['items']=$itemStmt->fetchAll(PDO::FETCH_ASSOC);$orders[]=$o;}
-function orderImage(?string $v):?string{if(!$v)return null;if(preg_match('#^https?://#i',$v))return $v;$v=ltrim(str_replace('\\','/',$v),'/');return str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v;}
-function orderSellerName(array $item):string{return wanawanSellerName((string)($item['seller_name']??'ร้านวนวรรณ'),(string)($item['seller_type']??'user'));}
-function orderState(array $o):array{if($o['payment_status']==='cancelled'||$o['shipping_status']==='cancelled')return['ยกเลิกแล้ว','cancelled'];if($o['shipping_status']==='delivered')return['สำเร็จแล้ว','completed'];if($o['payment_status']==='pending')return['รอการชำระ','pending'];if($o['shipping_status']==='shipped')return['กำลังจัดส่ง','shipping'];if($o['shipping_status']==='packing')return['กำลังเตรียมจัดส่ง','shipping'];return['ชำระแล้ว','shipping'];}
+
+$sql='SELECT o.* FROM orders o WHERE '.implode(' AND ',$where).' ORDER BY o.created_at DESC';
+$stmt=$pdo->prepare($sql);
+$stmt->execute($params);
+$orderRows=$stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$orders=[];
+$itemStmt=$pdo->prepare("SELECT oi.*, b.title, b.author, b.image_cover, b.seller_type, b.seller_id, r.review_id, COALESCE(p.company_name,s.shop_name,NULLIF(u.display_name,''),u.email,'ร้านวนวรรณ') seller_name FROM order_items oi LEFT JOIN books b ON b.book_id=oi.book_id LEFT JOIN book_reviews r ON r.order_item_id=oi.order_item_id AND r.user_id=:review_user LEFT JOIN publishers p ON b.seller_type='publisher' AND p.publisher_id=b.seller_id LEFT JOIN shops s ON b.seller_type='shop' AND s.shop_id=b.seller_id LEFT JOIN users u ON b.seller_type='user' AND u.user_id=b.seller_id WHERE oi.order_id=:order_id");
+foreach($orderRows as $o){
+    $itemStmt->execute([':review_user'=>$userId,':order_id'=>$o['order_id']]);
+    $o['items']=$itemStmt->fetchAll(PDO::FETCH_ASSOC);
+    $orders[]=$o;
+}
+
+function orderImage(?string $v):?string{
+    if(!$v)return null;
+    if(preg_match('#^https?://#i',$v))return $v;
+    $v=ltrim(str_replace('\\','/',$v),'/');
+    return str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v;
+}
+
+function orderSellerName(array $item):string{
+    return wanawanSellerName((string)($item['seller_name']??'ร้านวนวรรณ'),(string)($item['seller_type']??'user'));
+}
+
+function orderState(array $o):array{
+    if($o['payment_status']==='cancelled'||$o['shipping_status']==='cancelled') return ['ยกเลิกแล้ว','cancelled'];
+    if($o['shipping_status']==='delivered') return ['สำเร็จแล้ว','completed'];
+    if($o['payment_status']==='pending') return ['รอการชำระ','pending'];
+    if($o['shipping_status']==='shipped') return ['กำลังจัดส่ง','shipping'];
+    if($o['shipping_status']==='packing') return ['กำลังเตรียมจัดส่ง','shipping'];
+    return ['ชำระแล้ว','shipping'];
+}
+
+function formatThaiDate($datetime) {
+    $ts = strtotime($datetime);
+    $months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return date('d', $ts) . ' ' . $months[date('n', $ts)] . ' ' . (date('Y', $ts)) . ' ' . date('H:i', $ts) . ' น.';
+}
+
 $profile_active='orders';
 ?>
-<script>
-document.addEventListener('DOMContentLoaded',()=>{
- const reservations=<?=json_encode(array_reduce($orders,function(array $map,array $order):array{if($order['payment_status']==='pending'&&!empty($order['stock_reserved'])&&!empty($order['reservation_expires_at']))$map[$order['order_number']]=strtotime($order['reservation_expires_at']);return $map;},[]),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
- const two=value=>String(value).padStart(2,'0');
- document.querySelectorAll('.order-card').forEach(card=>{
-  const number=card.querySelector('.order-number strong')?.textContent.trim(),deadline=Number(reservations[number]||0)*1000;
-  if(deadline){const timer=document.createElement('span');timer.className='order-reservation-timer';card.querySelector('.order-head')?.appendChild(timer);let expiring=false;const tick=async()=>{const left=Math.max(0,deadline-Date.now()),seconds=Math.floor(left/1000);timer.innerHTML='<small>ชำระภายใน</small><b>'+two(Math.floor(seconds/3600))+':'+two(Math.floor(seconds%3600/60))+':'+two(seconds%60)+'</b>';if(left<=0&&!expiring){expiring=true;timer.innerHTML='<small>หมดเวลาชำระเงิน</small>';try{await fetch('/pages/handlers/order_reservation_expire.php',{method:'POST'});}finally{location.href='/pages/orders.php?tab=cancelled&expired=1'}}};tick();setInterval(tick,1000);}
-  const items=[...card.querySelectorAll('.order-item')];if(items.length<=2)return;items.slice(2).forEach(item=>item.classList.add('order-item-collapsed'));const toggle=document.createElement('button');toggle.type='button';toggle.className='order-items-toggle';let expanded=false;const update=()=>{items.slice(2).forEach(item=>item.classList.toggle('order-item-collapsed',!expanded));toggle.textContent=expanded?'ย่อรายการสินค้า':'ดูสินค้าอีก '+(items.length-2)+' รายการ ▾'};update();toggle.addEventListener('click',()=>{expanded=!expanded;update()});card.querySelector('.items')?.insertAdjacentElement('afterend',toggle);
- });
-});
-</script>
-<style>.order-head .order-reservation-timer{margin-left:auto;margin-right:12px;display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:#fff0e7;color:#a64836;font-variant-numeric:tabular-nums}.order-reservation-timer small{font-size:10px}.order-reservation-timer b{font-size:14px;letter-spacing:.4px}.order-item-collapsed{display:none!important}.order-items-toggle{display:block;width:calc(100% - 48px);margin:0 24px 12px;padding:10px;border:0;border-top:1px solid #eee;background:#fff;color:var(--secondary-color);font:inherit;font-size:13px;font-weight:700;cursor:pointer}.order-items-toggle:hover{background:#fff8fa}@media(max-width:600px){.order-head{flex-wrap:wrap}.order-head .order-reservation-timer{order:3;width:100%;margin:8px 0 0;justify-content:center}}</style>
-<style>.order-head>.seller{order:1}.order-head>.order-reservation-timer{order:2;margin-left:0;margin-right:12px}.order-head>.badge{order:3;margin-left:auto}@media(max-width:600px){.order-head>.seller{order:1}.order-head>.badge{order:2;margin-left:auto}.order-head>.order-reservation-timer{order:3;width:100%;margin:8px 0 0}}</style>
-<script>
-document.addEventListener('DOMContentLoaded',()=>{
- const trackingMap=<?=json_encode(array_reduce($orders,function($map,$order){if(!empty($order['tracking_number']))$map[$order['order_number']]=['courier'=>$order['shipping_courier'],'tracking'=>$order['tracking_number']];return $map;},[]),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
- document.querySelectorAll('.order-review-btn').forEach(btn=>{
-  const counts=btn.textContent.match(/(\d+)\s*\/\s*(\d+)/),reviewed=Number(counts?.[1]||0),total=Number(counts?.[2]||0);
-  const label=reviewed===total&&total===1?'แก้ไขรีวิวเล่มนี้':reviewed===total&&total>1?'แก้ไขรีวิวทั้งหมด':`รีวิวสินค้า ${reviewed}/${total} เล่ม`;
-  btn.classList.remove('primary');
-  btn.innerHTML=`<span class="order-review-icon" aria-hidden="true">★</span><span class="order-review-label">${label}</span><span class="order-review-arrow" aria-hidden="true">›</span>`;
-  const important=(element,styles)=>Object.entries(styles).forEach(([name,value])=>element.style.setProperty(name,value,'important'));
-  important(btn,{display:'inline-flex','align-items':'center','justify-content':'center',gap:'9px',width:'auto','min-width':'0',height:'48px',padding:'0 15px','white-space':'nowrap','line-height':'1',border:'1px solid #d7e4d2','border-radius':'12px',background:'#fbfef9',color:'#5e7960','box-shadow':'0 3px 10px rgba(74,108,76,.07)','font-size':'14px','font-weight':'600'});
-  const icon=btn.querySelector('.order-review-icon');important(icon,{width:'25px',height:'25px',display:'grid','place-items':'center',flex:'0 0 25px','border-radius':'7px',background:'#f9e4ec',color:'#c7698c','font-size':'13px','line-height':'1'});
-  important(btn.querySelector('.order-review-label'),{display:'inline',width:'auto',height:'auto',background:'transparent','line-height':'1','white-space':'nowrap'});
-  important(btn.querySelector('.order-review-arrow'),{display:'inline',width:'auto',height:'auto',background:'transparent',color:'#cb8da4','font-size':'22px','line-height':'1'});
- });
- document.querySelectorAll('.order-card').forEach(card=>{const number=card.querySelector('.order-number strong')?.textContent.trim(),shipment=trackingMap[number];if(!shipment)return;const box=document.createElement('div');box.style.cssText='margin:10px 24px 0;padding:12px 16px;border-radius:8px;background:#eef5ed;color:#456d3d;font-weight:600';box.textContent='กำลังจัดส่ง: '+(shipment.courier||'บริษัทขนส่ง')+' · เลขพัสดุ '+shipment.tracking;card.querySelector('.order-foot')?.before(box);});
-});
-</script>
-<style>.review-btn{display:inline-flex!important;align-items:center;gap:7px;margin-top:11px;padding:8px 13px;border:1px solid #ead4dc!important;border-radius:10px;color:#a75d78!important;background:#fff!important;text-decoration:none!important;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(95,65,75,.05)}.review-btn-icon{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;background:#fae8ee;color:#c76c8d;font-size:11px}.review-btn-arrow{font-size:18px;color:#c99aaa}.review-btn.is-reviewed{color:#66805e!important;border-color:#d8e5d3!important;background:#fbfef9!important}.btn.order-review-btn{min-width:188px!important;background:#fff!important;border:1px solid #e1b1c1!important;color:#ae607c!important;box-shadow:0 3px 10px rgba(120,80,95,.07)!important}.seller-store-icon{width:34px;height:34px;display:inline-grid;place-items:center;border-radius:10px;background:#fff3f6;color:#bf6d89;vertical-align:middle;margin-right:9px}.seller-store-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}</style>
-<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>รายการคำสั่งซื้อ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>"><style>*{box-sizing:border-box}.account{display:flex;width:100%;min-height:900px}.orders-content{flex:1;max-width:1040px;margin:0 auto;padding:38px 50px 90px;min-width:0}.title{font-size:34px;color:var(--secondary-color);margin:0}.subtitle{margin:4px 0 28px;color:var(--text-muted)}.tabs{display:flex;border-bottom:1px solid #eadbd4;margin-bottom:34px;overflow-x:auto}.tabs a{min-width:130px;padding:15px;text-align:center;color:#746b65;text-decoration:none;font-weight:600;border-bottom:3px solid transparent}.tabs a.active{color:var(--secondary-color);border-color:var(--secondary-color)}.search{width:330px;max-width:100%;height:42px;border:1px solid #bbb;border-radius:22px;padding:0 18px;margin-bottom:30px;font:inherit}.order-card{border:1px solid #b9ced2;border-radius:12px;margin-bottom:22px;background:#fff;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}.order-head{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #cbdadd}.seller{font-size:18px;font-weight:700}.badge{padding:5px 14px;border-radius:18px;font-size:12px;font-weight:700}.badge.pending,.badge.cancelled{background:#ffdeda;color:#c43c36}.badge.reviewing{background:#fff0cf;color:#9b6b13}.badge.shipping{background:#ffe0dc;color:#bd433d}.badge.completed{background:#e8f5df;color:#457a3a}.items{padding:10px 25px}.order-item{display:grid;grid-template-columns:105px 1fr auto;gap:20px;align-items:center;padding:14px 0;border-bottom:1px solid #eee}.order-item:last-child{border:0}.cover{width:95px;height:125px;border-radius:7px;background:#f9e8df;overflow:hidden}.cover img{width:100%;height:100%;object-fit:cover}.order-item h3{margin:0 0 7px}.order-item p{margin:3px 0;color:var(--text-muted)}.price{font-size:19px;color:var(--secondary-color);font-weight:700}.order-foot{display:flex;flex-direction:column;gap:10px;padding:15px 24px 20px}.order-number{color:var(--text-muted)}.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.actions form{display:flex;gap:10px;margin:0}.btn{padding:0 16px;height:44px;border:1px solid var(--secondary-color);border-radius:8px;background:#fff;color:var(--secondary-color);display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:normal;cursor:pointer;white-space:nowrap}.btn.primary{background:#d3948b;border-color:#d3948b;color:#fff}.btn.dark{background:var(--secondary-color);color:#fff}.empty{text-align:center;padding:110px 20px;color:var(--text-muted)}.order-card{cursor:pointer;transition:box-shadow .18s}.order-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.1)}.od-modal{position:fixed;inset:0;background:#0005;display:none;align-items:center;justify-content:center;padding:20px;z-index:9999;backdrop-filter:blur(2px)}.od-modal.open{display:flex}.od-box{width:min(680px,100%);max-height:90vh;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;background:#f6f3f1;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.22)}.od-box::-webkit-scrollbar{display:none}.od-head{padding:22px 24px;border-radius:20px 20px 0 0;color:#fff}.od-head h2{margin:0;font-size:18px}.od-head p{margin:4px 0 0;font-size:13px;opacity:.88}.od-section{background:#fff;margin-bottom:6px;padding:16px 22px}.od-section h3{margin:0 0 12px;font-size:15px;color:#2d5f6d;border-bottom:1px solid #eee;padding-bottom:8px}.od-row{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;color:#666}.od-row strong{color:#333}.od-item{display:flex;gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid #f0eae8}.od-item:last-child{border:0}.od-item img{width:52px;height:68px;object-fit:cover;border-radius:6px;background:#f7ebe5}.od-item-info{flex:1}.od-item-title{font-weight:600;color:#333;font-size:15px;margin:0 0 3px}.od-item-sub{font-size:13px;color:#888}.od-item-price{font-weight:700;color:var(--secondary-color);white-space:nowrap}.od-tracking{padding:12px 16px;background:#eef6ee;border:1px solid #b8d8b8;border-radius:10px;color:#3a6b3a;font-size:14px;margin-bottom:4px}.od-footer-btns{display:flex;gap:10px;flex-wrap:wrap;padding:16px 22px;background:#fff;border-radius:0 0 20px 20px}.od-btn{height:42px;padding:0 18px;border-radius:9px;border:1px solid #ccc;background:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}.od-btn.refund{border-color:#e8546a;color:#e8546a}.od-btn.refund:hover{background:#fef0f2}.od-btn.review{border-color:#d4a04e;color:#b07a20;background:#fffbf0}.od-btn.review:hover{background:#fff5de}.od-btn.receipt{border-color:#2d5f6d;color:#2d5f6d}.od-btn.receipt:hover{background:#eef5f7}.od-btn.close-btn{margin-left:auto;color:#999;border-color:#ddd}.od-btn.close-btn:hover{background:#f5f5f5}.od-btn.confirm{border-color:#2e7d32;color:#2e7d32;background:#f0faf0}.grand-total{display:flex;justify-content:space-between;padding:10px 0 4px;font-size:16px;font-weight:700;color:var(--secondary-color);border-top:1px solid #eee;margin-top:6px}@media(max-width:1024px){.order-foot{flex-wrap:wrap;gap:12px}.order-number{width:100%}.actions{width:100%;flex-wrap:wrap;justify-content:flex-end}.actions form{flex-wrap:wrap;justify-content:flex-end}}@media(max-width:800px){.account{display:block}.orders-content{padding:20px 12px}.title{font-size:26px}.subtitle{margin:4px 0 16px;font-size:14px}.tabs{margin-bottom:20px}.search{margin-bottom:18px}.order-card{margin-bottom:16px}.order-head{padding:12px 16px}.items{padding:5px 16px}.order-item{grid-template-columns:70px 1fr auto;align-items:flex-start;padding:12px 0;gap:12px}.cover{width:70px;height:90px}.price{grid-column:3;font-size:15px;margin-top:0}.order-item h3{margin:0 0 4px;font-size:15px}.order-item p{margin:2px 0;font-size:13px}.order-foot{padding:12px 16px 14px;gap:10px}.actions{gap:8px}.actions form{gap:8px}.btn{padding:0 12px;height:38px;font-size:14px}.order-number{font-size:13px}.tabs a{min-width:115px}}@media(max-width:500px){.order-item{grid-template-columns:70px 1fr}.price{grid-column:2;margin-top:5px}.order-foot{align-items:flex-start}.actions{width:100%}.actions form{flex:1;display:flex;flex-wrap:nowrap}.actions form .btn, .actions > .btn{flex:1;width:100%;padding:0 8px}}</style></head><body><?php require __DIR__.'/../components/header.php';?><div class="account"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="orders-content"><h1 class="title">รายการคำสั่งซื้อของฉัน</h1><p class="subtitle">ติดตามสถานะและประวัติการสั่งซื้อหนังสือของคุณทั้งหมดได้ที่นี่</p><nav class="tabs"><?php foreach(['all'=>'ทั้งหมด','pending'=>'รอการชำระ','shipping'=>'กำลังจัดส่ง','completed'=>'สำเร็จแล้ว','cancelled'=>'ยกเลิกแล้ว'] as $key=>$label):?><a class="<?=$tab===$key?'active':''?>" href="?tab=<?=$key?>"><?=$label?></a><?php endforeach;?></nav><form><input type="hidden" name="tab" value="<?=htmlspecialchars($tab)?>"><input class="search" name="q" value="<?=htmlspecialchars($q)?>" placeholder="ค้นหาชื่อหนังสือ หรือหมายเลขคำสั่งซื้อ"></form>
-<?php if(!$orders):?><div class="empty">ไม่พบรายการคำสั่งซื้อในหมวดนี้</div><?php else:foreach($orders as $o):[$state,$stateClass]=orderState($o);$sellerNames=array_values(array_unique(array_map('orderSellerName',$o['items'])));$reviewableItems=array_values(array_filter($o['items'],fn($i)=>!empty($i['book_id'])));$reviewedCount=count(array_filter($reviewableItems,fn($i)=>!empty($i['review_id'])));$orderJson=htmlspecialchars(json_encode(['id'=>$o['order_id'],'number'=>$o['order_number'],'state'=>$state,'stateClass'=>$stateClass,'seller'=>implode(', ',$sellerNames)?:'ร้านวนวรรณ','buyer'=>$o['shipping_name'],'phone'=>$o['shipping_phone'],'address'=>$o['shipping_address'],'courier'=>$o['shipping_courier']??'','tracking'=>$o['tracking_number']??'','subtotal'=>(float)($o['subtotal']??0),'shipping_fee'=>(float)($o['shipping_fee']??0),'total'=>(float)($o['total_amount']??0),'paid_at'=>$o['paid_at']??'','items'=>array_map(fn($i)=>['title'=>$i['title']?:'หนังสือ','author'=>$i['author']??'','qty'=>$i['quantity'],'price'=>(float)$i['price_at_purchase'],'img'=>orderImage($i['image_cover'])??''],$o['items'])],JSON_UNESCAPED_UNICODE),ENT_QUOTES);?><article class="order-card" onclick="openOrderDetail(this)" data-od='<?=$orderJson?>'><header class="order-head"><span class="seller"><span class="seller-store-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z"/><path d="M4 10v9a1 1 0 0 0 1 1h5v-5h4v5h5a1 1 0 0 0 1-1v-9"/></svg></span><?=htmlspecialchars(implode(', ',$sellerNames)?:'ร้านวนวรรณ')?></span><span class="badge <?=$stateClass?>"><?=$state?></span></header><div class="items"><?php foreach($o['items'] as $item):?><div class="order-item"><div class="cover"><?php if($img=orderImage($item['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt=""><?php endif;?></div><div><h3><?=htmlspecialchars($item['title']?:'หนังสือ')?></h3><p>ผู้เขียน: <?=htmlspecialchars($item['author']?:'-')?></p><p>จำนวน: ×<?=$item['quantity']?></p><?php if($stateClass==='completed'&&!empty($item['book_id'])):?><a class="review-btn <?=$item['review_id']?'is-reviewed':''?>" href="/pages/review_order.php?order_id=<?=(int)$o['order_id']?>#item-<?=(int)$item['order_item_id']?>" onclick="event.stopPropagation()"><span class="review-btn-icon">★</span><span><?=$item['review_id']?'แก้ไขรีวิวเล่มนี้':'รีวิวหนังสือเล่มนี้'?></span><span class="review-btn-arrow">›</span></a><?php endif;?></div><div class="price">฿<?=number_format($item['price_at_purchase']*$item['quantity'],2)?></div></div><?php endforeach;?></div><footer class="order-foot" onclick="event.stopPropagation()"><span class="order-number">หมายเลขคำสั่งซื้อ: <strong><?=htmlspecialchars($o['order_number'])?></strong></span><div class="actions"><?php if($stateClass==='completed'&&$reviewableItems):?><a class="btn primary order-review-btn" href="/pages/review_order.php?order_id=<?=(int)$o['order_id']?>" onclick="event.stopPropagation()"><span aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span> ให้คะแนน <?=$reviewedCount?>/<?=count($reviewableItems)?> เล่ม</a><?php endif;?><?php if($stateClass==='completed'&&(!isset($o['payout_status'])||$o['payout_status']==='pending')):?><a class="btn" style="border-color:#e8546a;color:#e8546a" href="/pages/dispute.php?order_id=<?=(int)$o['order_id']?>" onclick="event.stopPropagation()">↩ ขอคืนเงิน/คืนสินค้า</a><?php endif;?><?php if($stateClass==='shipping'&&(!isset($o['payout_status'])||$o['payout_status']==='pending')):?><a class="btn" style="border-color:#e8546a;color:#e8546a" href="/pages/dispute.php?order_id=<?=(int)$o['order_id']?>" onclick="event.stopPropagation()">เปิดข้อพิพาท/คืนเงิน</a><?php endif;?><a class="btn" href="/pages/order_receipt.php?number=<?=urlencode($o['order_number'])?>" target="_blank" onclick="event.stopPropagation()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> ดูใบเสร็จ</a><?php if($stateClass==='pending'):?><form method="post" onclick="event.stopPropagation()"><input type="hidden" name="order_id" value="<?=$o['order_id']?>"><button class="btn" name="cancel">ยกเลิกคำสั่งซื้อ</button><a class="btn primary" href="/pages/payment.php?order=<?=$o['order_id']?>">ชำระเงิน</a></form><?php elseif($stateClass==='shipping'&&$o['shipping_status']==='shipped'):?><form method="post" onsubmit="return confirm('ยืนยันว่าได้รับสินค้าแล้วใช่หรือไม่?')" onclick="event.stopPropagation()"><input type="hidden" name="order_id" value="<?=$o['order_id']?>"><button class="btn dark" name="confirm_received" style="background:#2e7d32;border-color:#2e7d32">✓ ยืนยันได้รับสินค้า</button></form><?php elseif(in_array($stateClass,['completed','cancelled'],true)):?><form method="post" onclick="event.stopPropagation()"><input type="hidden" name="order_id" value="<?=$o['order_id']?>"><button class="btn dark" name="buy_again">ซื้ออีกครั้ง</button></form><?php endif;?></div></footer></article><?php endforeach;endif;?>
-<div class="od-modal" id="odModal"><div class="od-box"><div class="od-head" id="odHead"><h2 id="odTitle"></h2><p id="odSub"></p></div><div class="od-section" id="odItems"></div><div class="od-section"><h3 style="display:flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>ข้อมูลการจัดส่ง</h3><div class="od-row"><span>ผู้รับ</span><strong id="odBuyer"></strong></div><div class="od-row"><span>เบอร์โทร</span><strong id="odPhone"></strong></div><div class="od-row"><span>ที่อยู่</span><strong id="odAddress" style="max-width:320px;text-align:right"></strong></div><div id="odTrackingBox" style="display:none" class="od-tracking"><strong id="odCourier"></strong><div>หมายเลขพัสดุ: <span id="odTracking" style="font-weight:700;letter-spacing:.5px"></span></div></div></div><div class="od-section"><h3 style="display:flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>สรุปยอดชำระ</h3><div class="od-row"><span>ยอดรวมสินค้า</span><strong id="odSubtotal"></strong></div><div class="od-row"><span>ค่าจัดส่ง</span><strong id="odShippingFee"></strong></div><div class="grand-total"><span>ยอดสุทธิ</span><strong id="odTotal"></strong></div></div><div class="od-footer-btns" id="odFooterBtns"></div></div></div>
-<script>
-const odModal=document.getElementById('odModal');
-function openOrderDetail(el){
-  if(event.target.closest('a,button,form'))return;
-  const d=JSON.parse(el.dataset.od);
-  const colors={completed:'#2e7d32',shipping:'#c0552a',pending:'#b5451b',cancelled:'#888',cancelled:'#888'};
-  document.getElementById('odHead').style.background=colors[d.stateClass]||'#2d5f6d';
-  document.getElementById('odTitle').textContent=d.seller;
-  document.getElementById('odSub').textContent=d.state+' · #'+d.number;
-  document.getElementById('odBuyer').textContent=d.buyer;
-  document.getElementById('odPhone').textContent=d.phone;
-  document.getElementById('odAddress').textContent=d.address;
-  const trackBox=document.getElementById('odTrackingBox');
-  if(d.tracking){trackBox.style.display='block';document.getElementById('odCourier').textContent='บริษัทขนส่ง: '+(d.courier||'ไม่ระบุ');document.getElementById('odTracking').textContent=d.tracking;}
-  else trackBox.style.display='none';
-  document.getElementById('odSubtotal').textContent='฿'+d.subtotal.toLocaleString(undefined,{minimumFractionDigits:2});
-  document.getElementById('odShippingFee').textContent='฿'+d.shipping_fee.toLocaleString(undefined,{minimumFractionDigits:2});
-  document.getElementById('odTotal').textContent='฿'+d.total.toLocaleString(undefined,{minimumFractionDigits:2});
-  document.getElementById('odItems').innerHTML='<h3 style="display:flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>รายการสินค้า</h3>'+d.items.map(i=>`<div class="od-item"><img src="${i.img||'/assets/image/minilogo.png'}" onerror="this.src='/assets/image/minilogo.png'"><div class="od-item-info"><div class="od-item-title">${i.title}</div><div class="od-item-sub">${i.author} · x${i.qty}</div></div><div class="od-item-price">฿${(i.price*i.qty).toLocaleString(undefined,{minimumFractionDigits:2})}</div></div>`).join('');
-  let btns=`<a class="od-btn receipt" href="/pages/order_receipt.php?number=${encodeURIComponent(d.number)}" target="_blank"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> ดูใบเสร็จ / บันทึก PDF</a>`;
-  if(d.stateClass==='completed'){btns+=`<a class="od-btn review" href="/pages/review_order.php?order_id=${d.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ให้คะแนนสินค้า</a><a class="od-btn refund" href="/pages/dispute.php?order_id=${d.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg> ขอคืนเงิน/คืนสินค้า</a>`;}
-  btns+=`<button class="od-btn close-btn" onclick="odModal.classList.remove('open')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ปิด</button>`;
-  document.getElementById('odFooterBtns').innerHTML=btns;
-  odModal.classList.add('open');
-}
-odModal.addEventListener('click',e=>{if(e.target===odModal)odModal.classList.remove('open')});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')odModal.classList.remove('open')});
-</script>
-</main></div><?php require __DIR__.'/../components/footer.php';?></body></html>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>รายการคำสั่งซื้อ - วนวรรณ</title>
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
+    <style>
+        *{box-sizing:border-box}
+        body { background: #f9f9f9; }
+        .account{display:flex;width:100%;min-height:900px}
+        .orders-content{flex:1;max-width:1160px;margin:0 auto;padding:40px 50px 90px;min-width:0; background: #f9f9f9;}
+        
+        .header-area { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 20px;}
+        .title{font-size:32px;color:#111827;margin:0 0 8px; font-weight:700;}
+        .subtitle{margin:0;color:#4b5563; font-size: 14px; max-width: 600px; line-height: 1.6;}
+        
+        .header-actions { display: flex; gap: 12px; }
+        .btn-action-outline { border: 1px solid #d1d5db; background: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #374151; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: inherit;}
+        .btn-action-outline:hover { background: #f3f4f6; }
+        .btn-action-solid { border: 1px solid #115e59; background: #115e59; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: inherit;}
+        .btn-action-solid:hover { background: #0f5132; }
+        
+        .tabs{display:flex;border-bottom:1px solid #e5e7eb;margin-bottom:24px;overflow-x:auto; gap: 32px; padding-bottom: 2px;}
+        .tabs a{display:flex;align-items:center;gap:8px;padding:12px 0;text-align:center;color:#6b7280;text-decoration:none;font-weight:600;font-size:15px;border-bottom:3px solid transparent; white-space: nowrap;}
+        .tabs a.active{color:#115e59;border-color:#115e59}
+        .tab-count { background: #f3f4f6; color: #4b5563; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+        .tabs a.active .tab-count { background: #ccfbf1; color: #115e59; }
+        .tabs a:hover:not(.active) { color: #374151; }
+        
+        .filters-area { display: flex; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;}
+        .search-box { position: relative; width: 360px; max-width: 100%; }
+        .search-box input { width: 100%; height: 42px; border: 1px solid #d1d5db; border-radius: 22px; padding: 0 20px 0 42px; font: inherit; font-size: 14px; outline: none; }
+        .search-box input:focus { border-color: #115e59; }
+        .search-box svg { position: absolute; left: 16px; top: 13px; color: #9ca3af; }
+        
+        .filter-dropdowns { display: flex; gap: 12px; }
+        .dropdown { height: 42px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; padding: 0 16px; font: inherit; font-size: 14px; color: #374151; display: inline-flex; align-items: center; cursor: pointer; outline: none;}
+        
+        .order-card{border:1px solid #e5e7eb;border-radius:16px;margin-bottom:24px;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.02); transition: box-shadow 0.2s; cursor: pointer;}
+        .order-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,.05); }
+        
+        .order-head{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #f3f4f6; background: #fcfcfc;}
+        .seller-info { display: flex; align-items: center; gap: 12px; }
+        .store-icon { width: 32px; height: 32px; border-radius: 8px; background: #fee2e2; color: #dc2626; display: grid; place-items: center; }
+        .store-icon.shop { background: #e0f2fe; color: #0284c7; }
+        .store-icon.publisher { background: #fce7f3; color: #db2777; }
+        .seller-name { font-size: 15px; font-weight: 700; color: #111827; }
+        .seller-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; background: #f3f4f6; color: #4b5563; }
+        .seller-badge.official { background: #dcfce7; color: #166534; }
+        
+        .badge{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;}
+        .badge.pending{background:#fffbeb;color:#d97706; border-color: #fef3c7;}
+        .badge.cancelled{background:#fef2f2;color:#dc2626; border-color: #fee2e2;}
+        .badge.shipping{background:#eff6ff;color:#2563eb; border-color: #dbeafe;}
+        .badge.completed{background:#ecfdf5;color:#059669; border-color: #d1fae5;}
+        
+        .order-body { padding: 24px; display: flex; justify-content: space-between; border-bottom: 1px solid #f3f4f6; gap: 24px;}
+        @media(max-width: 768px) { .order-body { flex-direction: column; } }
+        
+        .book-info { display: flex; gap: 20px; flex: 1;}
+        .cover{width:90px;height:120px;border-radius:8px;background:#f3f4f6;overflow:hidden; flex-shrink:0; border: 1px solid #e5e7eb;}
+        .cover img{width:100%;height:100%;object-fit:cover}
+        .details h3{margin:0 0 6px; font-size: 16px; color: #111827;}
+        .details p.author{margin:0 0 6px;color:#6b7280; font-size: 14px;}
+        .details p.qty{margin:0 0 12px;color:#4b5563; font-size: 14px;}
+        .edition-badge { background: #f3f4f6; color: #4b5563; font-size: 12px; padding: 4px 10px; border-radius: 6px; display: inline-block; font-weight: 500;}
+        
+        .success-text { display: flex; align-items: center; gap: 6px; color: #059669; font-size: 13px; font-weight: 600; margin-top: 12px;}
+        
+        .price-info { text-align: right; display: flex; flex-direction: column; justify-content: center; min-width: 120px;}
+        @media(max-width: 768px) { .price-info { text-align: left; } }
+        .price-label { font-size: 13px; color: #6b7280; margin-bottom: 4px;}
+        .price-amount { font-size: 24px; font-weight: 700; color: #115e59; }
+        
+        .cancel-alert { background: #fef2f2; border-bottom: 1px solid #fee2e2; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #dc2626;}
+        .alert-content { display: flex; align-items: center; gap: 8px; }
+        .alert-note { color: #9ca3af; font-size: 12px; }
+        
+        .order-foot{display:flex;align-items:center;justify-content:space-between;padding:16px 24px; background: #fcfcfc;}
+        @media(max-width: 768px) { .order-foot { flex-direction: column; align-items: flex-start; gap: 16px; } }
+        .foot-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #6b7280; flex-wrap: wrap;}
+        .foot-info strong { color: #111827; }
+        .copy-btn { background: transparent; border: none; color: #115e59; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 0;}
+        .copy-btn:hover { text-decoration: underline; }
+        .divider { color: #d1d5db; }
+        
+        .foot-actions{display:flex;gap:12px;flex-wrap:wrap;}
+        .btn-outline { border: 1px solid #d1d5db; background: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #374151; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: inherit; transition: all 0.2s;}
+        .btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
+        .btn-outline.review { border-color: #fde047; color: #854d0e; background: #fefce8; }
+        .btn-outline.review:hover { background: #fef9c3; border-color: #facc15; }
+        .btn-solid { border: 1px solid #115e59; background: #115e59; padding: 8px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: inherit; transition: all 0.2s;}
+        .btn-solid:hover { background: #0f5132; }
+        .btn-cancel { border: 1px solid #fee2e2; background: #fef2f2; color: #dc2626; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;}
+        .btn-cancel:hover { background: #fee2e2; }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 40px; font-size: 13px; color: #6b7280; }
+        .page-controls { display: flex; gap: 8px; }
+        .page-btn { padding: 6px 12px; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; color: #374151; font-weight: 500; cursor: pointer; font-family: inherit;}
+        .page-btn.active { background: #115e59; color: #fff; border-color: #115e59; }
+
+        .bottom-banner { background: #115e59; border-radius: 16px; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; color: #fff; gap: 24px;}
+        @media(max-width: 768px) { .bottom-banner { flex-direction: column; align-items: flex-start; } }
+        .banner-content { display: flex; gap: 20px; align-items: flex-start; }
+        .shield-icon { width: 48px; height: 48px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+        .banner-text h3 { margin: 0 0 8px 0; font-size: 16px; font-weight: 700; }
+        .banner-text p { margin: 0; font-size: 13px; opacity: 0.9; line-height: 1.6; max-width: 700px;}
+        .btn-banner { background: #fff; color: #115e59; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit;}
+        .btn-banner:hover { background: #f3f4f6; }
+        
+        .empty { text-align: center; padding: 80px 20px; color: #6b7280; background: #fff; border-radius: 16px; border: 1px dashed #d1d5db; margin-bottom: 24px;}
+        
+        /* Modal remains mostly the same but updated style matches */
+        .od-modal{position:fixed;inset:0;background:rgba(17,24,39,0.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999;backdrop-filter:blur(2px)}
+        .od-modal.open{display:flex}
+        .od-box{width:min(680px,100%);max-height:90vh;overflow-y:auto;background:#f9fafb;border-radius:20px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); font-family: inherit;}
+        .od-head{padding:24px;border-radius:20px 20px 0 0;color:#fff}
+        .od-head h2{margin:0;font-size:18px}
+        .od-head p{margin:4px 0 0;font-size:13px;opacity:.9}
+        .od-section{background:#fff;margin-bottom:8px;padding:20px 24px}
+        .od-section h3{margin:0 0 16px;font-size:15px;color:#111827;border-bottom:1px solid #f3f4f6;padding-bottom:12px; display: flex; align-items: center; gap: 8px;}
+        .od-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;color:#4b5563}
+        .od-row strong{color:#111827}
+        .od-item{display:flex;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6}
+        .od-item:last-child{border:0}
+        .od-item img{width:56px;height:76px;object-fit:cover;border-radius:6px;background:#f3f4f6}
+        .od-item-info{flex:1}
+        .od-item-title{font-weight:600;color:#111827;font-size:15px;margin:0 0 4px}
+        .od-item-sub{font-size:13px;color:#6b7280}
+        .od-item-price{font-weight:700;color:#115e59;white-space:nowrap}
+        .od-tracking{padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#166534;font-size:14px;margin-bottom:8px}
+        .od-footer-btns{display:flex;gap:12px;flex-wrap:wrap;padding:20px 24px;background:#fff;border-radius:0 0 20px 20px; justify-content: flex-end;}
+        .od-btn{height:42px;padding:0 20px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap;}
+        .od-btn:hover { background: #f9fafb; }
+        .od-btn.close-btn { background: #f3f4f6; border-color: #f3f4f6; color: #374151;}
+        .od-btn.close-btn:hover { background: #e5e7eb; }
+        .grand-total{display:flex;justify-content:space-between;padding:12px 0 4px;font-size:16px;font-weight:700;color:#115e59;border-top:1px solid #f3f4f6;margin-top:8px}
+    </style>
+</head>
+<body>
+    <?php require __DIR__.'/../components/header.php';?>
+    <div class="account">
+        <?php require __DIR__.'/../components/profile_sidebar.php';?>
+        <main class="orders-content">
+            <div class="header-area">
+                <div>
+                    <h1 class="title">รายการคำสั่งซื้อของฉัน</h1>
+                    <p class="subtitle">ติดตามสถานะและประวัติการสั่งซื้อหนังสือของคุณทั้งหมดได้ที่นี่ พร้อมระบบคุ้มครองความปลอดภัยผ่าน Wanawan Escrow</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-action-outline">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                        สอบถามเจ้าหน้าที่
+                    </button>
+                    <a href="/pages/market.php" class="btn-action-solid">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        เลือกซื้อหนังสือเพิ่ม
+                    </a>
+                </div>
+            </div>
+            
+            <nav class="tabs">
+                <?php 
+                $tabsDef = [
+                    'all' => ['ทั้งหมด', $counts['all']],
+                    'pending' => ['รอการชำระ', $counts['pending']],
+                    'shipping' => ['กำลังจัดส่ง', $counts['shipping']],
+                    'completed' => ['สำเร็จแล้ว', $counts['completed']],
+                    'cancelled' => ['ยกเลิกแล้ว', $counts['cancelled']]
+                ];
+                foreach($tabsDef as $key=>$data):
+                ?>
+                <a class="<?=$tab===$key?'active':''?>" href="?tab=<?=$key?>">
+                    <?=$data[0]?> <span class="tab-count"><?=$data[1]?></span>
+                </a>
+                <?php endforeach;?>
+            </nav>
+            
+            <div class="filters-area">
+                <form class="search-box">
+                    <input type="hidden" name="tab" value="<?=htmlspecialchars($tab)?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input name="q" value="<?=htmlspecialchars($q)?>" placeholder="ค้นหาชื่อหนังสือ หรือหมายเลขคำสั่งซื้อ">
+                </form>
+                <div class="filter-dropdowns">
+                    <select class="dropdown">
+                        <option>ช่วงเวลา: 30 วันล่าสุด</option>
+                    </select>
+                    <select class="dropdown">
+                        <option>ประเภทร้าน: ทั้งหมด</option>
+                    </select>
+                </div>
+            </div>
+
+            <?php if(!$orders):?>
+                <div class="empty">ไม่พบรายการคำสั่งซื้อในหมวดนี้</div>
+            <?php else: foreach($orders as $o):
+                list($state,$stateClass)=orderState($o);
+                
+                // Determine Seller Badge
+                $sellerType = $o['items'][0]['seller_type'] ?? 'user';
+                $sellerName = htmlspecialchars(implode(', ',array_unique(array_map('orderSellerName',$o['items'])))?:'ร้านวนวรรณ');
+                $sellerBadge = '';
+                $iconClass = 'store-icon user';
+                $iconSvg = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>';
+                
+                if ($sellerType === 'publisher') {
+                    $sellerBadge = '<span class="seller-badge official">ร้านค้าทางการ</span>';
+                    $iconClass = 'store-icon publisher';
+                    $iconSvg = '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>';
+                } elseif ($sellerType === 'shop') {
+                    $sellerBadge = '<span class="seller-badge official">ร้านค้าทางการ</span>';
+                    $iconClass = 'store-icon shop';
+                    $iconSvg = '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>';
+                } else {
+                    $sellerBadge = '<span class="seller-badge">ผู้ขายยืนยันตัวตน</span>';
+                }
+
+                $reviewableItems=array_values(array_filter($o['items'],fn($i)=>!empty($i['book_id'])));
+                $reviewedCount=count(array_filter($reviewableItems,fn($i)=>!empty($i['review_id'])));
+                
+                $orderJson=htmlspecialchars(json_encode(['id'=>$o['order_id'],'number'=>$o['order_number'],'state'=>$state,'stateClass'=>$stateClass,'seller'=>implode(', ',array_unique(array_map('orderSellerName',$o['items'])))?:'ร้านวนวรรณ','buyer'=>$o['shipping_name'],'phone'=>$o['shipping_phone'],'address'=>$o['shipping_address'],'courier'=>$o['shipping_courier']??'','tracking'=>$o['tracking_number']??'','subtotal'=>(float)($o['subtotal']??0),'shipping_fee'=>(float)($o['shipping_fee']??0),'total'=>(float)($o['total_amount']??0),'items'=>array_map(fn($i)=>['title'=>$i['title']?:'หนังสือ','author'=>$i['author']??'','qty'=>$i['quantity'],'price'=>(float)$i['price_at_purchase'],'img'=>orderImage($i['image_cover'])??''],$o['items'])],JSON_UNESCAPED_UNICODE),ENT_QUOTES);
+            ?>
+            <article class="order-card" onclick="openOrderDetail(this)" data-od='<?=$orderJson?>'>
+                <header class="order-head">
+                    <div class="seller-info">
+                        <div class="<?=$iconClass?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><?=$iconSvg?></svg>
+                        </div>
+                        <span class="seller-name"><?=$sellerName?></span>
+                        <?=$sellerBadge?>
+                    </div>
+                    <?php 
+                        $statusIcon = '';
+                        if($stateClass === 'completed') $statusIcon = '<polyline points="20 6 9 17 4 12"></polyline>';
+                        elseif($stateClass === 'cancelled') $statusIcon = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+                        elseif($stateClass === 'pending') $statusIcon = '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>';
+                        else $statusIcon = '<rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle>';
+                    ?>
+                    <span class="badge <?=$stateClass?>">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><?=$statusIcon?></svg>
+                        <?=$state?>
+                    </span>
+                </header>
+                
+                <div class="order-body">
+                    <div class="book-info">
+                        <?php $firstItem = $o['items'][0]; ?>
+                        <div class="cover">
+                            <?php if($img=orderImage($firstItem['image_cover'])):?>
+                                <img src="<?=htmlspecialchars($img)?>" alt="">
+                            <?php else: ?>
+                                <img src="/assets/image/placeholder.png" alt="">
+                            <?php endif;?>
+                        </div>
+                        <div class="details">
+                            <h3><?=htmlspecialchars($firstItem['title']?:'หนังสือ')?></h3>
+                            <p class="author">ผู้เขียน: <?=htmlspecialchars($firstItem['author']?:'-')?></p>
+                            <p class="qty">จำนวน: <strong>×<?=count($o['items'])==1 ? $firstItem['quantity'] : count($o['items'])?> เล่ม</strong></p>
+                            <?php if(count($o['items']) > 1): ?>
+                                <span class="edition-badge">+ ดูสินค้าอีก <?=count($o['items'])-1?> เล่มในออเดอร์นี้</span>
+                            <?php else: ?>
+                                <span class="edition-badge">จัดพิมพ์ครั้งที่ 1 (ของแถมรอบพรีออเดอร์ครบ)</span>
+                            <?php endif; ?>
+                            
+                            <?php if($stateClass === 'completed'): ?>
+                            <div class="success-text">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> ผู้ซื้อได้รับพัสดุเรียบร้อยแล้ว
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="price-info">
+                        <div class="price-label">ยอดรวมคำสั่งซื้อ</div>
+                        <div class="price-amount">฿<?=number_format($o['total_amount'],2)?></div>
+                    </div>
+                </div>
+                
+                <?php if($stateClass === 'cancelled'): ?>
+                <div class="cancel-alert">
+                    <div class="alert-content">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <span>เหตุผลที่ยกเลิก: <?=htmlspecialchars($o['cancellation_reason'] ?? 'คำสั่งซื้อถูกยกเลิกเนื่องจากเกินกำหนดเวลาชำระเงิน')?></span>
+                    </div>
+                    <span class="alert-note">ไม่มีการตัดเงินจากระบบ</span>
+                </div>
+                <?php endif; ?>
+
+                <footer class="order-foot" onclick="event.stopPropagation()">
+                    <div class="foot-info">
+                        <span>หมายเลขคำสั่งซื้อ: <strong><?=htmlspecialchars($o['order_number'])?></strong> <button class="copy-btn" onclick="navigator.clipboard.writeText('<?=htmlspecialchars($o['order_number'])?>'); alert('คัดลอกแล้ว');"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> คัดลอก</button></span>
+                        <span class="divider">|</span>
+                        <span><?=formatThaiDate($o['created_at'])?></span>
+                    </div>
+                    <div class="foot-actions">
+                        <a href="/pages/order_receipt.php?number=<?=urlencode($o['order_number'])?>" target="_blank" class="btn-outline">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> ดูใบเสร็จ
+                        </a>
+                        
+                        <?php if($stateClass==='completed' && $reviewableItems):?>
+                        <a href="/pages/review_order.php?order_id=<?=(int)$o['order_id']?>" class="btn-outline review">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> ให้คะแนน / รีวิว
+                        </a>
+                        <?php endif; ?>
+                        
+                        <?php if($stateClass==='pending'):?>
+                        <form method="post" style="margin:0; display:inline-block;">
+                            <input type="hidden" name="order_id" value="<?=$o['order_id']?>">
+                            <button class="btn-cancel" name="cancel" onclick="return confirm('แน่ใจหรือไม่ว่าต้องการยกเลิกคำสั่งซื้อ?');">ยกเลิก</button>
+                        </form>
+                        <a href="/pages/payment.php?order=<?=$o['order_id']?>" class="btn-solid" style="background:#d97706; border-color:#d97706;">ชำระเงิน</a>
+                        
+                        <?php elseif($stateClass==='shipping' && $o['shipping_status']==='shipped'):?>
+                        <form method="post" style="margin:0; display:inline-block;">
+                            <input type="hidden" name="order_id" value="<?=$o['order_id']?>">
+                            <button class="btn-solid" name="confirm_received">ยืนยันได้รับสินค้า</button>
+                        </form>
+                        
+                        <?php else: ?>
+                        <form method="post" style="margin:0; display:inline-block;">
+                            <input type="hidden" name="order_id" value="<?=$o['order_id']?>">
+                            <button class="btn-solid" name="buy_again"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> ซื้ออีกครั้ง</button>
+                        </form>
+                        <?php endif;?>
+                    </div>
+                </footer>
+            </article>
+            <?php endforeach; endif;?>
+
+            <div class="pagination">
+                <span>แสดง <?=$counts['all']?> จากทั้งหมด <?=$counts['all']?> รายการ</span>
+                <div class="page-controls">
+                    <button class="page-btn">ก่อนหน้า</button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">ถัดไป</button>
+                </div>
+            </div>
+
+            <div class="bottom-banner">
+                <div class="banner-content">
+                    <div class="shield-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <div class="banner-text">
+                        <h3>มาตรฐานการชำระเงินและการคุ้มครองผู้ซื้อ Wanawan Hub Escrow</h3>
+                        <p>ยอดเงินทุกคำสั่งซื้อจะถูกพักไว้อย่างปลอดภัยที่ระบบส่วนกลาง จนกว่าคุณจะได้รับพัสดุและตรวจสอบสภาพหนังสือตรงตามตกลง หากสินค้าไม่ตรงปกหรือไม่ได้รับของ สามารถกดขอคืนเงินเต็มจำนวนได้ทันที 100% ปราศจากการฉ้อโกง</p>
+                    </div>
+                </div>
+                <button class="btn-banner">อ่านข้อกำหนดความปลอดภัย</button>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="od-modal" id="odModal"><div class="od-box"><div class="od-head" id="odHead"><h2 id="odTitle"></h2><p id="odSub"></p></div><div class="od-section" id="odItems"></div><div class="od-section"><h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>ข้อมูลการจัดส่ง</h3><div class="od-row"><span>ผู้รับ</span><strong id="odBuyer"></strong></div><div class="od-row"><span>เบอร์โทร</span><strong id="odPhone"></strong></div><div class="od-row"><span>ที่อยู่</span><strong id="odAddress" style="max-width:320px;text-align:right"></strong></div><div id="odTrackingBox" style="display:none" class="od-tracking"><strong id="odCourier"></strong><div>หมายเลขพัสดุ: <span id="odTracking" style="font-weight:700;letter-spacing:.5px"></span></div></div></div><div class="od-section"><h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>สรุปยอดชำระ</h3><div class="od-row"><span>ยอดรวมสินค้า</span><strong id="odSubtotal"></strong></div><div class="od-row"><span>ค่าจัดส่ง</span><strong id="odShippingFee"></strong></div><div class="grand-total"><span>ยอดสุทธิ</span><strong id="odTotal"></strong></div></div><div class="od-footer-btns" id="odFooterBtns"></div></div></div>
+
+    <script>
+    const odModal=document.getElementById('odModal');
+    function openOrderDetail(el){
+      if(event.target.closest('a,button,form'))return;
+      const d=JSON.parse(el.dataset.od);
+      const colors={completed:'#059669',shipping:'#2563eb',pending:'#d97706',cancelled:'#dc2626'};
+      document.getElementById('odHead').style.background=colors[d.stateClass]||'#115e59';
+      document.getElementById('odTitle').textContent=d.seller;
+      document.getElementById('odSub').textContent=d.state+' · #'+d.number;
+      document.getElementById('odBuyer').textContent=d.buyer;
+      document.getElementById('odPhone').textContent=d.phone;
+      document.getElementById('odAddress').textContent=d.address;
+      const trackBox=document.getElementById('odTrackingBox');
+      if(d.tracking){trackBox.style.display='block';document.getElementById('odCourier').textContent='บริษัทขนส่ง: '+(d.courier||'ไม่ระบุ');document.getElementById('odTracking').textContent=d.tracking;}
+      else trackBox.style.display='none';
+      document.getElementById('odSubtotal').textContent='฿'+d.subtotal.toLocaleString(undefined,{minimumFractionDigits:2});
+      document.getElementById('odShippingFee').textContent='฿'+d.shipping_fee.toLocaleString(undefined,{minimumFractionDigits:2});
+      document.getElementById('odTotal').textContent='฿'+d.total.toLocaleString(undefined,{minimumFractionDigits:2});
+      document.getElementById('odItems').innerHTML='<h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>รายการสินค้า</h3>'+d.items.map(i=>`<div class="od-item"><img src="${i.img||'/assets/image/placeholder.png'}" onerror="this.src='/assets/image/placeholder.png'"><div class="od-item-info"><div class="od-item-title">${i.title}</div><div class="od-item-sub">${i.author} · x${i.qty}</div></div><div class="od-item-price">฿${(i.price*i.qty).toLocaleString(undefined,{minimumFractionDigits:2})}</div></div>`).join('');
+      let btns=`<button class="od-btn close-btn" onclick="odModal.classList.remove('open')">ปิด</button>`;
+      document.getElementById('odFooterBtns').innerHTML=btns;
+      odModal.classList.add('open');
+    }
+    odModal.addEventListener('click',e=>{if(e.target===odModal)odModal.classList.remove('open')});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')odModal.classList.remove('open')});
+    </script>
+
+    <?php require __DIR__.'/../components/footer.php';?>
+</body>
+</html>
