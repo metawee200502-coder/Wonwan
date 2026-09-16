@@ -95,6 +95,31 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['accept_condition_chat'])){
     $pdo->prepare('UPDATE chat_conversations SET last_message_at=NOW() WHERE conversation_id=?')->execute([$conversationId]);
     header('Location:/pages/chat.php?conversation='.$conversationId);exit;
 }
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['receive_meetup'])){
+    if(!hash_equals($_SESSION['chat_csrf'],$_POST['csrf_token']??''))exit('คำขอไม่ถูกต้อง');
+    $reqId = (int)$_POST['request_id'];
+    $q = $pdo->prepare("SELECT requester_id, meetup_requester_received, meetup_offer_received FROM exchange_requests WHERE request_id = ?");
+    $q->execute([$reqId]);
+    $er = $q->fetch(PDO::FETCH_ASSOC);
+    if($er) {
+        $isReq = ((int)$er['requester_id'] === $userId);
+        if($isReq) {
+            $pdo->prepare("UPDATE exchange_requests SET meetup_requester_received=1 WHERE request_id=?")->execute([$reqId]);
+            $er['meetup_requester_received'] = 1;
+        } else {
+            $pdo->prepare("UPDATE exchange_requests SET meetup_offer_received=1 WHERE request_id=?")->execute([$reqId]);
+            $er['meetup_offer_received'] = 1;
+        }
+        $pdo->prepare('INSERT INTO chat_messages(conversation_id,sender_user_id,message_text) VALUES(?,?,?)')->execute([$conversationId,$userId,'[MEETUP_RECEIVED]']);
+        
+        if($er['meetup_requester_received'] == 1 && $er['meetup_offer_received'] == 1) {
+            $pdo->prepare("UPDATE exchange_requests SET status='completed' WHERE request_id=?")->execute([$reqId]);
+            $pdo->prepare('INSERT INTO chat_messages(conversation_id,sender_user_id,message_text) VALUES(?,?,?)')->execute([$conversationId,0,'[EXCHANGE_COMPLETED:meetup]']);
+        }
+        $pdo->prepare('UPDATE chat_conversations SET last_message_at=NOW() WHERE conversation_id=?')->execute([$conversationId]);
+    }
+    header('Location:/pages/chat.php?conversation='.$conversationId);exit;
+}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['delete_conversation'])){
  if(!hash_equals($_SESSION['chat_csrf'],$_POST['csrf_token']??''))exit('คำขอไม่ถูกต้อง');
  $delId=(int)$_POST['delete_conversation_id'];
@@ -130,7 +155,12 @@ if($exchange&&$exchangeRequest){
   'offerQcAcceptanceStatus'=>$exchangeRequest['offer_qc_acceptance_status']??'pending',
   'adminTrackingToRequester'=>$exchangeRequest['admin_tracking_to_requester']??null,
   'adminTrackingToOffer'=>$exchangeRequest['admin_tracking_to_offer']??null,
-  'manageUrl'=>'/pages/exchange_requests.php?tab='.((int)$exchangeRequest['requester_id']===$userId?'sent':'received')
+  'manageUrl'=>'/pages/exchange_requests.php?tab='.((int)$exchangeRequest['requester_id']===$userId?'sent':'received'),
+  'meetupDate'=>$exchangeRequest['meetup_date']??null,
+  'meetupTime'=>$exchangeRequest['meetup_time']??null,
+  'meetupLocation'=>$exchangeRequest['meetup_location']??null,
+  'myMeetupReceived'=>((int)$exchangeRequest['requester_id']===$userId)?(int)($exchangeRequest['meetup_requester_received']??0):(int)($exchangeRequest['meetup_offer_received']??0),
+  'ptMeetupReceived'=>((int)$exchangeRequest['requester_id']===$userId)?(int)($exchangeRequest['meetup_offer_received']??0):(int)($exchangeRequest['meetup_requester_received']??0)
  ];
 }
 $chatContextBar=null;
@@ -175,33 +205,36 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(!data.tradeOption){
    const propForm = document.createElement('form');
    propForm.method = 'post';
-   propForm.style.cssText = 'padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05)';
+   propForm.style.cssText = 'padding:20px;background:#f0f7ff;border:1px solid #cce0ff;border-radius:12px;';
    propForm.innerHTML = `<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['chat_csrf']??''); ?>">
    <input type="hidden" name="request_id" value="${data.requestId}">
-   <label style="font-size:12px; font-weight:600; color:#1e40af; margin-bottom:6px; display:block;">💬 กำลังเจรจา: กรุณาเสนอรูปแบบการแลกเปลี่ยน</label>
-   <select name="trade_option" id="tradeOptionSelect" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #bfdbfe;border-radius:6px;margin-bottom:10px;font-size:13px;outline:none;" required>
+   <label style="font-size:14px; font-weight:700; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:#e0e7ff"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+     กำลังเจรจา: กรุณาเสนอรูปแบบการแลกเปลี่ยน
+   </label>
+   <select name="trade_option" id="tradeOptionSelect" style="box-sizing:border-box;width:100%;padding:10px 14px;border:1px solid #a5caff;border-radius:8px;margin-bottom:16px;font-size:14px;outline:none;background:#fff;color:#333;font-family:inherit;" required>
      <option value="" disabled selected>-- เลือกรูปแบบการแลกเปลี่ยน --</option>
      <option value="direct_escrow">ส่งตรงให้กัน (P2P Escrow)</option>
      <option value="admin_qc">ส่งผ่านส่วนกลาง (Admin QC)</option>
      <option value="meetup">นัดรับ (Meet-up)</option>
    </select>
-   <div id="deadlineGroup" style="display:none;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:10px;border:1px solid #e2e8f0;">
-     <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">ระยะเวลาจัดส่ง (วัน)</label>
-     <select name="deadline_days" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;">
+   <div id="deadlineGroup" style="display:none;background:#fff;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #cce0ff;">
+     <label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">ระยะเวลาจัดส่ง (วัน)</label>
+     <select name="deadline_days" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;outline:none;font-family:inherit;">
        <option value="3">ภายใน 3 วัน</option>
        <option value="5">ภายใน 5 วัน</option>
        <option value="7">ภายใน 7 วัน</option>
      </select>
    </div>
-   <div id="meetupGroup" style="display:none;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:10px;border:1px solid #e2e8f0;">
-     <div style="display:flex;gap:8px;margin-bottom:8px;">
-       <div style="flex:1;"><label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">วันที่</label><input type="date" name="meetup_date" min="<?php echo date('Y-m-d'); ?>" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;"></div>
-       <div style="flex:1;"><label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">เวลา</label><input type="time" name="meetup_time" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;"></div>
+   <div id="meetupGroup" style="display:none;background:#fff;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #cce0ff;">
+     <div style="display:flex;gap:10px;margin-bottom:10px;">
+       <div style="flex:1;"><label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">วันที่</label><input type="date" name="meetup_date" min="<?php echo date('Y-m-d'); ?>" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;outline:none;font-family:inherit;"></div>
+       <div style="flex:1;"><label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">เวลา</label><input type="time" name="meetup_time" style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;outline:none;font-family:inherit;"></div>
      </div>
-     <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">สถานที่นัดรับ</label>
-     <input type="text" name="meetup_location" placeholder="ระบุสถานที่นัดพบ..." style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;">
+     <label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">สถานที่นัดรับ</label>
+     <input type="text" name="meetup_location" placeholder="ระบุสถานที่นัดพบ..." style="box-sizing:border-box;width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;outline:none;font-family:inherit;">
    </div>
-   <button name="propose_full_trade" class="btn primary" style="width:100%;padding:10px;border-radius:6px;background:#3b82f6;color:#fff;font-weight:600;border:0;cursor:pointer;">เสนอเงื่อนไขนี้</button>`;
+   <button name="propose_full_trade" class="btn primary" style="width:100%;padding:12px;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:14px;border:0;cursor:pointer;font-family:inherit;transition:background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">เสนอเงื่อนไขนี้</button>`;
    const w=document.createElement('div');w.append(propForm);insertBanner(w);
    
    propForm.querySelector('#tradeOptionSelect').addEventListener('change', function() {
@@ -572,6 +605,80 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     if(cb.children.length>0)insertBanner(cb);
    }
+  } else if(data.tradeOption==='meetup'){
+      const cb = document.createElement('div');
+      const mDate = data.meetupDate;
+      const mTime = data.meetupTime;
+      const mLoc = data.meetupLocation;
+      
+      let timeText = '';
+      if(mDate) {
+          const targetDate = new Date(`${mDate}T${mTime || '00:00'}`);
+          const now = new Date();
+          const diff = targetDate - now;
+          if (diff > 0) {
+              const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+              const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+              timeText = `(อีก ${d > 0 ? d+' วัน ' : ''}${h > 0 ? h+' ชม. ' : ''}${m} นาที)`;
+          } else {
+              timeText = '<span style="color:#e11d48;font-weight:600;">(ถึงเวลานัดหมายแล้ว)</span>';
+          }
+      }
+      
+      if (!data.myMeetupReceived) {
+          const b=document.createElement('div');
+          b.style.cssText='padding:12px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.02);display:flex;align-items:center;justify-content:space-between;gap:12px;';
+          
+          b.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0;">
+              <div style="width:34px;height:34px;border-radius:50%;background:#e0e7ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+              <div style="text-align:left;flex:1;min-width:0;">
+                  <strong style="display:block;font-size:14px;color:#1e293b;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">มีนัดรับสินค้านะ!</strong>
+                  <div style="font-size:12px;color:#475569;line-height:1.4;">
+                      <div><span style="font-weight:600;">วันที่:</span> ${mDate || '-'}</div>
+                      <div><span style="font-weight:600;">เวลา:</span> ${mTime || '-'} น. ${timeText}</div>
+                      <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="font-weight:600;">สถานที่:</span> ${mLoc || '-'}</div>
+                  </div>
+              </div>
+          </div>`;
+          
+          const btn = document.createElement('button');
+          btn.className = 'btn primary';
+          btn.innerHTML = 'รับสำเร็จ';
+          btn.style.cssText = 'padding:6px 14px;background:#10b981;border:none;color:#fff;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(16,185,129,0.2);white-space:nowrap;flex-shrink:0;';
+          btn.onclick = function() {
+              Swal.fire({
+                  title: 'รับสำเร็จ?',
+                  text: 'คุณได้รับสินค้าจากการนัดรับเรียบร้อยแล้วใช่หรือไม่?',
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonColor: '#10b981',
+                  cancelButtonText: 'ยกเลิก',
+                  confirmButtonText: 'ใช่, ได้รับแล้ว'
+              }).then((result) => {
+                  if (result.isConfirmed) {
+                      const f=document.createElement('form');f.method='post';
+                      f.innerHTML='<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['chat_csrf']??''); ?>"><input type="hidden" name="receive_meetup" value="1"><input type="hidden" name="request_id" value="'+data.requestId+'">';
+                      document.body.append(f);f.submit();
+                  }
+              });
+          };
+          b.append(btn);
+          cb.append(b);
+      } else if (!data.ptMeetupReceived) {
+          const b=document.createElement('div');
+          b.style.cssText='padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;border:1px solid #fef08a;margin-bottom:12px;gap:12px;';
+          b.innerHTML='<div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">คุณกดรับสำเร็จแล้ว</strong><span style="font-size:12px;opacity:0.8;">รออีกฝ่ายกดยืนยันการรับสินค้า</span></div>';
+          cb.append(b);
+      } else {
+          const b=document.createElement('div');
+          b.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;border:1px solid #bbf7d0;margin-bottom:12px;gap:12px;';
+          b.innerHTML='<div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">การแลกเปลี่ยนสำเร็จ!</strong></div>';
+          cb.append(b);
+      }
+      insertBanner(cb);
   }
  }
 });

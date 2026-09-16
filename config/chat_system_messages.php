@@ -25,6 +25,14 @@ function parse_chat_system_message($text, $pdo = null, $userId = null) {
         return '<div style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);border:1px solid #bfdbfe;padding:10px 14px;border-radius:10px;color:#1e40af;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
             '<span style="font-size:14px;margin-right:4px;">📦</span> <strong>แจ้งเลขพัสดุ</strong> จัดส่งสินค้าและแจ้งเลขพัสดุเรียบร้อยแล้ว'.
             '</div>';
+    } elseif (preg_match('/\[MEETUP_RECEIVED\]/', $text, $matches)) {
+        return '<div style="background:linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);border:1px solid #fef08a;padding:10px 14px;border-radius:10px;color:#854d0e;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
+            '<span style="font-size:14px;margin-right:4px;">🤝</span> <strong>ยืนยันการนัดรับ</strong> กดยืนยันการรับสินค้าจากการนัดรับแล้ว'.
+            '</div>';
+    } elseif (preg_match('/\[EXCHANGE_COMPLETED:meetup\]/', $text, $matches)) {
+        return '<div style="background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);border:1px solid #bbf7d0;padding:10px 14px;border-radius:10px;color:#166534;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
+            '<span style="font-size:14px;margin-right:4px;">🎉</span> <strong>การแลกเปลี่ยนสำเร็จ!</strong> ทั้งสองฝ่ายยืนยันการรับสินค้าเรียบร้อยแล้ว'.
+            '</div>';
     }
     return null;
 }

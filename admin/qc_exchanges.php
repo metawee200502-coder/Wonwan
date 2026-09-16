@@ -535,6 +535,7 @@ function chatImage($v) {
             to {transform: scale(1); opacity: 1;}
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
@@ -655,8 +656,17 @@ function chatImage($v) {
                                         <div class="qc-val"><?= mb_strimwidth(htmlspecialchars($r['requester_address'] ?? 'ยังไม่ระบุ'), 0, 30, '...') ?></div>
                                     </div>
                                     <div>
-                                        <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
-                                        <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['req_p2p_company']) && !empty($r['req_p2p_tracking'])) ? $r['req_p2p_company'].' : '.$r['req_p2p_tracking'] : ($r['req_p2p_tracking'] ?? '-')) : ($r['requester_tracking_to_admin'] ?? '-')) ?></div>
+                                        <?php if ($r['trade_option'] === 'meetup'): ?>
+                                            <div class="qc-label">ข้อมูลการนัดรับ</div>
+                                            <div class="qc-val">
+                                                <button type="button" class="btn-outline" style="padding:4px 10px; font-size:11px;" onclick="Swal.fire({title: 'ข้อมูลนัดรับ (Meet-up)', html: '<div style=\'text-align:left; line-height:1.6;\'><p><b>วันที่:</b> <?= htmlspecialchars($r['meetup_date'] ?? '-') ?></p><p><b>เวลา:</b> <?= htmlspecialchars($r['meetup_time'] ?? '-') ?> น.</p><p><b>สถานที่:</b> <?= htmlspecialchars($r['meetup_location'] ?? '-') ?></p></div>', icon: 'info', confirmButtonColor: '#0F766E'})">
+                                                    <i class="fas fa-calendar-alt"></i> ดูข้อมูลนัดรับ
+                                                </button>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
+                                            <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['req_p2p_company']) && !empty($r['req_p2p_tracking'])) ? $r['req_p2p_company'].' : '.$r['req_p2p_tracking'] : ($r['req_p2p_tracking'] ?? '-')) : ($r['requester_tracking_to_admin'] ?? '-')) ?></div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="qc-slip-row">
@@ -690,8 +700,17 @@ function chatImage($v) {
                                         <div class="qc-val"><?= mb_strimwidth(htmlspecialchars($r['offer_address'] ?? 'ยังไม่ระบุ'), 0, 30, '...') ?></div>
                                     </div>
                                     <div>
-                                        <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
-                                        <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['off_p2p_company']) && !empty($r['off_p2p_tracking'])) ? $r['off_p2p_company'].' : '.$r['off_p2p_tracking'] : ($r['off_p2p_tracking'] ?? '-')) : ($r['offer_tracking_to_admin'] ?? '-')) ?></div>
+                                        <?php if ($r['trade_option'] === 'meetup'): ?>
+                                            <div class="qc-label">ข้อมูลการนัดรับ</div>
+                                            <div class="qc-val">
+                                                <button type="button" class="btn-outline" style="padding:4px 10px; font-size:11px;" onclick="Swal.fire({title: 'ข้อมูลนัดรับ (Meet-up)', html: '<div style=\'text-align:left; line-height:1.6;\'><p><b>วันที่:</b> <?= htmlspecialchars($r['meetup_date'] ?? '-') ?></p><p><b>เวลา:</b> <?= htmlspecialchars($r['meetup_time'] ?? '-') ?> น.</p><p><b>สถานที่:</b> <?= htmlspecialchars($r['meetup_location'] ?? '-') ?></p></div>', icon: 'info', confirmButtonColor: '#0F766E'})">
+                                                    <i class="fas fa-calendar-alt"></i> ดูข้อมูลนัดรับ
+                                                </button>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
+                                            <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['off_p2p_company']) && !empty($r['off_p2p_tracking'])) ? $r['off_p2p_company'].' : '.$r['off_p2p_tracking'] : ($r['off_p2p_tracking'] ?? '-')) : ($r['offer_tracking_to_admin'] ?? '-')) ?></div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="qc-slip-row">
