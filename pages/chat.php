@@ -212,219 +212,230 @@ document.addEventListener('DOMContentLoaded',()=>{
   } else if(needsDL&&!hasDL){
    const b=document.createElement('div');b.style.cssText='padding:14px;background:#fff3cd;color:#856404;border-radius:8px;font-size:14px;text-align:center;border:1px solid #ffeeba';b.innerHTML='\u23f3 <strong>\u0e23\u0e2d\u0e02\u0e49\u0e2d\u0e2a\u0e23\u0e38\u0e1b\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e15\u0e01\u0e25\u0e07\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e43\u0e19\u0e41\u0e0a\u0e17\u0e01\u0e48\u0e2d\u0e19\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e15\u0e48\u0e2d';const w=document.createElement('div');w.append(b);insertBanner(w);
   } else if(data.tradeOption==='admin_qc'){
-   const cb=document.createElement('div');const mySlip=data.isRequester?data.requesterSlipStatus:data.offerSlipStatus;const myTr=data.isRequester?data.requesterTrackingToAdmin:data.offerTrackingToAdmin;const ptTr=data.isRequester?data.offerTrackingToAdmin:data.requesterTrackingToAdmin;
-   if(!data.conditionsAccepted){
-       if (data.myCondition && !data.partnerCondition) {
-           const b = document.createElement('div');
-           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;border:1px solid #fde68a;margin-bottom:12px;gap:12px;';
-           b.innerHTML = '<div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รออีกฝ่ายเพิ่มฟอร์มภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">คุณกรอกฟอร์มแล้ว กรุณารอให้อีกฝ่ายกรอกข้อมูล</span></div>';
-           cb.append(b);
-       } else if (!data.myCondition && data.partnerCondition) {
-           const b = document.createElement('div');
-           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
-           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">อีกฝ่ายเพิ่มรูปภาพสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">ดูรายละเอียดเพื่อตรวจสอบและกรอกข้อมูลของคุณ</span></div></div>';
-           const btn=document.createElement('button');
-           btn.className='btn primary';
-           btn.textContent='ดูแบบฟอร์ม';
-           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
-           btn.onclick=function(){
-               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
-               if(modal&&iframe){
-                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
-                   modal.style.display='flex';
-               }else{
-                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
-               }
-           };
-           b.append(btn);
-           cb.append(b);
-       } else if (data.myCondition && data.partnerCondition) {
-           const b = document.createElement('div');
-           b.style.cssText = 'padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fef08a;margin-bottom:12px;gap:10px;';
-           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ตรวจสอบสภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">ทั้งสองฝ่ายกรอกข้อมูลแล้ว กรุณาเข้าไปกดยอมรับ</span></div></div>';
-           const btn=document.createElement('button');
-           btn.className='btn primary';
-           btn.textContent='ตรวจสอบ';
-           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#eab308; border-color:#eab308; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
-           btn.onclick=function(){
-               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
-               if(modal&&iframe){
-                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
-                   modal.style.display='flex';
-               }else{
-                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
-               }
-           };
-           b.append(btn);
-           cb.append(b);
-       } else {
-           const banner = makeCondBtn(); 
-           if(banner) cb.append(banner);
-       }
-   }
-   else if(!mySlip){
-       const b=document.createElement('div');
-       b.style.cssText='padding:12px 16px;background:#fff1f2;color:#be123c;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #ffe4e6;margin-bottom:12px;gap:10px;';
-       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ชำระค่าบริการส่วนกลาง (QC)</strong><span style="font-size:12px;opacity:0.8;">กรุณาโอนเงินค่าบริการและแนบสลิป</span></div></div>';
-       const btn=document.createElement('button');
-       btn.className='btn primary';
-       btn.textContent='แนบสลิป';
-       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#e11d48; border-color:#e11d48; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
-       btn.onclick=function(){
-    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-    if(modal&&iframe){
-        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> ชำระค่าบริการส่วนกลาง (QC)';
-        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
-        modal.style.display='flex';
-    } else {
-        window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+    const cb=document.createElement('div');
+    const mySlip=data.isRequester?data.requesterSlipStatus:data.offerSlipStatus;
+    const myTr=data.isRequester?data.requesterTrackingToAdmin:data.offerTrackingToAdmin;
+    const ptTr=data.isRequester?data.offerTrackingToAdmin:data.requesterTrackingToAdmin;
+    const ptQcStatus=data.isRequester?data.offerQcStatus:data.requesterQcStatus;
+    const myQcAcc=data.isRequester?data.requesterQcAcceptanceStatus:data.offerQcAcceptanceStatus;
+    const ptQcAcc=data.isRequester?data.offerQcAcceptanceStatus:data.requesterQcAcceptanceStatus;
+    const myAdminTr=data.isRequester?data.adminTrackingToRequester:data.adminTrackingToOffer;
+    const myRv=(data.partnerCondition)?parseInt(data.partnerCondition.is_received):0;
+
+    if(!data.conditionsAccepted){
+        if (data.myCondition && !data.partnerCondition) {
+            const b = document.createElement('div');
+            b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;border:1px solid #fde68a;margin-bottom:12px;gap:12px;';
+            b.innerHTML = '<div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รออีกฝ่ายเพิ่มฟอร์มภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">คุณกรอกฟอร์มแล้ว กรุณารอให้อีกฝ่ายกรอกข้อมูล</span></div>';
+            cb.append(b);
+        } else if (!data.myCondition && data.partnerCondition) {
+            const b = document.createElement('div');
+            b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+            b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">อีกฝ่ายเพิ่มรูปภาพสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">ดูรายละเอียดเพื่อตรวจสอบและกรอกข้อมูลของคุณ</span></div></div>';
+            const btn=document.createElement('button');btn.className='btn primary';btn.textContent='ดูแบบฟอร์ม';btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+            btn.onclick=function(){const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');if(modal&&iframe){iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;modal.style.display='flex';}else{window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;}};b.append(btn);cb.append(b);
+        } else if (data.myCondition && data.partnerCondition) {
+            const b = document.createElement('div');
+            b.style.cssText = 'padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fef08a;margin-bottom:12px;gap:10px;';
+            b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ตรวจสอบสภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">ทั้งสองฝ่ายกรอกข้อมูลแล้ว กรุณาเข้าไปกดยอมรับ</span></div></div>';
+            const btn=document.createElement('button');btn.className='btn primary';btn.textContent='ตรวจสอบ';btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#eab308; border-color:#eab308; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+            btn.onclick=function(){const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');if(modal&&iframe){iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;modal.style.display='flex';}else{window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;}};b.append(btn);cb.append(b);
+        } else {
+            const banner = makeCondBtn(); 
+            if(banner) cb.append(banner);
+        }
     }
-};b.append(btn);cb.append(b);}
-   else if(mySlip==='pending'||mySlip==='pending_verification'){
-       const b=document.createElement('div');
-       b.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
-       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอแอดมินตรวจสอบ</strong><span style="font-size:12px;opacity:0.8;">ทีมงานกำลังตรวจสอบสลิปการชำระเงินของคุณ</span></div></div>';
-       const btn=document.createElement('button');
-       btn.className='btn primary outline';
-       btn.textContent='รอแอดมินตรวจสอบ';
-       btn.style.cssText='white-space:nowrap; padding:6px 14px; border:1px solid #d97706; color:#d97706; background:transparent; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
-       btn.onclick=function(){
-    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-    if(modal&&iframe){
-        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> สถานะการชำระเงิน (QC)';
-        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
-        modal.style.display='flex';
-    } else {
-        window.location.href='/pages/trade_qc_l   else if(myTr && (!ptTr || data.requesterQcStatus === 'pending' || data.offerQcStatus === 'pending')){
-       const b=document.createElement('div');
-       b.style.cssText='padding:12px 16px;background:#f3f4f6;color:#374151;border-radius:8px;display:flex;align-items:center;border:1px solid #e5e7eb;margin-bottom:12px;gap:12px;';
-       b.innerHTML='<div style="color:#4b5563;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอสินค้าถึงแอดมิน แล้วตรวจสอบสินค้าอีกครั้ง</strong><span style="font-size:12px;opacity:0.8;">ส่งพัสดุเรียบร้อยแล้ว กรุณารอทีมงานตรวจสอบ</span></div>';
-       cb.append(b);
-   }
-   else if(myTr&&ptTr){�ที่อยู่และเลขพัสดุที่ส่งให้บริษัท</span></div></div>';
-       const btn=document.createElement('button');
-       btn.className='btn primary';
-       btn.textContent='เพิ่มที่อยู่และส่งสินค้าไปยังบริษัท';
-       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#2563eb; border-color:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
-       btn.onclick=function(){
-    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-    if(modal&&iframe){
-        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> แจ้งเลขพัสดุส่วนกลาง (QC)';
-        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
-        modal.style.display='flex';
-    } else {
-        window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+    else if(!mySlip){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#fff1f2;color:#be123c;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #ffe4e6;margin-bottom:12px;gap:10px;';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ชำระค่าบริการส่วนกลาง (QC)</strong><span style="font-size:12px;opacity:0.8;">กรุณาโอนเงินค่าบริการและแนบสลิป</span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.textContent='แนบสลิป';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#e11d48; border-color:#e11d48; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
+            const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+            if(modal&&iframe){
+                modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> ชำระค่าบริการส่วนกลาง (QC)';
+                iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+                modal.style.display='flex';
+            } else {
+                window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+            }
+        };b.append(btn);cb.append(b);
     }
-};b.append(btn);cb.append(b);}
-   else if(myTr&&!ptTr){
-       const b=document.createElement('div');
-       b.style.cssText='padding:12px 16px;background:#f3e8ff;color:#6b21a8;border-radius:8px;display:flex;align-items:center;border:1px solid #e9d5ff;margin-bottom:12px;gap:12px;';
-       b.innerHTML='<div style="color:#9333ea;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">จัดส่งพัสดุให้ QC เรียบร้อยแล้ว</strong><span style="font-size:12px;opacity:0.8;">รอให้อีกฝ่ายจัดส่งพัสดุเช่นกัน</span></div>';
-       cb.append(b);
-   }
-   else if(myTr&&ptTr){
-    const reqQc=data.requesterQcStatus;
-    const offQc=data.offerQcStatus;
-    if(reqQc!=='pending'&&offQc!=='pending'){
-     const myQcAcc=data.isRequester?data.requesterQcAcceptanceStatus:data.offerQcAcceptanceStatus;
-     const ptQcAcc=data.isRequester?data.offerQcAcceptanceStatus:data.requesterQcAcceptanceStatus;
-     
-     if (myQcAcc==='pending') {
-         const b=document.createElement('div');b.style.cssText='padding:15px;background:#f0fdf4;color:#166534;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bbf7d0;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';
-         b.innerHTML='📋 <strong>แอดมินส่งฟอร์มตรวจสภาพสินค้าแล้ว</strong><br>กรุณาตรวจสอบและยืนยันผลการประเมินจากส่วนกลาง<br><br>';
-         
-         const btnView=document.createElement('button');btnView.className='btn primary';btnView.textContent='ดูฟอร์ม QC';btnView.style.cssText='padding:8px 16px;background:#059669;border-color:#059669;margin-right:10px;';
-         btnView.onclick=function(){
-             const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-             if(modal&&iframe){
-                 modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> ฟอร์มรายงาน QC จากส่วนกลาง';
-                 iframe.src='/pages/trade_qc_report_view.php?request_id='+data.requestId+'&iframe=1';
-                 modal.style.display='flex';
-             }
-         };
-         
-         const btnReject=document.createElement('button');btnReject.className='btn outline danger';btnReject.textContent='ปฏิเสธ';btnReject.style.cssText='padding:8px 16px;margin-right:10px;';
-         btnReject.onclick=function(){
-             const r = prompt('กรุณาระบุเหตุผลที่ปฏิเสธผล QC (การปฏิเสธจะยกเลิกการแลกเปลี่ยนนี้ทันที):');
-             if(r!==null && r.trim()!==''){
-                 const f = document.createElement('form'); f.method = 'post'; f.action = '/pages/handlers/trade_qc_acceptance.php';
-                 f.innerHTML = '<input type="hidden" name="action" value="reject"><input type="hidden" name="request_id" value="'+data.requestId+'"><input type="hidden" name="reason" value="'+r+'">';
-                 
-                 // Since we use fetch instead of full page reload to keep it modern
-                 fetch('/pages/handlers/trade_qc_acceptance.php', {
-                     method: 'POST', body: new FormData(f)
-                 }).then(res=>res.json()).then(res=>{
-                     if(res.success) window.location.reload();
-                     else alert(res.message||'Error');
-                 });
-             }
-         };
-         
-         const btnAccept=document.createElement('button');btnAccept.className='btn primary';btnAccept.textContent='ตกลง';btnAccept.style.cssText='padding:8px 16px;background:#2563eb;border-color:#2563eb;';
-         btnAccept.onclick=function(){
-             if(confirm('คุณยืนยันที่จะยอมรับผลการตรวจสอบจาก QC ใช่หรือไม่?')){
-                 const f = new FormData(); f.append('action', 'accept'); f.append('request_id', data.requestId);
-                 fetch('/pages/handlers/trade_qc_acceptance.php', {
-                     method: 'POST', body: f
-                 }).then(res=>res.json()).then(res=>{
-                     if(res.success) window.location.reload();
-                     else alert(res.message||'Error');
-                 });
-             }
-         };
-         
-         b.append(btnView, btnReject, btnAccept); cb.append(b);
-     } else if (myQcAcc==='accepted' && ptQcAcc==='pending') {
-         const b=document.createElement('div');b.style.cssText='padding:14px;background:#fef3c7;color:#92400e;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fde68a';
-         b.innerHTML='⏳ <strong>รออีกฝ่ายยืนยันผล QC</strong><br>คุณกดยอมรับแล้ว กรุณารอให้อีกฝ่ายตรวจสอบและยืนยัน';
-         
-         const btnView=document.createElement('button');btnView.className='btn outline primary';btnView.textContent='ดูฟอร์ม QC';btnView.style.cssText='padding:4px 12px;margin-top:10px;font-size:12px;';
-         btnView.onclick=function(){
-             const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
-             if(modal&&iframe){
-                 modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> ฟอร์มรายงาน QC จากส่วนกลาง';
-                 iframe.src='/pages/trade_qc_report_view.php?request_id='+data.requestId+'&iframe=1';
-                 modal.style.display='flex';
-             }
-         };
-         b.append(btnView);
-         cb.append(b);
-     } else if (myQcAcc==='accepted' && ptQcAcc==='accepted') {
-         const myAdminTr = data.isRequester ? data.adminTrackingToRequester : data.adminTrackingToOffer;
-         const myRv = (data.partnerCondition) ? parseInt(data.partnerCondition.is_received) : 0;
-         
-         if (myAdminTr) {
-             const sb=document.createElement('div');sb.style.cssText='padding:15px;background:#f0fff4;color:#276749;border-radius:8px;font-size:14px;text-align:center;border:1px solid #c6f6d5;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';
-             
-             if (!myRv) {
-                 sb.innerHTML='📦 <strong>แอดมินจัดส่งสินค้าแล้ว!</strong><br>ขนส่ง/เลขพัสดุ: <span style="color:#059669;font-weight:600;">'+myAdminTr+'</span><br><br>';
-                 const btn=document.createElement('button');btn.className='btn';btn.style.cssText='background:#48bb78;color:#fff;padding:8px 16px';btn.textContent='✅ ยืนยันได้รับสินค้าแล้ว';
-                 btn.onclick=function(){
-                     if(confirm('ยืนยันว่าได้รับสินค้าเรียบร้อยแล้ว?')){
-                         const f=document.createElement('form');f.method='post';f.action='/pages/handlers/trade_submit_logistics.php';
-                         f.innerHTML='<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="'+data.requestId+'">';
-                         document.body.append(f);f.submit();
-                     }
-                 };
-                 sb.append(btn);
-             } else {
-                 sb.innerHTML='🎉 <strong>คุณได้รับสินค้าแล้ว!</strong><br>การแลกเปลี่ยนฝั่งคุณเสร็จสมบูรณ์';
-             }
-             cb.append(sb);
-         } else {
-             const b=document.createElement('div');b.style.cssText='padding:14px;background:#f0fff4;color:#166534;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bbf7d0';
-             b.innerHTML='📦 <strong>รอกลางจัดส่งสินค้า</strong><br>ทั้งสองฝ่ายยอมรับผลประเมินแล้ว แอดมินกำลังจัดส่งสินค้าให้คุณ';
-             cb.append(b);
-         }
-     }
-    } else {
-     const b=document.createElement('div');b.style.cssText='padding:14px;background:#f3e8ff;color:#6b21a8;border-radius:8px;font-size:14px;text-align:center;border:1px solid #d8b4fe';b.innerHTML='\ud83d\udd0d <strong>\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e1e\u0e31\u0e2a\u0e14\u0e38\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27 (\u0e17\u0e31\u0e49\u0e07\u0e2a\u0e2d\u0e07\u0e1d\u0e48\u0e32\u0e22)</strong><br>\u0e23\u0e2d\u0e43\u0e2b\u0e49\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e41\u0e25\u0e30\u0e08\u0e30\u0e21\u0e35\u0e01\u0e32\u0e23\u0e2a\u0e48\u0e07\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e21\u0e32\u0e43\u0e2b\u0e49';cb.append(b);
+    else if(mySlip==='pending'||mySlip==='pending_verification'){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอแอดมินตรวจสอบ</strong><span style="font-size:12px;opacity:0.8;">ทีมงานกำลังตรวจสอบสลิปการชำระเงินของคุณ</span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary outline';
+        btn.textContent='รอแอดมินตรวจสอบ';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; border:1px solid #d97706; color:#d97706; background:transparent; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
+            const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+            if(modal&&iframe){
+                modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> สถานะการชำระเงิน (QC)';
+                iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+                modal.style.display='flex';
+            } else {
+                window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+            }
+        };b.append(btn);cb.append(b);
     }
-   }
-   if(cb.children.length>0)insertBanner(cb);
-  } else if(data.tradeOption==='direct_escrow'){
+    else if(!myTr){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#eff6ff;color:#1e40af;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #bfdbfe;margin-bottom:12px;gap:10px;';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#2563eb;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">แจ้งเลขพัสดุส่วนกลาง (QC)</strong><span style="font-size:12px;opacity:0.8;">กรุณาจัดส่งสินค้าไปยังบริษัท</span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.textContent='เพิ่มที่อยู่และส่งสินค้าไปยังบริษัท';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#2563eb; border-color:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
+            const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+            if(modal&&iframe){
+                modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg> แจ้งเลขพัสดุส่วนกลาง (QC)';
+                iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+                modal.style.display='flex';
+            } else {
+                window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+            }
+        };b.append(btn);cb.append(b);
+    }
+    else if(ptQcStatus === 'pending'){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#f3f4f6;color:#374151;border-radius:8px;display:flex;align-items:center;border:1px solid #e5e7eb;margin-bottom:12px;gap:12px;';
+        b.innerHTML='<div style="color:#4b5563;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอสินค้าถึงแอดมิน แล้วตรวจสอบสินค้าอีกครั้ง</strong><span style="font-size:12px;opacity:0.8;">ส่งพัสดุเรียบร้อยแล้ว กรุณารอทีมงานตรวจสอบ</span></div>';
+        cb.append(b);
+    }
+    else if(myQcAcc === 'pending'){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#eff6ff;color:#1e40af;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #bfdbfe;margin-bottom:12px;gap:10px;flex-wrap:wrap;';
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#2563eb;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">แอดมินส่งฟอร์มตรวจสภาพสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">กรุณาตรวจสอบและยืนยันผลการประเมินจากส่วนกลาง</span></div></div>';
+        
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display:flex; gap:8px; align-items:center;';
+
+        const btnView=document.createElement('button');
+        btnView.className='btn primary';
+        btnView.textContent='ดูรายละเอียด';
+        btnView.style.cssText='white-space:nowrap; padding:6px 14px; background:#2563eb; border:1px solid #2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btnView.onclick=function(){
+            const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+            if(modal&&iframe){
+                modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg> ฟอร์มรายงาน QC จากส่วนกลาง';
+                iframe.src='/pages/trade_qc_report_view.php?request_id='+data.requestId+'&iframe=1';
+                modal.style.display='flex';
+            }
+        };
+        
+        const btnReject=document.createElement('button');
+        btnReject.className='btn outline danger';
+        btnReject.textContent='ปฏิเสธ';
+        btnReject.style.cssText='white-space:nowrap; padding:6px 14px; background:transparent; border:1px solid #ef4444; color:#ef4444; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btnReject.onclick=function(){
+            Swal.fire({
+                title: 'ปฏิเสธผล QC',
+                text: 'กรุณาระบุเหตุผลที่ปฏิเสธผล QC (การปฏิเสธจะยกเลิกการแลกเปลี่ยนนี้ทันที)',
+                input: 'text',
+                inputPlaceholder: 'เหตุผลการปฏิเสธ',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'ยืนยันปฏิเสธ',
+                cancelButtonText: 'ยกเลิก',
+                inputValidator: (value) => {
+                    if (!value || value.trim() === '') {
+                        return 'กรุณาระบุเหตุผล!';
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const f = new FormData(); f.append('action', 'reject'); f.append('request_id', data.requestId); f.append('reason', result.value);
+                    fetch('/pages/handlers/trade_qc_acceptance.php', { method: 'POST', body: f }).then(res=>res.json()).then(res=>{
+                        if(res.success) window.location.reload();
+                        else Swal.fire('ข้อผิดพลาด', res.message||'Error', 'error');
+                    });
+                }
+            });
+        };
+
+        const btnAccept=document.createElement('button');
+        btnAccept.className='btn primary';
+        btnAccept.textContent='คอนเฟิร์มรับสินค้า';
+        btnAccept.style.cssText='white-space:nowrap; padding:6px 14px; background:#10b981; border:1px solid #10b981; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btnAccept.onclick=function(){
+            Swal.fire({
+                title: 'ยืนยันการรับสินค้า?',
+                text: 'คุณยืนยันที่จะยอมรับผลการตรวจสอบและรับสินค้า ใช่หรือไม่?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'ใช่, ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const f = new FormData(); f.append('action', 'accept'); f.append('request_id', data.requestId);
+                    fetch('/pages/handlers/trade_qc_acceptance.php', {
+                        method: 'POST', body: f
+                    }).then(res=>res.json()).then(res=>{
+                        if(res.success) window.location.reload();
+                        else Swal.fire('ข้อผิดพลาด', res.message||'Error', 'error');
+                    });
+                }
+            });
+        };
+        
+        btnContainer.append(btnView, btnReject, btnAccept);
+        b.append(btnContainer);
+        cb.append(b);
+    }
+    else if(!myAdminTr){
+        const b=document.createElement('div');
+        b.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;border:1px solid #bbf7d0;margin-bottom:12px;gap:12px;';
+        b.innerHTML='<div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอส่วนกลางจัดส่งสินค้า</strong><span style="font-size:12px;opacity:0.8;">ยอมรับผลการประเมินแล้ว แอดมินกำลังจัดส่งสินค้าให้คุณ</span></div>';
+        cb.append(b);
+    }
+    else if(!myRv){
+        const sb=document.createElement('div');
+        sb.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #bbf7d0;margin-bottom:12px;gap:10px;flex-wrap:wrap;';
+        sb.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">แอดมินจัดส่งสินค้าแล้ว!</strong><span style="font-size:12px;opacity:0.8;">ขนส่ง/เลขพัสดุ: <span style="font-weight:600;">'+myAdminTr+'</span></span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.textContent='ยืนยันได้รับสินค้าแล้ว';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#10b981; border:1px solid #10b981; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
+            Swal.fire({
+                title: 'ยืนยันการรับสินค้า?',
+                text: 'ยืนยันว่าได้รับสินค้าจากแอดมินเรียบร้อยแล้วใช่หรือไม่?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'ใช่, ได้รับแล้ว',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const f=document.createElement('form');f.method='post';f.action='/pages/handlers/trade_submit_logistics.php';
+                    f.innerHTML='<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="'+data.requestId+'">';
+                    document.body.append(f);f.submit();
+                }
+            });
+        };
+        sb.append(btn);
+        cb.append(sb);
+    }
+    else {
+        const sb=document.createElement('div');
+        sb.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;border:1px solid #bbf7d0;margin-bottom:12px;gap:12px;';
+        sb.innerHTML='<div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">คุณได้รับสินค้าแล้ว!</strong><span style="font-size:12px;opacity:0.8;">การแลกเปลี่ยนฝั่งคุณเสร็จสมบูรณ์</span></div>';
+        cb.append(sb);
+    }
+
+    if(cb.children.length>0)insertBanner(cb);
+} else if(data.tradeOption==='direct_escrow'){
    if(!data.conditionsAccepted){const cb=document.createElement('div');const banner = makeCondBtn(); if(banner) cb.append(banner);insertBanner(cb);}
    else{
     const myS=(data.myCondition&&data.myCondition.deposit_status)?data.myCondition.deposit_status:'pending';
@@ -732,7 +743,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
  @keyframes popIn { from { opacity: 0; transform: translateY(15px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
  </style>
-</head><body><?php require __DIR__.'/../components/header.php'; require_once __DIR__.'/../config/chat_system_messages.php';?><div class="layout"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><style>.thread-swipe-wrapper::-webkit-scrollbar{display:none}</style><?php foreach($conversations as $c):?><div class="thread-swipe-wrapper" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-bottom:1px solid #eee;"><a class="thread <?=$conversationId==(int)$c['conversation_id']?'active':''?>" href="?conversation=<?=$c['conversation_id']?>" style="flex:0 0 100%; scroll-snap-align:start; border-bottom:0; min-width:100%;"><strong><?=htmlspecialchars($c['seller_name'])?></strong><small><?=htmlspecialchars($c['last_text']?:'เริ่มต้นบทสนทนา')?></small></a><form method="post" style="flex:0 0 75px; scroll-snap-align:end; background:#d9534f; display:flex;" onsubmit="return handleThreadDelete(event, this);"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="delete_conversation" value="1"><input type="hidden" name="delete_conversation_id" value="<?=$c['conversation_id']?>"><button class="thread-delete-btn" type="submit" style="width:100%; border:0; background:transparent; color:#fff; font-weight:600; font:inherit; cursor:pointer;">ลบ</button></form></div><?php endforeach;?></aside><?php if(!$active):?><section class="empty">เลือกบทสนทนาเพื่อเริ่มแชต</section><aside class="product"></aside><?php else:?><section class="conversation"><h2 class="chat-head"><?=htmlspecialchars($active['seller_name'])?></h2><div class="messages"><?php foreach($messages as $m): $sysMsg = parse_chat_system_message($m['message_text']); ?><div class="bubble <?=$m['sender_user_id']==$userId?'mine':''?> <?=$sysMsg ? 'system' : ''?>" <?=$sysMsg ? 'style="background:transparent;padding:0;border:0;box-shadow:none;"' : ''?>><?= $sysMsg ? $sysMsg : nl2br(htmlspecialchars($m['message_text']))?><time><?=date('H:i',strtotime($m['created_at']))?></time></div><?php endforeach;?></div><form class="composer" method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="conversation_id" value="<?=$conversationId?>"><input name="message_text" placeholder="พิมพ์ข้อความ..." required autocomplete="off"><button name="send_message">➤</button></form></section><aside class="product"><h3><?=$exchange?'ข้อมูลรายการแลกเปลี่ยน':'ข้อมูลสินค้าที่ถามถึง'?></h3><?php if($book):?><div class="product-card"><?php if($img=chatImage($book['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($book['title'])?>"><?php endif;?><strong><?=htmlspecialchars($book['title'])?></strong><span>฿<?=number_format($book['price'],2)?></span><div class="chat-product-actions"><button class="chat-product-btn cart" type="button" onclick="addToCart(<?=$book['book_id']?>)">เพิ่มลงตะกร้า</button><a class="chat-product-btn detail" href="/pages/book_detail.php?id=<?=$book['book_id']?>">ดูรายละเอียดสินค้า</a></div></div><?php elseif($exchange):?><div class="product-card"><?php if($img=chatImage($exchange['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($exchange['title'])?>"><?php endif;?><strong><?=htmlspecialchars($exchange['title'])?></strong><span>รายการแลกเปลี่ยน · สภาพ <?=number_format((int)($exchange['condition_percent']??0))?>%</span><div class="chat-product-actions"><?php if((int)$exchange['owner_id']!==$userId):?><a class="chat-product-btn exchange" href="/pages/exchange_request.php?exchange_id=<?=$exchange['exchange_id']?>">ยื่นคำขอแลกเปลี่ยน</a><?php endif;?><a class="chat-product-btn detail" href="/pages/book_detail.php?source=exchange&amp;id=<?=$exchange['exchange_id']?>">ดูรายละเอียดรายการแลกเปลี่ยน</a></div></div><?php else:?><div class="empty" style="padding:50px 15px">บทสนทนาทั่วไป</div><?php endif;?></aside><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?><?php if($book):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?id=<?=$book['book_id']?>');</script><?php elseif($exchange):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=<?=$exchange['exchange_id']?>');</script><?php endif;?>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script></head><body><?php require __DIR__.'/../components/header.php'; require_once __DIR__.'/../config/chat_system_messages.php';?><div class="layout"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><style>.thread-swipe-wrapper::-webkit-scrollbar{display:none}</style><?php foreach($conversations as $c):?><div class="thread-swipe-wrapper" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-bottom:1px solid #eee;"><a class="thread <?=$conversationId==(int)$c['conversation_id']?'active':''?>" href="?conversation=<?=$c['conversation_id']?>" style="flex:0 0 100%; scroll-snap-align:start; border-bottom:0; min-width:100%;"><strong><?=htmlspecialchars($c['seller_name'])?></strong><small><?=htmlspecialchars($c['last_text']?:'เริ่มต้นบทสนทนา')?></small></a><form method="post" style="flex:0 0 75px; scroll-snap-align:end; background:#d9534f; display:flex;" onsubmit="return handleThreadDelete(event, this);"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="delete_conversation" value="1"><input type="hidden" name="delete_conversation_id" value="<?=$c['conversation_id']?>"><button class="thread-delete-btn" type="submit" style="width:100%; border:0; background:transparent; color:#fff; font-weight:600; font:inherit; cursor:pointer;">ลบ</button></form></div><?php endforeach;?></aside><?php if(!$active):?><section class="empty">เลือกบทสนทนาเพื่อเริ่มแชต</section><aside class="product"></aside><?php else:?><section class="conversation"><h2 class="chat-head"><?=htmlspecialchars($active['seller_name'])?></h2><div class="messages"><?php foreach($messages as $m): $sysMsg = parse_chat_system_message($m['message_text']); ?><div class="bubble <?=$m['sender_user_id']==$userId?'mine':''?> <?=$sysMsg ? 'system' : ''?>" <?=$sysMsg ? 'style="background:transparent;padding:0;border:0;box-shadow:none;"' : ''?>><?= $sysMsg ? $sysMsg : nl2br(htmlspecialchars($m['message_text']))?><time><?=date('H:i',strtotime($m['created_at']))?></time></div><?php endforeach;?></div><form class="composer" method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['chat_csrf'])?>"><input type="hidden" name="conversation_id" value="<?=$conversationId?>"><input name="message_text" placeholder="พิมพ์ข้อความ..." required autocomplete="off"><button name="send_message">➤</button></form></section><aside class="product"><h3><?=$exchange?'ข้อมูลรายการแลกเปลี่ยน':'ข้อมูลสินค้าที่ถามถึง'?></h3><?php if($book):?><div class="product-card"><?php if($img=chatImage($book['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($book['title'])?>"><?php endif;?><strong><?=htmlspecialchars($book['title'])?></strong><span>฿<?=number_format($book['price'],2)?></span><div class="chat-product-actions"><button class="chat-product-btn cart" type="button" onclick="addToCart(<?=$book['book_id']?>)">เพิ่มลงตะกร้า</button><a class="chat-product-btn detail" href="/pages/book_detail.php?id=<?=$book['book_id']?>">ดูรายละเอียดสินค้า</a></div></div><?php elseif($exchange):?><div class="product-card"><?php if($img=chatImage($exchange['image_cover'])):?><img src="<?=htmlspecialchars($img)?>" alt="<?=htmlspecialchars($exchange['title'])?>"><?php endif;?><strong><?=htmlspecialchars($exchange['title'])?></strong><span>รายการแลกเปลี่ยน · สภาพ <?=number_format((int)($exchange['condition_percent']??0))?>%</span><div class="chat-product-actions"><?php if((int)$exchange['owner_id']!==$userId):?><a class="chat-product-btn exchange" href="/pages/exchange_request.php?exchange_id=<?=$exchange['exchange_id']?>">ยื่นคำขอแลกเปลี่ยน</a><?php endif;?><a class="chat-product-btn detail" href="/pages/book_detail.php?source=exchange&amp;id=<?=$exchange['exchange_id']?>">ดูรายละเอียดรายการแลกเปลี่ยน</a></div></div><?php else:?><div class="empty" style="padding:50px 15px">บทสนทนาทั่วไป</div><?php endif;?></aside><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?><?php if($book):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?id=<?=$book['book_id']?>');</script><?php elseif($exchange):?><script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=<?=$exchange['exchange_id']?>');</script><?php endif;?>
   <div id="conditionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn 0.2s ease-out;">
      <div style="background:#fff;width:95%;max-width:640px;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;height:90vh;animation:popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
          <div style="padding:15px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#fffaf0;">

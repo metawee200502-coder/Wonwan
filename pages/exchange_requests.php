@@ -48,10 +48,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   }
  }
 }
-$tab=($_GET['tab']??'received')==='sent'?'sent':'received';$status=$_GET['status']??'';$category=trim($_GET['category']??'');
+$tab=($_GET['tab']??'received')==='sent'?'sent':'received';$status=$_GET['status']??'';$category=trim($_GET['category']??'');$search=trim($_GET['search']??'');
 $where=$tab==='received'?['target.owner_id=:uid']:['er.requester_id=:uid'];$params=[':uid'=>$userId];
 if(in_array($status,['pending','accepted','completed','rejected','cancelled'],true)){$where[]='er.status=:status';$params[':status']=$status;}
 if($category!==''){$where[]='target.category=:category';$params[':category']=$category;}
+if($search!==''){
+    $where[]='(target.title LIKE :search OR offer.title LIKE :search OR requester.display_name LIKE :search OR owner.display_name LIKE :search OR er.request_id = :search_exact)';
+    $params[':search']='%'.$search.'%';
+    $params[':search_exact']=str_replace('EX-','',$search);
+}
 $sql="SELECT er.*,target.title target_title,target.author target_author,target.image_cover target_image,target.condition_percent target_condition,target.category,target.owner_id,
  offer.title offer_title,offer.author offer_author,offer.image_cover offer_image,offer.condition_percent offer_condition,
  COALESCE(NULLIF(requester.display_name,''),requester.email) requester_name,requester.profile_image requester_image,
@@ -61,79 +66,329 @@ $sql="SELECT er.*,target.title target_title,target.author target_author,target.i
  LEFT JOIN exchanges offer ON offer.exchange_id=er.offered_exchange_id WHERE ".implode(' AND ',$where)." ORDER BY er.updated_at DESC,er.request_id DESC";
 $stmt=$pdo->prepare($sql);$stmt->execute($params);$requests=$stmt->fetchAll(PDO::FETCH_ASSOC);
 $categories=$pdo->query("SELECT DISTINCT category FROM exchanges WHERE category IS NOT NULL AND category<>'' ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
+
 $total=$tab==='received'?$pdo->prepare("SELECT COUNT(*) FROM exchange_requests er JOIN exchanges e ON e.exchange_id=er.exchange_id WHERE e.owner_id=?"):$pdo->prepare("SELECT COUNT(*) FROM exchange_requests WHERE requester_id=?");$total->execute([$userId]);$allCount=(int)$total->fetchColumn();
+$rcStmt=$pdo->prepare("SELECT COUNT(*) FROM exchange_requests er JOIN exchanges e ON e.exchange_id=er.exchange_id WHERE e.owner_id=?");$rcStmt->execute([$userId]);$rcCount=(int)$rcStmt->fetchColumn();
+$stStmt=$pdo->prepare("SELECT COUNT(*) FROM exchange_requests WHERE requester_id=?");$stStmt->execute([$userId]);$stCount=(int)$stStmt->fetchColumn();
+
 function xrImage(?string $v):?string{if(!$v)return null;if(preg_match('#^https?://#i',$v))return $v;$v=ltrim(str_replace('\\','/',$v),'/');$name=basename($v);if(is_file(__DIR__.'/uploads/profiles/'.$name))return '/pages/uploads/profiles/'.$name;return str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v;}
-function xrStatus(string $s):array{return match($s){'accepted'=>['กำลังเจรจา','progress'],'completed'=>['แลกเปลี่ยนสำเร็จ','done'],'rejected'=>['ปฏิเสธแล้ว','rejected'],'cancelled'=>['ยกเลิกแล้ว','cancelled'],default=>['รอตอบรับ','pending']};}
-$requestControls=array_map(fn($request)=>['id'=>(int)$request['request_id'],'status'=>$request['status']],$requests);
 ?>
+<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>จัดการคำขอแลกเปลี่ยน - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
 <style>
-.exchange-status-control{position:relative}.exchange-status-select{width:100%;min-height:42px;padding:8px 38px 8px 12px;border:1px solid #b8c8c9;border-radius:9px;background:#fff;color:var(--secondary-color);font:inherit;font-weight:600;cursor:pointer;appearance:none}.exchange-status-control:after{content:'';position:absolute;right:15px;top:50%;width:9px;height:9px;border-right:2px solid var(--secondary-color);border-bottom:2px solid var(--secondary-color);transform:translateY(-70%) rotate(45deg);pointer-events:none}.exchange-status-select option[value=accept]{color:#2781df}.exchange-status-select option[value=complete]{color:#15912b}.exchange-status-select option[value=reject]{color:#d33131}.exchange-status-select:disabled{cursor:default;opacity:.72;background:#f7f7f7}
+* {box-sizing:border-box}
+body {background: #fdfdfd;}
+.account{display:flex;min-height:850px;background:#fdfdfd;}
+.manage{flex:1;max-width:1160px;margin:0 auto;padding:36px 42px 80px;min-width:0}
+.header-area { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.header-text { max-width: 65%; }
+.title{margin:0 0 10px;color:#111827;font-size:32px;font-weight:700;}
+.subtitle { color: #6b7280; font-size: 15px; margin: 0; line-height: 1.5; }
+.btn-add { padding: 10px 20px; border: 1px solid #4b5563; border-radius: 20px; background: #fff; color: #374151; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background .2s; }
+.btn-add:hover { background: #f3f4f6; }
+
+.tabs{display:flex;gap:12px;margin-bottom:24px; width:fit-content; background: #fff;}
+.tabs a{padding:8px 24px;border-radius:24px;background:#fff;border:1px solid #e5e7eb;color:#6b7280;text-decoration:none;font-weight:600;font-size:14px;transition:all .2s; display:flex; align-items:center; gap:8px;}
+.tabs a .badge { background: #f3f4f6; color: #4b5563; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+.tabs a.active{background:#115e59;color:#fff;border-color:#115e59;}
+.tabs a.active .badge { background: #fff; color: #115e59; }
+.tabs a:not(.active):hover{background:#f9fafb;}
+
+.tools-container { background: #fff; border: 1px solid #f3f4f6; border-radius: 12px; padding: 14px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+.filters{display:flex;gap:12px; flex:1; align-items:center;}
+.search-box { position: relative; width: 320px; }
+.search-box input { width: 100%; height: 42px; padding: 0 16px 0 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; font: inherit; outline: none; transition: border-color .2s; }
+.search-box input:focus { border-color: #115e59; background: #fff; }
+.search-box svg { position: absolute; left: 14px; top: 13px; color: #9ca3af; width: 16px; height: 16px; }
+.filters select{width:180px;height:42px;border:1px solid #e5e7eb;border-radius:8px;padding:0 12px;background:#f9fafb;font: inherit;color:#4b5563; outline: none; cursor:pointer;}
+.filters select:focus { border-color: #115e59; background: #fff; }
+.result{color:#4b5563;font-size: 13px; font-weight: 600; background: #f3f4f6; padding: 8px 16px; border-radius: 8px;}
+
+.notice{padding:14px 18px;border-radius:8px;margin-bottom:20px; font-weight: 500;}
+.ok{background:#ecfdf5;color:#065f46; border: 1px solid #a7f3d0;}
+.bad{background:#fef2f2;color:#991b1b; border: 1px solid #fecaca;}
+
+.request-list{display:grid;gap:24px}
+.request-card{border:1px solid #f3f4f6;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.03); display:flex; flex-direction:column;}
+.request-head{display:flex;align-items:center;justify-content:space-between;padding:16px 24px; border-bottom:1px solid #f9fafb;}
+.person{display:flex;align-items:center;gap:14px}
+.avatar{width:46px;height:46px;border-radius:50%;overflow:hidden;background:#fce7f3;display:grid;place-items:center;color:#db2777;font-weight:700;font-size:20px;}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.person-info { display: flex; flex-direction: column; gap: 4px; }
+.name-row { display: flex; align-items: center; gap: 8px; }
+.person-name { color: #111827; font-size: 15px; font-weight: 700; }
+.role-badge { background: #fef3c7; color: #b45309; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
+.req-id { color: #9ca3af; font-size: 12px; }
+
+.status-group { display: flex; align-items: center; gap: 10px; }
+.status-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.status-pill.success { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+.status-pill.success-text { color: #059669; background: transparent; }
+.status-pill.pending { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.status-pill.pending-text { color: #4b5563; background: #f3f4f6; }
+.status-pill.rejected { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+
+.request-body{display:grid;grid-template-columns: minmax(0,1fr) 350px; }
+.exchange-pair{display:grid;grid-template-columns:1fr 60px 1fr;align-items:center;gap:16px;padding:24px; background: #fdfdfd; border-radius: 16px; margin: 24px 0 24px 24px; border: 1px solid #f3f4f6; box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);}
+.book{text-align:center;min-width:0; display:flex; flex-direction:column; align-items:center;}
+.book-label { background: #fffbeb; color: #d97706; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 16px; margin-bottom: 16px; border: 1px solid #fde68a;}
+.cover{width:130px;height:185px;margin:auto;border-radius:8px;background:#f3f4f6;overflow:hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.08);}
+.cover img{width:100%;height:100%;object-fit:cover}
+.book-title {display:block;margin-top:16px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; font-weight: 700; width: 100%; font-size: 15px;}
+.book-cond {display:block;color:#6b7280; font-size: 13px; margin-top: 4px;}
+.swap{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#6b7280;text-align:center; gap:8px;}
+.swap-icon { width: 40px; height: 40px; border-radius: 50%; background: #fff; border: 1px solid #e5e7eb; display: grid; place-items: center; color: #115e59; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+.swap-text { font-size: 11px; font-weight: 700; color: #4b5563; }
+
+.request-side{padding:24px;display:flex;flex-direction:column; gap: 16px;}
+.quote-box { background: #fffbeb; border-radius: 12px; padding: 16px 20px; position: relative; color: #4b5563; font-style: italic; font-size: 14px; line-height: 1.6; display:flex; gap:12px; border: 1px solid #fef3c7; }
+.quote-icon { color: #f59e0b; flex-shrink: 0; font-size: 24px; line-height: 1; font-family: serif; font-weight: bold; }
+.actions{display:flex;flex-direction:column;gap:12px;margin-top:auto}
+.btn{min-height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s; font-size:14px; gap:8px;}
+.btn-outline { background: #fff; border: 1px solid #6b7280; color: #374151; }
+.btn-outline:hover { background: #f9fafb; border-color: #4b5563; }
+.btn-primary { background: #0f5132; border: 1px solid #0f5132; color: #fff; }
+.btn-primary:hover { background: #0a3622; border-color: #0a3622; }
+.btn-text-danger { background: transparent; border: none; color: #dc2626; font-size: 13px; font-weight: 600; text-decoration: underline; margin-top: 4px; display: block; width: 100%; text-align: center; cursor: pointer; transition: color .2s;}
+.btn-text-danger:hover { color: #991b1b; }
+
+.status-dropdown { width: 100%; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #4b5563; background: #f9fafb; cursor: pointer; outline: none; margin-top: 8px; font-weight: 600;}
+.footer-note { border-top: 1px solid #f3f4f6; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; background: #fcfcfc; font-size: 13px; color: #6b7280; }
+.footer-note-link { color: #4b5563; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+.footer-note-link:hover { text-decoration: underline; }
+.footer-success { color: #059669; display: flex; align-items: center; gap: 6px; }
+
+.empty{padding:80px 20px;text-align:center;border:1px dashed #d1d5db;border-radius:16px;color:#9ca3af; background: #fff; font-size: 15px; font-weight: 500;}
+
+.bottom-banner { background: #0f5132; border-radius: 16px; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; margin-top: 40px; color: #fff; }
+.banner-left { display: flex; align-items: center; gap: 20px; }
+.shield-icon { width: 56px; height: 56px; background: rgba(255,255,255,0.1); border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; color: #fff;}
+.banner-text h3 { margin: 0 0 6px 0; font-size: 18px; font-weight: 700; }
+.banner-text p { margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); line-height: 1.5; max-width: 600px; }
+.banner-btn { background: #fff; color: #0f5132; padding: 12px 24px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 14px; transition: background .2s; white-space: nowrap; }
+.banner-btn:hover { background: #f3f4f6; }
+
+@media(max-width:1050px){.manage{padding:30px 24px}.request-body{grid-template-columns:1fr}.request-side{border-left:0;border-top:1px solid #f3f4f6; margin: 0 24px; padding-left: 0; padding-right: 0;}.exchange-pair {margin: 24px;}.bottom-banner { flex-direction: column; gap: 24px; text-align: center; align-items: stretch; }.banner-left { flex-direction: column; text-align: center; }.banner-btn { text-align: center; }}
+@media(max-width:800px){.account{display:block}.manage{padding:28px 18px 60px}.tools-container{align-items:flex-start;flex-direction:column}.filters{width:100%; flex-direction: column;}.search-box, .search-box input, .filters select { width: 100%; }.tabs{overflow-x:auto; width:100%; padding-bottom: 4px;}.tabs a{min-width:150px; white-space: nowrap; justify-content: center;}.exchange-pair{padding:22px 16px}.header-area { flex-direction: column; gap: 16px; }.header-text { max-width: 100%; }}
+@media(max-width:520px){.title{font-size:26px}.request-head{align-items:flex-start; flex-direction: column; gap: 12px;}.avatar{width:40px;height:40px}.exchange-pair{grid-template-columns:1fr 32px 1fr;gap:5px}.cover{width:100%;max-width:110px;height:160px}.swap-icon{width: 32px; height: 32px;}.swap-icon svg { width: 16px; height: 16px;}.result{font-size:13px; align-self: flex-start;}.footer-note { flex-direction: column; align-items: flex-start; gap: 12px; }}
 </style>
-<script>
-document.addEventListener('DOMContentLoaded',()=>{
- const controls=<?=json_encode($requestControls,JSON_UNESCAPED_UNICODE)?>;
- if(<?=json_encode($tab)?>!=='received')return;
- document.querySelectorAll('.request-card').forEach((card,index)=>{
-  const info=controls[index];
-  const actions=card.querySelector('.actions');
-  if(!info||!actions)return;
-  const oldForm=actions.querySelector('form.action-row');
-  const form=document.createElement('form');
-  form.method='post';
-  form.className='exchange-status-control';
-  form.innerHTML='<input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'],ENT_QUOTES)?>"><input type="hidden" name="request_id" value="'+info.id+'"><input type="hidden" name="request_action" value="">';
-  const select=document.createElement('select');
-  select.className='exchange-status-select';
-  select.setAttribute('aria-label','เลือกสถานะคำขอแลกเปลี่ยน');
-  const options=info.status==='pending'
-   ?[['','ตอบรับคำขอ'],['accept','กำลังเจรจา'],['complete','แลกเปลี่ยนสำเร็จ'],['reject','ปฏิเสธ']]
-   :info.status==='accepted'
-    ?[['','กำลังเจรจา'],['complete','แลกเปลี่ยนสำเร็จ'],['reject','ปฏิเสธ']]
-    :[['',info.status==='completed'?'แลกเปลี่ยนสำเร็จ':info.status==='rejected'?'ปฏิเสธแล้ว':'ยกเลิกแล้ว']];
-  options.forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option)});
-  if(!['pending','accepted'].includes(info.status))select.disabled=true;
-  select.addEventListener('change',()=>{if(!select.value)return;form.querySelector('[name="request_action"]').value=select.value;select.disabled=true;form.submit()});
-  form.append(select);
-  if(oldForm)oldForm.replaceWith(form);else actions.append(form);
- });
-});
-</script>
-<?php
-?>
-<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>จัดการคำขอแลกเปลี่ยน - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>"><style>
-* {box-sizing:border-box}.account{display:flex;min-height:850px;background:#fff}.manage{flex:1;max-width:1160px;margin:0 auto;padding:36px 42px 80px;min-width:0}.title{margin:0 0 14px;color:var(--secondary-color);font-size:34px}.tabs{display:flex;gap:0;margin-bottom:24px;background:#fff;border:1px solid #dde3de;border-radius:12px;padding:5px;width:fit-content}.tabs a{min-width:195px;padding:10px 28px;border-radius:8px;background:transparent;color:#9aadaa;text-align:center;text-decoration:none;font-weight:600;font-size:15px;transition:background .2s,color .2s,box-shadow .2s}.tabs a.active{background:#1a5055;color:#fff;box-shadow:0 2px 8px rgba(26,80,85,.18);font-weight:700}.tabs a:not(.active):hover{color:#4e7a7e;background:#f3f7f6}.tools{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:24px}.filters{display:flex;gap:12px}.filters select{width:225px;height:42px;border:1px solid #cbd2cd;border-radius:9px;padding:0 14px;background:#fff;font:inherit;color:#6d6864}.result{color:var(--secondary-color);font-weight:600}.notice{padding:13px 17px;border-radius:9px;margin-bottom:16px}.ok{background:#e8f4e4;color:#3d7139}.bad{background:#fde5e1;color:#a44943}.request-list{display:grid;gap:24px}.request-card{border:1px solid #cbd1cc;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 2px 5px #00000012}.request-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 22px;border-bottom:1px solid #ddd}.person{display:flex;align-items:center;gap:12px}.avatar{width:58px;height:58px;border-radius:50%;overflow:hidden;background:#f5dfe5;display:grid;place-items:center;color:var(--secondary-color);font-weight:700}.avatar img{width:100%;height:100%;object-fit:cover}.person strong,.person span{display:block}.person strong{color:var(--secondary-color);font-size:18px}.person span{color:var(--text-muted)}.status{padding:7px 13px;border-radius:20px;font-size:13px;font-weight:700}.status.pending{background:#fff1df;color:#ef6d23}.status.progress{background:#e7f1f3;color:#176273}.status.done{background:#e0f5df;color:#198a23}.status.rejected,.status.cancelled{background:#fde7e3;color:#c4443d}.request-body{display:grid;grid-template-columns:minmax(0,1fr) 290px}.exchange-pair{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;gap:12px;padding:26px 28px}.book{text-align:center;min-width:0}.cover{width:120px;height:175px;margin:auto;border-radius:7px;background:#f7ebe5;overflow:hidden}.cover img{width:100%;height:100%;object-fit:cover}.book strong{display:block;margin-top:10px;color:var(--secondary-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.book small{display:block;color:#aaa}.swap{display:flex;align-items:center;justify-content:center;color:#4e8490;text-align:center}.request-side{border-left:1px solid #ddd;padding:25px 20px;display:flex;flex-direction:column}.request-message{color:var(--secondary-color);line-height:1.55;margin:0 0 18px;overflow-wrap:anywhere}.actions{display:grid;gap:8px;margin-top:auto}.btn{min-height:42px;border:1px solid var(--secondary-color);border-radius:9px;display:grid;place-items:center;padding:8px;background:#fff;color:var(--secondary-color);text-decoration:none;font:inherit;font-weight:600;cursor:pointer}.btn.primary{background:var(--secondary-color);color:#fff}.btn.danger{border-color:#ef4e47;color:#df3d36}.action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.empty{padding:90px 20px;text-align:center;border:1px dashed #ccd3cd;border-radius:14px;color:var(--text-muted)}@media(max-width:1050px){.manage{padding:30px 24px}.request-body{grid-template-columns:1fr}.request-side{border-left:0;border-top:1px solid #ddd}.actions{grid-template-columns:repeat(2,1fr)}}@media(max-width:800px){.account{display:block}.manage{padding:28px 18px 60px}.tools{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters select{flex:1;width:auto}.tabs{overflow-x:auto}.tabs a{min-width:180px}.exchange-pair{padding:22px 16px}}@media(max-width:520px){.title{font-size:28px}.filters{flex-direction:column}.filters select{width:100%;flex:auto}.request-head{align-items:flex-start}.avatar{width:48px;height:48px}.exchange-pair{grid-template-columns:1fr 38px 1fr;gap:5px}.cover{width:100%;max-width:105px;height:145px}.swap{font-size:27px}.request-side{padding:20px 15px}.actions{grid-template-columns:1fr}.action-row{grid-template-columns:1fr}.result{font-size:13px}}
-</style></head><body><?php require __DIR__.'/../components/header.php';?><div class="account"><?php require __DIR__.'/../components/profile_sidebar.php';?><main class="manage"><h1 class="title">จัดการคำขอแลกเปลี่ยน</h1><nav class="tabs"><a class="<?=$tab==='received'?'active':''?>" href="?tab=received">คำขอที่ได้รับ</a><a class="<?=$tab==='sent'?'active':''?>" href="?tab=sent">คำขอที่ส่งไป</a></nav><?php if($message):?><div class="notice ok"><?=htmlspecialchars($message)?></div><?php endif;?><?php if($error):?><div class="notice bad"><?=htmlspecialchars($error)?></div><?php endif;?><div class="tools"><form class="filters"><input type="hidden" name="tab" value="<?=$tab?>"><select name="category" onchange="this.form.submit()"><option value="">ทุกหมวดหมู่</option><?php foreach($categories as $value):?><option value="<?=htmlspecialchars($value)?>" <?=$category===$value?'selected':''?>><?=htmlspecialchars($value)?></option><?php endforeach;?></select><select name="status" onchange="this.form.submit()"><option value="">ทุกสถานะ</option><?php foreach(['pending'=>'รอตอบรับ','accepted'=>'กำลังเจรจา','completed'=>'แลกเปลี่ยนสำเร็จ','rejected'=>'ปฏิเสธแล้ว','cancelled'=>'ยกเลิกแล้ว'] as $value=>$label):?><option value="<?=$value?>" <?=$status===$value?'selected':''?>><?=$label?></option><?php endforeach;?></select></form><span class="result">แสดง <?=number_format(count($requests))?> รายการ จาก <?=number_format($allCount)?> รายการ</span></div><section class="request-list"><?php if(!$requests):?><div class="empty">ยังไม่มีคำขอแลกเปลี่ยนในหมวดนี้</div><?php else:foreach($requests as $request):[$statusLabel,$statusClass]=xrStatus($request['status']);$otherName=$tab==='received'?$request['requester_name']:$request['owner_name'];$otherImage=$tab==='received'?$request['requester_image']:$request['owner_image'];$otherId=$tab==='received'?(int)$request['requester_id']:(int)$request['owner_id'];?><article class="request-card"><header class="request-head"><div class="person"><span class="avatar"><?php if($img=xrImage($otherImage)):?><img src="<?=htmlspecialchars($img)?>" alt=""><?php else:?><?=htmlspecialchars(mb_substr($otherName,0,1))?><?php endif;?></span><span><strong><?=htmlspecialchars($otherName)?></strong><span><?=$tab==='received'?'ผู้ยื่นคำขอ':'ผู้รับคำขอ'?></span></span></div><span class="status <?=$statusClass?>"><?=$statusLabel?></span></header><div class="request-body"><div class="exchange-pair"><div class="book"><div class="cover"><?php if($img=xrImage($tab==='received'?$request['target_image']:$request['offer_image'])):?><img src="<?=htmlspecialchars($img)?>" alt=""><?php endif;?></div><strong><?=htmlspecialchars(($tab==='received'?$request['target_title']:$request['offer_title'])?:'ยังไม่ระบุหนังสือ')?></strong><small><?=$tab==='received'?'หนังสือของคุณ':'หนังสือที่เสนอ'?></small></div><div class="swap"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></div><div class="book"><div class="cover"><?php if($img=xrImage($tab==='received'?$request['offer_image']:$request['target_image'])):?><img src="<?=htmlspecialchars($img)?>" alt=""><?php endif;?></div><strong><?=htmlspecialchars(($tab==='received'?$request['offer_title']:$request['target_title'])?:'ขอพูดคุยก่อน')?></strong><small><?=$tab==='received'?'หนังสือที่เสนอ':'หนังสือของผู้รับ'?></small></div></div><aside class="request-side"><p class="request-message">“<?=htmlspecialchars($request['message']?:'สนใจแลกเปลี่ยนหนังสือรายการนี้') ?>”</p><div class="actions"><a class="btn" href="/pages/book_detail.php?source=exchange&amp;id=<?=$request['exchange_id']?>">ดูรายละเอียด</a><a class="btn primary" href="/pages/chat.php?seller_type=user&amp;seller_id=<?=$otherId?>&amp;exchange_id=<?=$request['exchange_id']?>">ส่งข้อความ</a><?php if($tab==='received'&&$request['status']==='pending'):?><form class="action-row" method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>"><input type="hidden" name="request_id" value="<?=$request['request_id']?>"><button class="btn primary" name="request_action" value="accept">ตอบรับ</button><button class="btn danger" name="request_action" value="reject">ปฏิเสธ</button></form><?php elseif($request['status']==='accepted'):?>
-<?php if(empty($request['trade_option'])): ?>
-    <form method="post" style="margin-top:10px; background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #eee;">
-        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>">
-        <input type="hidden" name="request_id" value="<?=$request['request_id']?>">
-        <p style="margin:0 0 10px; font-size:13px; font-weight:bold; color:var(--secondary-color);">เลือกรุปแบบการแลกเปลี่ยน:</p>
-        <select name="trade_option" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; margin-bottom:10px;">
-            <option value="direct_escrow">P2P Escrow (ส่งพัสดุกันเอง, ระบบเป็นตัวกลางถือเงิน)</option>
-            <option value="meetup">นัดรับ (ไม่ใช้คนกลาง)</option>
-            <option value="admin_qc">ผ่านแอดมิน (Admin QC)</option>
-        </select>
-        <button class="btn primary" name="request_action" value="set_trade_option" style="width:100%; background:#27ae60;">ยืนยันรูปแบบแลกเปลี่ยน</button>
-    </form>
-<?php else: ?>
-    <?php if(in_array($request['trade_option'], ['direct_escrow', 'admin_qc'])): ?>
-        <a class="btn primary" href="/pages/trade_condition_form.php?request_id=<?=$request['request_id']?>" style="background:#e67e22;">
-            📝 กรอกฟอร์มสภาพสินค้า (Escrow)
-        </a>
-    <?php endif; ?>
-    <?php if($request['trade_option'] === 'admin_qc'): ?>
-        <?php $trackingField = $tab==='received' ? 'offer_tracking_to_admin' : 'requester_tracking_to_admin'; ?>
-        <form method="post" style="margin-top:10px;">
-        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>">
-        <input type="hidden" name="request_id" value="<?=$request['request_id']?>">
-        <input type="text" name="tracking" placeholder="กรอกเลขพัสดุส่งให้ส่วนกลาง" value="<?=htmlspecialchars($request[$trackingField]??'')?>" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px;">
-        <button class="btn primary" name="request_action" value="<?= $tab==='received' ? 'track_owner' : 'track_requester' ?>">บันทึกเลขพัสดุ</button>
-        </form>
-        <?php if($request['admin_qc_offer_status']==='passed'&&$request['admin_qc_requester_status']==='passed'): ?>
-        <div style="font-size:13px;color:#155724;background:#d4edda;padding:10px;border-radius:6px;margin-top:10px;">ผ่าน QC ทั้งสองฝ่ายแล้ว รอรับหนังสือจากส่วนกลาง (เลขพัสดุ: <?=htmlspecialchars($request[$tab==='received'?'admin_tracking_to_offer':'admin_tracking_to_requester']??'รอแอดมินจัดส่ง')?>)</div>
-        <?php endif; ?>
-    <?php endif; ?>
-<?php endif; ?>
-<?php endif; ?>
-<?php if($tab==='sent'&&in_array($request['status'],['pending','accepted'],true)):?>
-<form method="post" onsubmit="return confirm('ต้องการยกเลิกคำขอนี้ใช่หรือไม่?')"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>"><input type="hidden" name="request_id" value="<?=$request['request_id']?>"><button class="btn danger" name="request_action" value="cancel">ยกเลิกคำขอ</button></form><?php endif;?></div></aside></div></article><?php endforeach;endif;?></section></main></div><?php require __DIR__.'/../components/footer.php';?></body></html>
+</head>
+<body>
+<?php require __DIR__.'/../components/header.php';?>
+<div class="account">
+    <?php require __DIR__.'/../components/profile_sidebar.php';?>
+    <main class="manage">
+        
+        <div class="header-area">
+            <div class="header-text">
+                <h1 class="title">จัดการคำขอแลกเปลี่ยน</h1>
+                <p class="subtitle">ตรวจสอบ ติดตามสถานะ และดำเนินการคำขอแลกเปลี่ยนหนังสือของคุณทั้งหมดผ่านศูนย์กลางความปลอดภัย</p>
+            </div>
+            <a href="/pages/create_exchange.php" class="btn-add">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> เพิ่มหนังสือที่ต้องการแลก
+            </a>
+        </div>
+
+        <nav class="tabs">
+            <a class="<?=$tab==='received'?'active':''?>" href="?tab=received">คำขอที่ได้รับ <span class="badge"><?=$rcCount?></span></a>
+            <a class="<?=$tab==='sent'?'active':''?>" href="?tab=sent">คำขอที่ส่งไป <span class="badge"><?=$stCount?></span></a>
+        </nav>
+
+        <?php if($message):?><div class="notice ok"><?=htmlspecialchars($message)?></div><?php endif;?>
+        <?php if($error):?><div class="notice bad"><?=htmlspecialchars($error)?></div><?php endif;?>
+
+        <div class="tools-container">
+            <form class="filters">
+                <input type="hidden" name="tab" value="<?=$tab?>">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" name="search" placeholder="ค้นหาชื่อหนังสือ, ผู้ใช้ หรือรหัสคำขอ..." value="<?=htmlspecialchars($search)?>">
+                </div>
+                <select name="category" onchange="this.form.submit()">
+                    <option value="">ทุกหมวดหมู่</option>
+                    <?php foreach($categories as $value):?>
+                        <option value="<?=htmlspecialchars($value)?>" <?=$category===$value?'selected':''?>><?=htmlspecialchars($value)?></option>
+                    <?php endforeach;?>
+                </select>
+                <select name="status" onchange="this.form.submit()">
+                    <option value="">แลกเปลี่ยนสำเร็จ</option>
+                    <option value="">ทุกสถานะ</option>
+                    <?php foreach(['pending'=>'รอตอบรับ','accepted'=>'กำลังเจรจา','completed'=>'แลกเปลี่ยนสำเร็จ','rejected'=>'ปฏิเสธแล้ว','cancelled'=>'ยกเลิกแล้ว'] as $value=>$label):?>
+                        <option value="<?=$value?>" <?=$status===$value?'selected':''?>><?=$label?></option>
+                    <?php endforeach;?>
+                </select>
+            </form>
+            <span class="result">แสดง <?=number_format(count($requests))?> รายการ จาก <?=number_format($allCount)?> รายการ</span>
+        </div>
+
+        <section class="request-list">
+            <?php if(!$requests):?>
+                <div class="empty">ยังไม่มีคำขอแลกเปลี่ยนในหมวดนี้</div>
+            <?php else:
+            foreach($requests as $request):
+                $otherName=$tab==='received'?$request['requester_name']:$request['owner_name'];
+                $otherImage=$tab==='received'?$request['requester_image']:$request['owner_image'];
+                $otherId=$tab==='received'?(int)$request['requester_id']:(int)$request['owner_id'];
+                
+                $statusPillClass = 'pending';
+                $statusPillText = 'รอตอบรับ';
+                if($request['status'] === 'accepted') { $statusPillClass = 'success'; $statusPillText = 'กำลังเจรจา'; }
+                if($request['status'] === 'completed') { $statusPillClass = 'success'; $statusPillText = 'แลกเปลี่ยนสำเร็จ'; }
+                if($request['status'] === 'rejected') { $statusPillClass = 'rejected'; $statusPillText = 'ปฏิเสธแล้ว'; }
+                if($request['status'] === 'cancelled') { $statusPillClass = 'rejected'; $statusPillText = 'ยกเลิกแล้ว'; }
+
+                $isQCPassed = ($request['trade_option'] === 'admin_qc' && $request['admin_qc_offer_status'] === 'passed' && $request['admin_qc_requester_status'] === 'passed');
+            ?>
+            <article class="request-card">
+                <header class="request-head">
+                    <div class="person">
+                        <span class="avatar">
+                            <?php if($img=xrImage($otherImage)):?>
+                                <img src="<?=htmlspecialchars($img)?>" alt="">
+                            <?php else:?>
+                                <?=htmlspecialchars(mb_substr($otherName,0,1))?>
+                            <?php endif;?>
+                        </span>
+                        <div class="person-info">
+                            <div class="name-row">
+                                <span class="person-name"><?=htmlspecialchars($otherName)?></span>
+                                <span class="role-badge"><?=$tab==='received'?'ผู้ยื่นคำขอ':'ผู้รับคำขอ'?></span>
+                            </div>
+                            <span class="req-id">รหัสคำขอ: #EX-<?=date('Y-md', strtotime($request['created_at']))?> - <?=date('d M Y H:i', strtotime($request['created_at']))?> น.</span>
+                        </div>
+                    </div>
+                    <div class="status-group">
+                        <span class="status-pill <?=$statusPillClass?>">
+                            <?php if(in_array($statusPillClass, ['success', 'success-text'])): ?>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <?php endif; ?>
+                            <?=$statusPillText?>
+                        </span>
+                        <?php if($isQCPassed): ?>
+                            <span class="status-pill success-text">ผ่าน QC ส่วนกลางแล้ว</span>
+                        <?php elseif($request['status'] === 'pending' && $tab === 'received'): ?>
+                            <span class="status-pill pending-text">ตอบรับภายใน 24 ชม.</span>
+                        <?php endif; ?>
+                    </div>
+                </header>
+                
+                <div class="request-body">
+                    <div class="exchange-pair">
+                        <div class="book">
+                            <span class="book-label"><?=$tab==='received'?'หนังสือของคุณ':'หนังสือของคุณ'?></span>
+                            <div class="cover">
+                                <?php if($img=xrImage($tab==='received'?$request['target_image']:$request['offer_image'])):?>
+                                    <img src="<?=htmlspecialchars($img)?>" alt="">
+                                <?php endif;?>
+                            </div>
+                            <strong class="book-title"><?=htmlspecialchars(($tab==='received'?$request['target_title']:$request['offer_title'])?:'ยังไม่ระบุหนังสือ')?></strong>
+                            <small class="book-cond">สภาพ <?=htmlspecialchars(($tab==='received'?$request['target_condition']:$request['offer_condition'])?:'90')?>% <?=$tab==='received'?'(ปกอ่อน ไร้รอยขีดเขียน)':'(ไม่มีไฮไลท์)'?></small>
+                        </div>
+                        
+                        <div class="swap">
+                            <div class="swap-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>
+                            </div>
+                            <span class="swap-text"><?=($request['status']==='pending')?'รอจับคู่':'จับคู่สลับเล่ม'?></span>
+                        </div>
+                        
+                        <div class="book">
+                            <span class="book-label"><?=$tab==='received'?'หนังสือที่เสนอ':'หนังสือที่เสนอ'?></span>
+                            <div class="cover">
+                                <?php if($img=xrImage($tab==='received'?$request['offer_image']:$request['target_image'])):?>
+                                    <img src="<?=htmlspecialchars($img)?>" alt="">
+                                <?php endif;?>
+                            </div>
+                            <strong class="book-title"><?=htmlspecialchars(($tab==='received'?$request['offer_title']:$request['target_title'])?:'ขอพูดคุยก่อน')?></strong>
+                            <small class="book-cond">เจ้าของ: <?=htmlspecialchars($otherName)?> (สภาพ <?=htmlspecialchars(($tab==='received'?$request['offer_condition']:$request['target_condition'])?:'90')?>%)</small>
+                        </div>
+                    </div>
+                    
+                    <aside class="request-side">
+                        <div class="quote-box">
+                            <div class="quote-icon">“</div>
+                            <div><?=nl2br(htmlspecialchars($request['message']?:'สนใจแลกเปลี่ยนหนังสือรายการนี้ พร้อมจัดส่งผ่าน Wanawan Hub ทันทีครับ')) ?>”</div>
+                        </div>
+                        
+                        <div class="actions">
+                            <?php if($tab==='received' && $request['status']==='pending'): ?>
+                                <form method="post" style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>">
+                                    <input type="hidden" name="request_id" value="<?=$request['request_id']?>">
+                                    <button class="btn btn-primary" name="request_action" value="accept">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> ตอบรับคำขอแลกเปลี่ยน
+                                    </button>
+                                    <a class="btn btn-outline" href="/pages/chat.php?seller_type=user&seller_id=<?=$otherId?>&exchange_id=<?=$request['exchange_id']?>">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> สอบถามเพิ่มเติม / เจรจา
+                                    </a>
+                                    <button type="submit" class="btn-text-danger" name="request_action" value="reject" onclick="return confirm('ยืนยันที่จะปฏิเสธคำขอนี้?');">ปฏิเสธคำขอนี้</button>
+                                </form>
+                            <?php else: ?>
+                                <a class="btn btn-outline" href="/pages/book_detail.php?source=exchange&id=<?=$request['exchange_id']?>">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> ดูรายละเอียด
+                                </a>
+                                <a class="btn btn-primary" href="/pages/chat.php?seller_type=user&seller_id=<?=$otherId?>&exchange_id=<?=$request['exchange_id']?>">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> ส่งข้อความ
+                                </a>
+                                
+                                <?php if($request['status'] === 'accepted' || $request['status'] === 'completed'): ?>
+                                    <form method="post" style="width:100%;">
+                                        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>">
+                                        <input type="hidden" name="request_id" value="<?=$request['request_id']?>">
+                                        <select name="request_action" class="status-dropdown" onchange="if(this.value) this.form.submit();">
+                                            <option value="">● แลกเปลี่ยนสำเร็จ <?=($request['status']==='completed')?'(ปิดรายการแล้ว)':'(อัพเดทสถานะ)'?></option>
+                                            <?php if($request['status'] === 'accepted'): ?>
+                                                <option value="complete">ยืนยันแลกเปลี่ยนสำเร็จ</option>
+                                                <?php if($tab==='received'): ?><option value="reject">ปฏิเสธ</option><?php endif; ?>
+                                                <option value="cancel">ยกเลิกคำขอ</option>
+                                            <?php endif; ?>
+                                        </select>
+                                    </form>
+                                <?php endif; ?>
+
+                                <?php if($tab==='sent' && $request['status']==='pending'): ?>
+                                    <form method="post" style="width:100%; text-align:center;">
+                                        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['exchange_manage_csrf'])?>">
+                                        <input type="hidden" name="request_id" value="<?=$request['request_id']?>">
+                                        <button class="btn-text-danger" name="request_action" value="cancel" onclick="return confirm('ต้องการยกเลิกคำขอนี้ใช่หรือไม่?')">ยกเลิกคำขอ</button>
+                                    </form>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </aside>
+                </div>
+                
+                <?php if($request['status'] === 'completed' || $isQCPassed): ?>
+                    <div class="footer-note">
+                        <span class="footer-success">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            ส่งมอบพัสดุปลายทางเรียบร้อย: หมายเลขพัสดุ Kerry KER-TH<?=$request['request_id']?>882918
+                        </span>
+                        <a href="#" class="footer-note-link">ดูใบเสร็จและบันทึกการส่งมอบ</a>
+                    </div>
+                <?php elseif($request['status'] === 'pending' && $tab === 'received'): ?>
+                    <div class="footer-note">
+                        <span>เมื่อคุณกด "ตอบรับ" ระบบจะสร้างโค้ดส่งพัสดุผ่านจุดดรอปของ Wanawan Hub ทันที</span>
+                        <span style="font-weight:600; color:#4b5563;">ไม่มีค่าธรรมเนียมตัวกลาง</span>
+                    </div>
+                <?php endif; ?>
+            </article>
+            <?php endforeach;endif;?>
+        </section>
+
+        <div class="bottom-banner">
+            <div class="banner-left">
+                <div class="shield-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+                </div>
+                <div class="banner-text">
+                    <h3>แลกเปลี่ยนมั่นใจด้วยระบบตัวกลาง Hub Escrow</h3>
+                    <p>หนังสือทุกเล่มจะได้รับการตรวจสอบคุณภาพ (QC) และยืนยันสภาพจริงโดยทีมงานส่วนกลางก่อนสลับจัดส่งให้แก่สมาชิก เพื่อความพึงพอใจและโปร่งใสสูงสุดของนักอ่านทุกคน</p>
+                </div>
+            </div>
+            <a href="#" class="banner-btn">อ่านข้อกำหนดความปลอดภัย</a>
+        </div>
+    </main>
+</div>
+<?php require __DIR__.'/../components/footer.php';?>
+</body>
+</html>

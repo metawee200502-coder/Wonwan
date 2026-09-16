@@ -1,0 +1,300 @@
+﻿}elseif($exchange){
+ $chatContextBar=['title'=>$exchange['title'],'subtitle'=>'à¸£à¸²à¸¢à¸à¸²à¸£à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™ Â· à¸ªà¸ à¸²à¸ž '.(int)($exchange['condition_percent']??0).'%','image'=>chatImage($exchange['image_cover']??null),'url'=>'/pages/book_detail.php?source=exchange&id='.(int)$exchange['exchange_id']];
+}
+if($exchangeRequestPanel):?>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+ const data=<?=json_encode($exchangeRequestPanel,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+ const product=document.querySelector('.product');
+ const oldCard=product?.querySelector('.product-card');
+ if(!product||!oldCard)return;
+ const makeBook=(book,label)=>{
+  const wrap=document.createElement('div');wrap.className='exchange-request-book';
+  if(book.image){const img=document.createElement('img');img.src=book.image;img.alt=book.title;wrap.append(img)}
+  else{const placeholder=document.createElement('div');placeholder.className='exchange-request-placeholder';wrap.append(placeholder)}
+  const title=document.createElement('strong');title.textContent=book.title;wrap.append(title);
+  const meta=document.createElement('small');meta.textContent=label+(book.condition?' Â· '+book.condition+'%':'');wrap.append(meta);
+  return wrap;
+ };
+ const summary=document.createElement('section');summary.className='exchange-request-summary';
+ const status=document.createElement('div');status.className='exchange-request-status';
+ status.append(Object.assign(document.createElement('span'),{textContent:'à¸„à¸³à¸‚à¸­à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™'}),Object.assign(document.createElement('span'),{textContent:data.status}));
+ const pair=document.createElement('div');pair.className='exchange-request-pair';
+ pair.append(makeBook(data.target,'à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸—à¸µà¹ˆà¸‚à¸­'),Object.assign(document.createElement('span'),{className:'exchange-request-swap',textContent:'â†”'}),makeBook(data.offer,'à¸«à¸™à¸±à¸‡à¸ªà¸·à¸­à¸—à¸µà¹ˆà¹€à¸ªà¸™à¸­'));
+ const message=document.createElement('p');message.className='exchange-request-message';message.textContent='â€œ'+data.message+'â€';
+ const manage=document.createElement('a');manage.className='exchange-request-manage';manage.href=data.manageUrl;manage.textContent='à¸”à¸¹à¸„à¸³à¸‚à¸­à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™';
+  summary.append(status,pair,message,manage);
+ oldCard.replaceWith(summary);
+
+ const insertBanner=function(el){setTimeout(function(){const ex=document.querySelector('.trade-action-banner');if(ex)ex.remove();el.classList.add('trade-action-banner');el.style.margin='15px';el.style.marginBottom='0';const ctxBar=document.querySelector('.chat-context-bar');const chatHead=document.querySelector('.chat-head');if(ctxBar)ctxBar.after(el);else if(chatHead)chatHead.after(el);},150);};
+ const makeCondBtn=function(){const w=document.createElement('div');w.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';w.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸à¸£à¸­à¸à¸Ÿà¸­à¸£à¹Œà¸¡à¸¢à¸·à¸™à¸¢à¸±à¸™à¸ªà¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²</strong><span style="font-size:12px;opacity:0.8;">à¸à¸£à¸¸à¸“à¸²à¹à¸™à¸šà¸£à¸¹à¸›à¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²à¸‚à¸­à¸‡à¸„à¸¸à¸“</span></div></div>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='à¸à¸£à¸­à¸à¸Ÿà¸­à¸£à¹Œà¸¡';btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';btn.onclick=function(){const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');if(modal&&iframe){iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;modal.style.display='flex';}else{window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;}};w.append(btn);return w;};
+
+ if(data.rawStatus==='accepted' || data.rawStatus==='completed'){
+  const needsDL=(data.tradeOption==='direct_escrow'||data.tradeOption==='admin_qc');
+  const hasDL=data.shippingDeadline>0;
+    if(!data.tradeOption){
+   const propForm = document.createElement('form');
+   propForm.method = 'post';
+   propForm.style.cssText = 'padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05)';
+   propForm.innerHTML = `<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['chat_csrf']??''); ?>">
+   <input type="hidden" name="request_id" value="${data.requestId}">
+   <label style="font-size:12px; font-weight:600; color:#1e40af; margin-bottom:6px; display:block;">ðŸ’¬ à¸à¸³à¸¥à¸±à¸‡à¹€à¸ˆà¸£à¸ˆà¸²: à¸à¸£à¸¸à¸“à¸²à¹€à¸ªà¸™à¸­à¸£à¸¹à¸›à¹à¸šà¸šà¸à¸²à¸£à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™</label>
+   <select name="trade_option" id="tradeOptionSelect" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #bfdbfe;border-radius:6px;margin-bottom:10px;font-size:13px;outline:none;" required>
+     <option value="" disabled selected>-- à¹€à¸¥à¸·à¸­à¸à¸£à¸¹à¸›à¹à¸šà¸šà¸à¸²à¸£à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™ --</option>
+     <option value="direct_escrow">à¸ªà¹ˆà¸‡à¸•à¸£à¸‡à¹ƒà¸«à¹‰à¸à¸±à¸™ (P2P Escrow)</option>
+     <option value="admin_qc">à¸ªà¹ˆà¸‡à¸œà¹ˆà¸²à¸™à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡ (Admin QC)</option>
+     <option value="meetup">à¸™à¸±à¸”à¸£à¸±à¸š (Meet-up)</option>
+   </select>
+   <div id="deadlineGroup" style="display:none;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:10px;border:1px solid #e2e8f0;">
+     <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">à¸£à¸°à¸¢à¸°à¹€à¸§à¸¥à¸²à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡ (à¸§à¸±à¸™)</label>
+     <select name="deadline_days" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;">
+       <option value="3">à¸ à¸²à¸¢à¹ƒà¸™ 3 à¸§à¸±à¸™</option>
+       <option value="5">à¸ à¸²à¸¢à¹ƒà¸™ 5 à¸§à¸±à¸™</option>
+       <option value="7">à¸ à¸²à¸¢à¹ƒà¸™ 7 à¸§à¸±à¸™</option>
+     </select>
+   </div>
+   <div id="meetupGroup" style="display:none;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:10px;border:1px solid #e2e8f0;">
+     <div style="display:flex;gap:8px;margin-bottom:8px;">
+       <div style="flex:1;"><label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">à¸§à¸±à¸™à¸—à¸µà¹ˆ</label><input type="date" name="meetup_date" min="<?php echo date('Y-m-d'); ?>" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;"></div>
+       <div style="flex:1;"><label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">à¹€à¸§à¸¥à¸²</label><input type="time" name="meetup_time" style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;"></div>
+     </div>
+     <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:4px;">à¸ªà¸–à¸²à¸™à¸—à¸µà¹ˆà¸™à¸±à¸”à¸£à¸±à¸š</label>
+     <input type="text" name="meetup_location" placeholder="à¸£à¸°à¸šà¸¸à¸ªà¸–à¸²à¸™à¸—à¸µà¹ˆà¸™à¸±à¸”à¸žà¸š..." style="box-sizing:border-box;width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;">
+   </div>
+   <button name="propose_full_trade" class="btn primary" style="width:100%;padding:10px;border-radius:6px;background:#3b82f6;color:#fff;font-weight:600;border:0;cursor:pointer;">à¹€à¸ªà¸™à¸­à¹€à¸‡à¸·à¹ˆà¸­à¸™à¹„à¸‚à¸™à¸µà¹‰</button>`;
+   const w=document.createElement('div');w.append(propForm);insertBanner(w);
+   
+   propForm.querySelector('#tradeOptionSelect').addEventListener('change', function() {
+     const val = this.value;
+     propForm.querySelector('#deadlineGroup').style.display = (val === 'direct_escrow' || val === 'admin_qc') ? 'block' : 'none';
+     propForm.querySelector('#meetupGroup').style.display = (val === 'meetup') ? 'block' : 'none';
+   });
+  } else if(needsDL&&!hasDL){
+   const b=document.createElement('div');b.style.cssText='padding:14px;background:#fff3cd;color:#856404;border-radius:8px;font-size:14px;text-align:center;border:1px solid #ffeeba';b.innerHTML='\u23f3 <strong>\u0e23\u0e2d\u0e02\u0e49\u0e2d\u0e2a\u0e23\u0e38\u0e1b\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e15\u0e01\u0e25\u0e07\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e43\u0e19\u0e41\u0e0a\u0e17\u0e01\u0e48\u0e2d\u0e19\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e15\u0e48\u0e2d';const w=document.createElement('div');w.append(b);insertBanner(w);
+  } else if(data.tradeOption==='admin_qc'){
+   const cb=document.createElement('div');const mySlip=data.isRequester?data.requesterSlipStatus:data.offerSlipStatus;const myTr=data.isRequester?data.requesterTrackingToAdmin:data.offerTrackingToAdmin;const ptTr=data.isRequester?data.offerTrackingToAdmin:data.requesterTrackingToAdmin;
+   if(!data.conditionsAccepted){
+       if (data.myCondition && !data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;border:1px solid #fde68a;margin-bottom:12px;gap:12px;';
+           b.innerHTML = '<div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸£à¸­à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¹€à¸žà¸´à¹ˆà¸¡à¸Ÿà¸­à¸£à¹Œà¸¡à¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²</strong><span style="font-size:12px;opacity:0.8;">à¸„à¸¸à¸“à¸à¸£à¸­à¸à¸Ÿà¸­à¸£à¹Œà¸¡à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¸£à¸­à¹ƒà¸«à¹‰à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¸à¸£à¸­à¸à¸‚à¹‰à¸­à¸¡à¸¹à¸¥</span></div>';
+           cb.append(b);
+       } else if (!data.myCondition && data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¹€à¸žà¸´à¹ˆà¸¡à¸£à¸¹à¸›à¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²à¹à¸¥à¹‰à¸§</strong><span style="font-size:12px;opacity:0.8;">à¸”à¸¹à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹€à¸žà¸·à¹ˆà¸­à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¹à¸¥à¸°à¸à¸£à¸­à¸à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸‚à¸­à¸‡à¸„à¸¸à¸“</span></div></div>';
+           const btn=document.createElement('button');
+           btn.className='btn primary';
+           btn.textContent='à¸”à¸¹à¹à¸šà¸šà¸Ÿà¸­à¸£à¹Œà¸¡';
+           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+           btn.onclick=function(){
+               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
+               if(modal&&iframe){
+                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
+                   modal.style.display='flex';
+               }else{
+                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
+               }
+           };
+           b.append(btn);
+           cb.append(b);
+       } else if (data.myCondition && data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fef08a;margin-bottom:12px;gap:10px;';
+           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸ªà¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²</strong><span style="font-size:12px;opacity:0.8;">à¸—à¸±à¹‰à¸‡à¸ªà¸­à¸‡à¸à¹ˆà¸²à¸¢à¸à¸£à¸­à¸à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¹€à¸‚à¹‰à¸²à¹„à¸›à¸à¸”à¸¢à¸­à¸¡à¸£à¸±à¸š</span></div></div>';
+           const btn=document.createElement('button');
+           btn.className='btn primary';
+           btn.textContent='à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š';
+           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#eab308; border-color:#eab308; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+           btn.onclick=function(){
+               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
+               if(modal&&iframe){
+                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
+                   modal.style.display='flex';
+               }else{
+                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
+               }
+           };
+           b.append(btn);
+           cb.append(b);
+       } else {
+           const banner = makeCondBtn(); 
+           if(banner) cb.append(banner);
+       }
+   }
+   else if(!mySlip){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#fff1f2;color:#be123c;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #ffe4e6;margin-bottom:12px;gap:10px;';
+       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸Šà¸³à¸£à¸°à¸„à¹ˆà¸²à¸šà¸£à¸´à¸à¸²à¸£à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡ (QC)</strong><span style="font-size:12px;opacity:0.8;">à¸à¸£à¸¸à¸“à¸²à¹‚à¸­à¸™à¹€à¸‡à¸´à¸™à¸„à¹ˆà¸²à¸šà¸£à¸´à¸à¸²à¸£à¹à¸¥à¸°à¹à¸™à¸šà¸ªà¸¥à¸´à¸›</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary';
+       btn.textContent='à¹à¸™à¸šà¸ªà¸¥à¸´à¸›';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#e11d48; border-color:#e11d48; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
+    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+    if(modal&&iframe){
+        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> à¸Šà¸³à¸£à¸°à¸„à¹ˆà¸²à¸šà¸£à¸´à¸à¸²à¸£à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡ (QC)';
+        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+        modal.style.display='flex';
+    } else {
+        window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+    }
+};b.append(btn);cb.append(b);}
+   else if(mySlip==='pending'||mySlip==='pending_verification'){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸£à¸­à¹à¸­à¸”à¸¡à¸´à¸™à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š</strong><span style="font-size:12px;opacity:0.8;">à¸—à¸µà¸¡à¸‡à¸²à¸™à¸à¸³à¸¥à¸±à¸‡à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸ªà¸¥à¸´à¸›à¸à¸²à¸£à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™à¸‚à¸­à¸‡à¸„à¸¸à¸“</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary outline';
+       btn.textContent='à¸£à¸­à¹à¸­à¸”à¸¡à¸´à¸™à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; border:1px solid #d97706; color:#d97706; background:transparent; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
+    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+    if(modal&&iframe){
+        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> à¸ªà¸–à¸²à¸™à¸°à¸à¸²à¸£à¸Šà¸³à¸£à¸°à¹€à¸‡à¸´à¸™ (QC)';
+        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+        modal.style.display='flex';
+    } else {
+        window.location.href='/pages/trade_qc_l   else if(myTr && (!ptTr || data.requesterQcStatus === 'pending' || data.offerQcStatus === 'pending')){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#f3f4f6;color:#374151;border-radius:8px;display:flex;align-items:center;border:1px solid #e5e7eb;margin-bottom:12px;gap:12px;';
+       b.innerHTML='<div style="color:#4b5563;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸£à¸­à¸ªà¸´à¸™à¸„à¹‰à¸²à¸–à¸¶à¸‡à¹à¸­à¸”à¸¡à¸´à¸™ à¹à¸¥à¹‰à¸§à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸ªà¸´à¸™à¸„à¹‰à¸²à¸­à¸µà¸à¸„à¸£à¸±à¹‰à¸‡</strong><span style="font-size:12px;opacity:0.8;">à¸ªà¹ˆà¸‡à¸žà¸±à¸ªà¸”à¸¸à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¸£à¸­à¸—à¸µà¸¡à¸‡à¸²à¸™à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š</span></div>';
+       cb.append(b);
+   }
+   else if(myTr&&ptTr){à¸—à¸µà¹ˆà¸­à¸¢à¸¹à¹ˆà¹à¸¥à¸°à¹€à¸¥à¸‚à¸žà¸±à¸ªà¸”à¸¸à¸—à¸µà¹ˆà¸ªà¹ˆà¸‡à¹ƒà¸«à¹‰à¸šà¸£à¸´à¸©à¸±à¸—</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary';
+       btn.textContent='à¹€à¸žà¸´à¹ˆà¸¡à¸—à¸µà¹ˆà¸­à¸¢à¸¹à¹ˆà¹à¸¥à¸°à¸ªà¹ˆà¸‡à¸ªà¸´à¸™à¸„à¹‰à¸²à¹„à¸›à¸¢à¸±à¸‡à¸šà¸£à¸´à¸©à¸±à¸—';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#2563eb; border-color:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
+    const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+    if(modal&&iframe){
+        modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> à¹à¸ˆà¹‰à¸‡à¹€à¸¥à¸‚à¸žà¸±à¸ªà¸”à¸¸à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡ (QC)';
+        iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
+        modal.style.display='flex';
+    } else {
+        window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
+    }
+};b.append(btn);cb.append(b);}
+   else if(myTr&&!ptTr){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#f3e8ff;color:#6b21a8;border-radius:8px;display:flex;align-items:center;border:1px solid #e9d5ff;margin-bottom:12px;gap:12px;';
+       b.innerHTML='<div style="color:#9333ea;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡à¸žà¸±à¸ªà¸”à¸¸à¹ƒà¸«à¹‰ QC à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¹à¸¥à¹‰à¸§</strong><span style="font-size:12px;opacity:0.8;">à¸£à¸­à¹ƒà¸«à¹‰à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡à¸žà¸±à¸ªà¸”à¸¸à¹€à¸Šà¹ˆà¸™à¸à¸±à¸™</span></div>';
+       cb.append(b);
+   }
+   else if(myTr&&ptTr){
+    const reqQc=data.requesterQcStatus;
+    const offQc=data.offerQcStatus;
+    if(reqQc!=='pending'&&offQc!=='pending'){
+     const myQcAcc=data.isRequester?data.requesterQcAcceptanceStatus:data.offerQcAcceptanceStatus;
+     const ptQcAcc=data.isRequester?data.offerQcAcceptanceStatus:data.requesterQcAcceptanceStatus;
+     
+     if (myQcAcc==='pending') {
+         const b=document.createElement('div');b.style.cssText='padding:15px;background:#f0fdf4;color:#166534;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bbf7d0;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';
+         b.innerHTML='ðŸ“‹ <strong>à¹à¸­à¸”à¸¡à¸´à¸™à¸ªà¹ˆà¸‡à¸Ÿà¸­à¸£à¹Œà¸¡à¸•à¸£à¸§à¸ˆà¸ªà¸ à¸²à¸žà¸ªà¸´à¸™à¸„à¹‰à¸²à¹à¸¥à¹‰à¸§</strong><br>à¸à¸£à¸¸à¸“à¸²à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¹à¸¥à¸°à¸¢à¸·à¸™à¸¢à¸±à¸™à¸œà¸¥à¸à¸²à¸£à¸›à¸£à¸°à¹€à¸¡à¸´à¸™à¸ˆà¸²à¸à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡<br><br>';
+         
+         const btnView=document.createElement('button');btnView.className='btn primary';btnView.textContent='à¸”à¸¹à¸Ÿà¸­à¸£à¹Œà¸¡ QC';btnView.style.cssText='padding:8px 16px;background:#059669;border-color:#059669;margin-right:10px;';
+         btnView.onclick=function(){
+             const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+             if(modal&&iframe){
+                 modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> à¸Ÿà¸­à¸£à¹Œà¸¡à¸£à¸²à¸¢à¸‡à¸²à¸™ QC à¸ˆà¸²à¸à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡';
+                 iframe.src='/pages/trade_qc_report_view.php?request_id='+data.requestId+'&iframe=1';
+                 modal.style.display='flex';
+             }
+         };
+         
+         const btnReject=document.createElement('button');btnReject.className='btn outline danger';btnReject.textContent='à¸›à¸à¸´à¹€à¸ªà¸˜';btnReject.style.cssText='padding:8px 16px;margin-right:10px;';
+         btnReject.onclick=function(){
+             const r = prompt('à¸à¸£à¸¸à¸“à¸²à¸£à¸°à¸šà¸¸à¹€à¸«à¸•à¸¸à¸œà¸¥à¸—à¸µà¹ˆà¸›à¸à¸´à¹€à¸ªà¸˜à¸œà¸¥ QC (à¸à¸²à¸£à¸›à¸à¸´à¹€à¸ªà¸˜à¸ˆà¸°à¸¢à¸à¹€à¸¥à¸´à¸à¸à¸²à¸£à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸™à¸µà¹‰à¸—à¸±à¸™à¸—à¸µ):');
+             if(r!==null && r.trim()!==''){
+                 const f = document.createElement('form'); f.method = 'post'; f.action = '/pages/handlers/trade_qc_acceptance.php';
+                 f.innerHTML = '<input type="hidden" name="action" value="reject"><input type="hidden" name="request_id" value="'+data.requestId+'"><input type="hidden" name="reason" value="'+r+'">';
+                 
+                 // Since we use fetch instead of full page reload to keep it modern
+                 fetch('/pages/handlers/trade_qc_acceptance.php', {
+                     method: 'POST', body: new FormData(f)
+                 }).then(res=>res.json()).then(res=>{
+                     if(res.success) window.location.reload();
+                     else alert(res.message||'Error');
+                 });
+             }
+         };
+         
+         const btnAccept=document.createElement('button');btnAccept.className='btn primary';btnAccept.textContent='à¸•à¸à¸¥à¸‡';btnAccept.style.cssText='padding:8px 16px;background:#2563eb;border-color:#2563eb;';
+         btnAccept.onclick=function(){
+             if(confirm('à¸„à¸¸à¸“à¸¢à¸·à¸™à¸¢à¸±à¸™à¸—à¸µà¹ˆà¸ˆà¸°à¸¢à¸­à¸¡à¸£à¸±à¸šà¸œà¸¥à¸à¸²à¸£à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸ˆà¸²à¸ QC à¹ƒà¸Šà¹ˆà¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ?')){
+                 const f = new FormData(); f.append('action', 'accept'); f.append('request_id', data.requestId);
+                 fetch('/pages/handlers/trade_qc_acceptance.php', {
+                     method: 'POST', body: f
+                 }).then(res=>res.json()).then(res=>{
+                     if(res.success) window.location.reload();
+                     else alert(res.message||'Error');
+                 });
+             }
+         };
+         
+         b.append(btnView, btnReject, btnAccept); cb.append(b);
+     } else if (myQcAcc==='accepted' && ptQcAcc==='pending') {
+         const b=document.createElement('div');b.style.cssText='padding:14px;background:#fef3c7;color:#92400e;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fde68a';
+         b.innerHTML='â³ <strong>à¸£à¸­à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¸¢à¸·à¸™à¸¢à¸±à¸™à¸œà¸¥ QC</strong><br>à¸„à¸¸à¸“à¸à¸”à¸¢à¸­à¸¡à¸£à¸±à¸šà¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¸£à¸­à¹ƒà¸«à¹‰à¸­à¸µà¸à¸à¹ˆà¸²à¸¢à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¹à¸¥à¸°à¸¢à¸·à¸™à¸¢à¸±à¸™';
+         
+         const btnView=document.createElement('button');btnView.className='btn outline primary';btnView.textContent='à¸”à¸¹à¸Ÿà¸­à¸£à¹Œà¸¡ QC';btnView.style.cssText='padding:4px 12px;margin-top:10px;font-size:12px;';
+         btnView.onclick=function(){
+             const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+             if(modal&&iframe){
+                 modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> à¸Ÿà¸­à¸£à¹Œà¸¡à¸£à¸²à¸¢à¸‡à¸²à¸™ QC à¸ˆà¸²à¸à¸ªà¹ˆà¸§à¸™à¸à¸¥à¸²à¸‡';
+                 iframe.src='/pages/trade_qc_report_view.php?request_id='+data.requestId+'&iframe=1';
+                 modal.style.display='flex';
+             }
+         };
+         b.append(btnView);
+         cb.append(b);
+     } else if (myQcAcc==='accepted' && ptQcAcc==='accepted') {
+         const myAdminTr = data.isRequester ? data.adminTrackingToRequester : data.adminTrackingToOffer;
+         const myRv = (data.partnerCondition) ? parseInt(data.partnerCondition.is_received) : 0;
+         
+         if (myAdminTr) {
+             const sb=document.createElement('div');sb.style.cssText='padding:15px;background:#f0fff4;color:#276749;border-radius:8px;font-size:14px;text-align:center;border:1px solid #c6f6d5;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';
+             
+             if (!myRv) {
+                 sb.innerHTML='ðŸ“¦ <strong>à¹à¸­à¸”à¸¡à¸´à¸™à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡à¸ªà¸´à¸™à¸„à¹‰à¸²à¹à¸¥à¹‰à¸§!</strong><br>à¸‚à¸™à¸ªà¹ˆà¸‡/à¹€à¸¥à¸‚à¸žà¸±à¸ªà¸”à¸¸: <span style="color:#059669;font-weight:600;">'+myAdminTr+'</span><br><br>';
+                 const btn=document.createElement('button');btn.className='btn';btn.style.cssText='background:#48bb78;color:#fff;padding:8px 16px';btn.textContent='âœ… à¸¢à¸·à¸™à¸¢à¸±à¸™à¹„à¸”à¹‰à¸£à¸±à¸šà¸ªà¸´à¸™à¸„à¹‰à¸²à¹à¸¥à¹‰à¸§';
+                 btn.onclick=function(){
+                     if(confirm('à¸¢à¸·à¸™à¸¢à¸±à¸™à¸§à¹ˆà¸²à¹„à¸”à¹‰à¸£à¸±à¸šà¸ªà¸´à¸™à¸„à¹‰à¸²à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¹à¸¥à¹‰à¸§?')){
+                         const f=document.createElement('form');f.method='post';f.action='/pages/handlers/trade_submit_logistics.php';
+                         f.innerHTML='<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="'+data.requestId+'">';
+                         document.body.append(f);f.submit();
+                     }
+                 };
+                 sb.append(btn);
+             } else {
+                 sb.innerHTML='ðŸŽ‰ <strong>à¸„à¸¸à¸“à¹„à¸”à¹‰à¸£à¸±à¸šà¸ªà¸´à¸™à¸„à¹‰à¸²à¹à¸¥à¹‰à¸§!</strong><br>à¸à¸²à¸£à¹à¸¥à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸à¸±à¹ˆà¸‡à¸„à¸¸à¸“à¹€à¸ªà¸£à¹‡à¸ˆà¸ªà¸¡à¸šà¸¹à¸£à¸“à¹Œ';
+             }
+             cb.append(sb);
+         } else {
+             const b=document.createElement('div');b.style.cssText='padding:14px;background:#f0fff4;color:#166534;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bbf7d0';
+             b.innerHTML='ðŸ“¦ <strong>à¸£à¸­à¸à¸¥à¸²à¸‡à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡à¸ªà¸´à¸™à¸„à¹‰à¸²</strong><br>à¸—à¸±à¹‰à¸‡à¸ªà¸­à¸‡à¸à¹ˆà¸²à¸¢à¸¢à¸­à¸¡à¸£à¸±à¸šà¸œà¸¥à¸›à¸£à¸°à¹€à¸¡à¸´à¸™à¹à¸¥à¹‰à¸§ à¹à¸­à¸”à¸¡à¸´à¸™à¸à¸³à¸¥à¸±à¸‡à¸ˆà¸±à¸”à¸ªà¹ˆà¸‡à¸ªà¸´à¸™à¸„à¹‰à¸²à¹ƒà¸«à¹‰à¸„à¸¸à¸“';
+             cb.append(b);
+         }
+     }
+    } else {
+     const b=document.createElement('div');b.style.cssText='padding:14px;background:#f3e8ff;color:#6b21a8;border-radius:8px;font-size:14px;text-align:center;border:1px solid #d8b4fe';b.innerHTML='\ud83d\udd0d <strong>\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e1e\u0e31\u0e2a\u0e14\u0e38\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27 (\u0e17\u0e31\u0e49\u0e07\u0e2a\u0e2d\u0e07\u0e1d\u0e48\u0e32\u0e22)</strong><br>\u0e23\u0e2d\u0e43\u0e2b\u0e49\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e41\u0e25\u0e30\u0e08\u0e30\u0e21\u0e35\u0e01\u0e32\u0e23\u0e2a\u0e48\u0e07\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e21\u0e32\u0e43\u0e2b\u0e49';cb.append(b);
+    }
+   }
+   if(cb.children.length>0)insertBanner(cb);
+  } else if(data.tradeOption==='direct_escrow'){
+   if(!data.conditionsAccepted){const cb=document.createElement('div');const banner = makeCondBtn(); if(banner) cb.append(banner);insertBanner(cb);}
+   else{
+    const myS=(data.myCondition&&data.myCondition.deposit_status)?data.myCondition.deposit_status:'pending';
+    const ptS=(data.partnerCondition&&data.partnerCondition.deposit_status)?data.partnerCondition.deposit_status:'pending';
+    const myR=(data.myCondition&&data.myCondition.required_deposit_amount!=null)?data.myCondition.required_deposit_amount:null;
+    const ptR=(data.partnerCondition&&data.partnerCondition.required_deposit_amount!=null)?data.partnerCondition.required_deposit_amount:null;
+    const cb=document.createElement('div');
+    if(myR===null){const b=document.createElement('div');b.style.cssText='padding:15px;background:#fff5eb;color:#c05621;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fbd38d;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';b.innerHTML='\ud83d\udcb0 <strong>\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e23\u0e30\u0e1a\u0e38\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e40\u0e23\u0e35\u0e22\u0e01\u0e40\u0e01\u0e47\u0e1a\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33\u0e08\u0e32\u0e01\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='\u0e40\u0e2a\u0e19\u0e2d\u0e21\u0e31\u0e14\u0e08\u0e33';btn.style.cssText='padding:8px 16px;background:#dd6b20;border-color:#dd6b20';btn.onclick=function(){let a=prompt('\u0e01\u0e23\u0e2d\u0e01\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 (\u0e1a\u0e32\u0e17):');if(a!==null&&a.trim()!==''){a=parseFloat(a);if(!isNaN(a)&&a>=0){const f=document.createElement('form');f.method='post';f.action='/pages/handlers/trade_submit_logistics.php';f.innerHTML='<input type="hidden" name="action" value="set_deposit"><input type="hidden" name="request_id" value="'+data.requestId+'"><input type="hidden" name="amount" value="'+a+'">';document.body.append(f);f.submit();}else alert('\u0e01\u0e23\u0e38\u0e13\u0e32\u0e01\u0e23\u0e2d\u0e01\u0e15\u0e31\u0e27\u0e40\u0e25\u0e02\u0e17\u0e35\u0e48\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07');}};b.append(btn);cb.append(b);}
+    else if(ptR===null){const b=document.createElement('div');b.style.cssText='padding:14px;background:#fff5eb;color:#c05621;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fbd38d;margin-bottom:10px';b.innerHTML='\u23f3 <strong>\u0e23\u0e2d\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e21\u0e39\u0e25\u0e04\u0e48\u0e32\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</strong><br>\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33\u0e17\u0e35\u0e48\u0e04\u0e38\u0e13\u0e15\u0e49\u0e2d\u0e07\u0e0a\u0e33\u0e23\u0e30';cb.append(b);}
+    else{
+     const myD=(parseFloat(ptR)===0)||(myS==='approved');
+     const ptD=(parseFloat(myR)===0)||(ptS==='approved');
+     if(!myD){
