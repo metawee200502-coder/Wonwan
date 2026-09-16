@@ -1,182 +1,18 @@
-<br />
-<b>Notice</b>:  session_start(): Ignoring session_start() because a session is already active in <b>C:\laragon\www\wanawan_project\pages\chat.php</b> on line <b>2</b><br />
-<script>
-document.addEventListener('DOMContentLoaded', function() {
- try {
- const data={"target":{"title":"Ex2","image":"/pages/uploads/exchanges/exchange_8b2cc042bceb458023c4.png","condition":90},"offer":{"title":"ขอพูดคุยก่อน","image":null,"condition":0},"message":"สนใจแลกเปลี่ยนสินค้ารายการนี้","status":"รอตอบรับ","manageUrl":"/pages/exchange_requests.php?tab=received"};
- const product=document.querySelector('.product');
- const oldCard=product ? product.querySelector('.product-card') : null;
- 
- const makeBook=function(book,label) {
-  const wrap=document.createElement('div');wrap.className='exchange-request-book';
-  if(book.image){const img=document.createElement('img');img.src=book.image;img.alt=book.title;wrap.append(img)}
-  else{const placeholder=document.createElement('div');placeholder.className='exchange-request-placeholder';wrap.append(placeholder)}
-  const title=document.createElement('strong');title.textContent=book.title;wrap.append(title);
-  const meta=document.createElement('small');meta.textContent=label+(book.condition?' · '+book.condition+'%':'');wrap.append(meta);
-  return wrap;
- };
- const summary=document.createElement('section');summary.className='exchange-request-summary';
- const status=document.createElement('div');status.className='exchange-request-status';
- status.append(Object.assign(document.createElement('span'),{textContent:'คำขอแลกเปลี่ยน'}),Object.assign(document.createElement('span'),{textContent:data.status}));
- const pair=document.createElement('div');pair.className='exchange-request-pair';
- pair.append(makeBook(data.target,'หนังสือที่ขอ'),Object.assign(document.createElement('span'),{className:'exchange-request-swap',textContent:'↔'}),makeBook(data.offer,'หนังสือที่เสนอ'));
- const message=document.createElement('p');message.className='exchange-request-message';message.textContent='“'+data.message+'”';
- const manage=document.createElement('a');manage.className='exchange-request-manage';manage.href=data.manageUrl;manage.textContent='ดูคำขอแลกเปลี่ยน';
-       summary.append(status,pair,message,manage);
 
-      if (data.rawStatus === 'accepted') {
-          const needsDeadline = (data.tradeOption === 'direct_escrow' || data.tradeOption === 'admin_qc');
-          const hasDeadline = data.shippingDeadline > 0;
-          
-          if (needsDeadline && !hasDeadline) {
-              const waitMsg = document.createElement('div');
-              waitMsg.style.marginTop = '10px'; waitMsg.style.padding = '10px'; waitMsg.style.background = '#fff3cd'; waitMsg.style.color = '#856404'; waitMsg.style.borderRadius = '5px'; waitMsg.style.fontSize = '13px'; waitMsg.style.textAlign = 'center'; waitMsg.style.border = '1px solid #ffeeba';
-              waitMsg.innerHTML = '⏳ <strong>รอข้อสรุปวันจัดส่ง</strong><br>กรุณาตกลงวันจัดส่งในแชทให้เรียบร้อยก่อนดำเนินการต่อ';
-              summary.append(waitMsg);
-          } else if (data.tradeOption === 'direct_escrow' && data.conditionsAccepted) {
-              // Escrow Logic
-              var myStatus = (data.myCondition && data.myCondition.deposit_status) ? data.myCondition.deposit_status : 'pending';
-              var partnerStatus = (data.partnerCondition && data.partnerCondition.deposit_status) ? data.partnerCondition.deposit_status : 'pending';
-              var myRequiredDeposit = (data.myCondition && data.myCondition.required_deposit_amount !== null && data.myCondition.required_deposit_amount !== undefined) ? data.myCondition.required_deposit_amount : null;
-              var partnerRequiredDeposit = (data.partnerCondition && data.partnerCondition.required_deposit_amount !== null && data.partnerCondition.required_deposit_amount !== undefined) ? data.partnerCondition.required_deposit_amount : null;
+Notice: session_start(): Ignoring session_start() because a session is already active in C:\laragon\www\wanawan_project\pages\chat.php on line 2
 
-              const chatHeaderBanner = document.createElement('div');
-              chatHeaderBanner.style.margin = '15px'; chatHeaderBanner.style.marginBottom = '0';
-              
-              if (myRequiredDeposit === null) {
-                  const propBanner = document.createElement('div');
-                  propBanner.style.padding = '15px'; propBanner.style.background = '#fff5eb'; propBanner.style.color = '#c05621'; propBanner.style.borderRadius = '8px'; propBanner.style.fontSize = '14px'; propBanner.style.textAlign = 'center'; propBanner.style.border = '1px solid #fbd38d'; propBanner.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; propBanner.style.marginBottom = '10px';
-                  propBanner.innerHTML = '💰 <strong>กำหนดเงินมัดจำ</strong><br>กรุณาระบุมูลค่าของสินค้าคุณ เพื่อเรียกเก็บเงินมัดจำจากอีกฝ่าย<br><br>';
-                  const propBtn = document.createElement('button');
-                  propBtn.className = 'btn primary'; propBtn.textContent = 'เสนอมัดจำ'; propBtn.style.padding = '8px 16px'; propBtn.style.background = '#dd6b20'; propBtn.style.borderColor = '#dd6b20';
-                  propBtn.onclick = function() {
-                      let amt = prompt('กรุณากรอกมูลค่าของสินค้าคุณ (บาท)\nเพื่อเรียกเก็บเป็นเงินมัดจำ:');
-                      if (amt !== null && amt.trim() !== '') {
-                          amt = parseFloat(amt);
-                          if (!isNaN(amt) && amt >= 0) {
-                              const form = document.createElement('form');
-                              form.method = 'post'; form.action = '/pages/handlers/trade_submit_logistics.php';
-                              form.innerHTML = '<input type="hidden" name="action" value="set_deposit"><input type="hidden" name="request_id" value="' + data.requestId + '"><input type="hidden" name="amount" value="' + amt + '">';
-                              document.body.append(form); form.submit();
-                          } else {
-                              alert('กรุณากรอกตัวเลขที่ถูกต้อง');
-                          }
-                      }
-                  };
-                  propBanner.append(propBtn); chatHeaderBanner.append(propBanner);
-              } else if (partnerRequiredDeposit === null) {
-                  const waitPropBanner = document.createElement('div');
-                  waitPropBanner.style.padding = '15px'; waitPropBanner.style.background = '#fff5eb'; waitPropBanner.style.color = '#c05621'; waitPropBanner.style.borderRadius = '8px'; waitPropBanner.style.fontSize = '14px'; waitPropBanner.style.textAlign = 'center'; waitPropBanner.style.border = '1px solid #fbd38d'; waitPropBanner.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; waitPropBanner.style.marginBottom = '10px';
-                  waitPropBanner.innerHTML = '⏳ <strong>รออีกฝ่ายประเมินมูลค่าสินค้า</strong><br>เพื่อกำหนดเงินมัดจำที่คุณต้องชำระ';
-                  chatHeaderBanner.append(waitPropBanner);
-              } else {
-                  var myDepositDone = (parseFloat(partnerRequiredDeposit) === 0) || (myStatus === 'approved');
-                  var partnerDepositDone = (parseFloat(myRequiredDeposit) === 0) || (partnerStatus === 'approved');
-                  
-                  if (!myDepositDone) {
-                      const depositBanner = document.createElement('div');
-                      depositBanner.style.padding = '15px'; depositBanner.style.background = '#fff5f5'; depositBanner.style.color = '#c53030'; depositBanner.style.borderRadius = '8px'; depositBanner.style.fontSize = '14px'; depositBanner.style.textAlign = 'center'; depositBanner.style.border = '1px solid #feb2b2'; depositBanner.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; depositBanner.style.marginBottom = '10px';
-                      
-                      if (myStatus === 'pending_verification') {
-                          depositBanner.innerHTML = '<i class="fas fa-hourglass-half"></i> <strong>รอแอดมินตรวจสอบสลิปเงินมัดจำ</strong><br>จำนวนเงิน: ฿' + parseFloat(partnerRequiredDeposit).toFixed(2);
-                      } else {
-                          depositBanner.innerHTML = '⚠️ <strong>คุณต้องชำระเงินมัดจำ</strong><br>จำนวนเงิน: ฿' + parseFloat(partnerRequiredDeposit).toFixed(2) + '<br><br>';
-                          const payBtn = document.createElement('button');
-                          payBtn.className = 'btn primary'; payBtn.textContent = 'แนบสลิปชำระเงิน'; payBtn.style.padding = '8px 16px';
-                          payBtn.onclick = function() {
-                              window.location.href = '/pages/trade_upload_slip.php?request_id=' + data.requestId;
-                          };
-                          depositBanner.append(payBtn);
-                      }
-                      chatHeaderBanner.append(depositBanner);
-                  }
-                  if (!partnerDepositDone) {
-                      const waitBanner = document.createElement('div');
-                      waitBanner.style.padding = '15px'; waitBanner.style.background = '#ebf4ff'; waitBanner.style.color = '#2b6cb0'; waitBanner.style.borderRadius = '8px'; waitBanner.style.fontSize = '14px'; waitBanner.style.textAlign = 'center'; waitBanner.style.border = '1px solid #bee3f8'; waitBanner.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; waitBanner.style.marginBottom = '10px';
-                      waitBanner.innerHTML = '<i class="fas fa-clock"></i> <strong>รออีกฝ่ายชำระเงินมัดจำ</strong><br>จำนวนเงิน: ฿' + parseFloat(myRequiredDeposit).toFixed(2);
-                      chatHeaderBanner.append(waitBanner);
-                  }
-                  
-                  if (myDepositDone && partnerDepositDone) {
-                      const shipBanner = document.createElement('div');
-                      shipBanner.style.padding = '15px'; shipBanner.style.background = '#f0fff4'; shipBanner.style.color = '#276749'; shipBanner.style.borderRadius = '8px'; shipBanner.style.fontSize = '14px'; shipBanner.style.textAlign = 'center'; shipBanner.style.border = '1px solid #c6f6d5'; shipBanner.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; shipBanner.style.marginBottom = '10px';
-                  
-                      var myApprovedAt = (data.myCondition) ? data.myCondition.deposit_approved_at : null;
-                      var partnerApprovedAt = (data.partnerCondition) ? data.partnerCondition.deposit_approved_at : null;
-                      var approvedAt = myApprovedAt || partnerApprovedAt || new Date().toISOString();
-                      
-                      var d = new Date(approvedAt);
-                      d.setDate(d.getDate() + parseInt(data.shippingDeadline));
-                      var deadlineStr = d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                      
-                      var myTracking = (data.myCondition) ? data.myCondition.tracking_number : null;
-                      var partnerTracking = (data.partnerCondition) ? data.partnerCondition.tracking_number : null;
-                      var partnerReceived = (data.partnerCondition) ? data.partnerCondition.is_received : 0;
-                      var myReceived = (data.myCondition) ? data.myCondition.is_received : 0;
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 33
 
-                      if (!myTracking) {
-                          shipBanner.innerHTML = '✅ <strong>การวางมัดจำเสร็จสิ้น!</strong><br>กรุณาจัดส่งสินค้าภายในวันที่ ' + deadlineStr + '<br><br>';
-                          const shipBtn = document.createElement('button');
-                          shipBtn.className = 'btn primary'; shipBtn.textContent = '📦 แจ้งเลขพัสดุ'; shipBtn.style.padding = '8px 16px';
-                          shipBtn.onclick = function() {
-                              window.location.href = '/pages/trade_p2p_logistics_form.php?request_id=' + data.requestId;
-                          };
-                          shipBanner.append(shipBtn);
-                      } else if (!partnerTracking) {
-                          shipBanner.innerHTML = '📦 <strong>จัดส่งสินค้าแล้ว</strong><br>รออีกฝ่ายจัดส่งสินค้า<br><br>';
-                      } else if (!partnerReceived) {
-                          shipBanner.innerHTML = '📦 <strong>อีกฝ่ายจัดส่งสินค้าแล้ว!</strong><br>เลขพัสดุ: ' + partnerTracking + '<br><br>';
-                          const recvBtn = document.createElement('button');
-                          recvBtn.className = 'btn'; recvBtn.style.background = '#48bb78'; recvBtn.style.color = '#fff'; recvBtn.textContent = '✅ ยืนยันได้รับสินค้าแล้ว'; recvBtn.style.padding = '8px 16px';
-                          recvBtn.onclick = function() {
-                              if(confirm('คุณยืนยันว่าได้รับสินค้าในสภาพที่ตกลงกันไว้แล้วใช่หรือไม่?')) {
-                                  const form = document.createElement('form');
-                                  form.method = 'post'; form.action = '/pages/handlers/trade_submit_logistics.php';
-                                  form.innerHTML = '<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="' + data.requestId + '">';
-                                  document.body.append(form); form.submit();
-                              }
-                          };
-                          shipBanner.append(recvBtn);
-                      } else if (!myReceived) {
-                          shipBanner.innerHTML = '✅ <strong>คุณได้รับสินค้าแล้ว</strong><br>รออีกฝ่ายกดยืนยันรับสินค้าที่คุณจัดส่งให้<br><br>';
-                      } else {
-                          shipBanner.innerHTML = '🎉 <strong>แลกเปลี่ยนสำเร็จ!</strong>';
-                      }
-                      chatHeaderBanner.append(shipBanner);
-                  }
-              }
-              
-              setTimeout(function() {
-                  const chatHead = document.querySelector('.chat-head');
-                  const ctxBar = document.querySelector('.chat-context-bar');
-                  if (ctxBar) { ctxBar.after(chatHeaderBanner); }
-                  else if (chatHead) { chatHead.after(chatHeaderBanner); }
-                  else { summary.append(chatHeaderBanner); }
-              }, 100);
-          }
-      } else if (data.tradeOption !== 'meetup' && (!data.conditionsAccepted || data.tradeOption !== 'direct_escrow')) {
-          const condLink = document.createElement('button');
-          condLink.className = 'exchange-request-manage';
-          condLink.type = 'button';
-          condLink.textContent = '📝 กรอกฟอร์มยืนยันสภาพสินค้า';
-          condLink.style.background = '#e67e22'; condLink.style.color = '#fff'; condLink.style.border = 'none'; condLink.style.cursor = 'pointer'; condLink.style.display = 'block'; condLink.style.width = 'calc(100% - 28px)'; condLink.style.margin = '0 14px 14px 14px'; condLink.style.padding = '12px'; condLink.style.borderRadius = '8px'; condLink.style.fontFamily = 'inherit'; condLink.style.fontSize = '14px'; condLink.style.fontWeight = '600';
-          
-          condLink.onclick = function() {
-              const modal = document.getElementById('conditionModal');
-              const iframe = document.getElementById('conditionIframe');
-              if (modal && iframe) {
-                  iframe.src = '/pages/trade_condition_form.php?request_id=' + data.requestId + '&iframe=1';
-                  modal.style.display = 'flex';
-              } else {
-                  window.location.href = '/pages/trade_condition_form.php?request_id=' + data.requestId;
-              }
-          };
-          summary.append(condLink);
-      }
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 39
 
-      oldCard.replaceWith(summary);
-});
-</script>
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 58
+
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 81
+
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 87
+
+Warning: Undefined array key "REQUEST_METHOD" in C:\laragon\www\wanawan_project\pages\chat.php on line 98
+
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
  const composer=document.querySelector('.composer');
@@ -200,7 +36,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  back.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
  chatHead.prepend(back);
  }
- const contextData={"title":"Ex2 ↔ ขอพูดคุยก่อน","subtitle":"คำขอแลกเปลี่ยน · รอตอบรับ","image":"/pages/uploads/exchanges/exchange_8b2cc042bceb458023c4.png","url":"/pages/exchange_requests.php?tab=received"};
+ const contextData=null;
  if(chatHead&&contextData&&!document.querySelector('.chat-context-bar')){
   const context=document.createElement('a');
   context.className='chat-context-bar';
@@ -218,86 +54,55 @@ document.addEventListener('DOMContentLoaded',()=>{
   const copy=document.createElement('span');
   copy.className='chat-context-copy';
   const title=document.createElement('strong');
-  const chatHead=document.querySelector('.chat-head');
-  if(chatHead&&!chatHead.querySelector('.chat-back')){
-   const back=document.createElement('a');
-   back.className='chat-back';
-   back.href='/pages/chat.php';
-   back.setAttribute('aria-label','กลับไปรายการแชท');
-   back.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
-   chatHead.prepend(back);
-  }
-  const contextData={"title":"Ex2 ↔ ขอพูดคุยก่อน","subtitle":"คำขอแลกเปลี่ยน · รอตอบรับ","image":"/pages/uploads/exchanges/exchange_8b2cc042bceb458023c4.png","url":"/pages/exchange_requests.php?tab=received"};
-  if(chatHead&&contextData&&!document.querySelector('.chat-context-bar')){
-   const context=document.createElement('a');
-   context.className='chat-context-bar';
-   context.href=contextData.url;
-   if(contextData.image){
-    const thumb=document.createElement('img');
-    thumb.src=contextData.image;
-    thumb.alt='';
-    context.append(thumb);
-   }else{
-    const placeholder=document.createElement('span');
-    placeholder.className='chat-context-placeholder';
-    context.append(placeholder);
-   }
-   const copy=document.createElement('span');
-   copy.className='chat-context-copy';
-   const title=document.createElement('strong');
-   title.textContent=contextData.title;
-   const subtitle=document.createElement('small');
-   subtitle.textContent=contextData.subtitle;
-   copy.append(title,subtitle);
-   const arrow=document.createElement('span');
-   arrow.className='chat-context-arrow';
-   arrow.textContent='›';
-   context.append(copy,arrow);
-   chatHead.after(context);
-  }
-  if(composer && textInput && !composer.querySelector('[name="chat_image"]')){
-   textInput.required=false;
-   const label=document.createElement('label');
-   label.className='chat-attach';
-   label.title='ถ่ายภาพหรือเลือกรูป';
-   label.setAttribute('aria-label','ถ่ายภาพหรือเลือกรูป');
-   label.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 5l1.4-2h5.2L16 5"/></svg>';
-   const input=document.createElement('input');
-   input.type='file';
-   input.name='chat_image';
-   input.accept='image/jpeg,image/png,image/webp,image/gif';
-   label.append(input);
-   composer.insertBefore(label,textInput);
-   const preview=document.createElement('div');
-   preview.className='chat-image-preview';
-   preview.hidden=true;
-   const image=document.createElement('img');
-   image.alt='ตัวอย่างรูปที่จะส่ง';
-   const remove=document.createElement('button');
-   remove.type='button';
-   remove.setAttribute('aria-label','นำรูปออก');
-   remove.textContent='×';
-   preview.append(image,remove);
-   composer.before(preview);
-   let previewUrl='';
-   const clear=()=>{input.value='';preview.hidden=true;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=''};
-   input.addEventListener('change',()=>{
-    const file=input.files && input.files[0] ? input.files[0] : null;
-    if(!file)return clear();
-    if(file.size>8*1024*1024){clear();alert('รูปภาพต้องมีขนาดไม่เกิน 8 MB');return}
-    if(previewUrl)URL.revokeObjectURL(previewUrl);
-    previewUrl=URL.createObjectURL(file);
-    image.src=previewUrl;
-    preview.hidden=false;
-   });
-   remove.addEventListener('click',clear);
-  }
- } catch(err) {
-  console.error(err);
+  title.textContent=contextData.title;
+  const subtitle=document.createElement('small');
+  subtitle.textContent=contextData.subtitle;
+  copy.append(title,subtitle);
+  const arrow=document.createElement('span');
+  arrow.className='chat-context-arrow';
+  arrow.textContent='›';
+  context.append(copy,arrow);
+  chatHead.after(context);
  }
+ if(!composer||!textInput||composer.querySelector('[name="chat_image"]'))return;
+ textInput.required=false;
+ const label=document.createElement('label');
+ label.className='chat-attach';
+ label.title='ถ่ายภาพหรือเลือกรูป';
+ label.setAttribute('aria-label','ถ่ายภาพหรือเลือกรูป');
+ label.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 5l1.4-2h5.2L16 5"/></svg>';
+ const input=document.createElement('input');
+ input.type='file';
+ input.name='chat_image';
+ input.accept='image/jpeg,image/png,image/webp,image/gif';
+ label.append(input);
+ composer.insertBefore(label,textInput);
+ const preview=document.createElement('div');
+ preview.className='chat-image-preview';
+ preview.hidden=true;
+ const image=document.createElement('img');
+ image.alt='ตัวอย่างรูปที่จะส่ง';
+ const remove=document.createElement('button');
+ remove.type='button';
+ remove.setAttribute('aria-label','นำรูปออก');
+ remove.textContent='×';
+ preview.append(image,remove);
+ composer.before(preview);
+ let previewUrl='';
+ const clear=()=>{input.value='';preview.hidden=true;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=''};
+ input.addEventListener('change',()=>{
+  const file=input.files?.[0];
+  if(!file)return clear();
+  if(file.size>8*1024*1024){clear();alert('รูปภาพต้องมีขนาดไม่เกิน 8 MB');return}
+  if(previewUrl)URL.revokeObjectURL(previewUrl);
+  previewUrl=URL.createObjectURL(file);
+  image.src=previewUrl;
+  preview.hidden=false;
+ });
+ remove.addEventListener('click',clear);
 });
 </script>
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>กล่องข้อความ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css"><script>window.wanawanChatReadStatus={"conversationId":27,"ownMessageIds":[209,211,214,215],"lastReadMessageId":215,"lastMessageId":216,"peerImage":null,"peerName":"ทดลองระบบ ex1","threadProfiles":[{"id":27,"image":null,"name":"ทดลองระบบ ex1"}]};</script><script src="/assets/js/chat-read-status.js" defer></script><style>
+<!doctype html><html lang="th"><head><script>window.onerror = function(msg, url, lineNo, columnNo, error) { alert('JS Error: ' + msg + ' at line ' + lineNo); return false; };</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>กล่องข้อความ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css"><script>window.wanawanChatReadStatus={"conversationId":0,"ownMessageIds":[],"lastReadMessageId":0,"lastMessageId":0,"peerImage":null,"peerName":"คู่สนทนา","threadProfiles":[{"id":28,"image":null,"name":"Ex222"}]};</script><script src="/assets/js/chat-read-status.js" defer></script><style>
 *{box-sizing:border-box}.layout{display:flex;max-width:1440px;margin:auto;min-height:760px}.chat{flex:1;display:grid;grid-template-columns:280px 1fr 270px;border:1px solid #ddd8d2;margin:28px;border-radius:16px;overflow:hidden;background:#fff}.threads{border-right:1px solid #ddd8d2}.threads h2,.chat-head,.product h3{padding:20px;margin:0;color:var(--secondary-color);border-bottom:1px solid #ddd8d2}.thread{display:flex;align-items:center;gap:11px;padding:14px 18px;border-bottom:1px solid #eee;color:inherit;text-decoration:none}.thread-copy{min-width:0;flex:1}.thread-avatar,.chat-head-avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;object-fit:cover;background:#f2dbe4;display:grid;place-items:center;color:#a95575;font-weight:700}.chat-head-avatar{width:40px;height:40px;flex-basis:40px}.thread.active{background:#e9f1f2}.thread strong,.thread small{display:block}.thread small{color:var(--text-muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation{display:flex;flex-direction:column;min-width:0}.chat-head{display:flex;align-items:center;gap:11px}.messages{flex:1;padding:25px;overflow:auto;background:#fcfaf8}.bubble{max-width:72%;margin:0 0 14px;padding:13px 16px;border:1px solid #ddd8d2;border-radius:16px;background:#fff;line-height:1.55}.bubble.mine{margin-left:auto;background:#d18aa7;color:#fff;border-color:#d18aa7}.bubble time{display:block;font-size:10px;opacity:.7;text-align:right}.composer{display:flex;gap:10px;padding:14px;border-top:1px solid #ddd8d2}.composer input{flex:1;border:1px solid #ccc;border-radius:22px;padding:12px 16px;font:inherit}.composer button{border:0;border-radius:50%;width:45px;background:#d18aa7;color:#fff;font:inherit}.product{border-left:1px solid #ddd8d2;padding-bottom:20px}.product-card{margin:18px;border:1px solid #ddd8d2;border-radius:12px;padding:12px;background:#fff}.product-card img{width:100%;height:210px;object-fit:cover;border-radius:8px;cursor:pointer}.product-card strong{display:block;margin:10px 0;color:var(--secondary-color)}.chat-product-actions{display:grid;gap:8px;margin-top:14px}.chat-product-btn{min-height:40px;border:1px solid #d3948b;border-radius:8px;display:grid;place-items:center;padding:8px;text-decoration:none;font:inherit;font-weight:600;cursor:pointer}.chat-product-btn.cart,.chat-product-btn.exchange{background:#d3948b;color:#fff}.chat-product-btn.detail{background:#fff;color:#b66f68}.empty{display:grid;place-items:center;color:var(--text-muted)}@media(max-width:1000px){.chat{grid-template-columns:240px 1fr}.product{display:none}}@media(max-width:750px){.layout{display:block}.chat{margin:12px;grid-template-columns:1fr}.threads{display:none}}
 .layout{width:100%;max-width:none;margin:0;background:#fff}.chat{min-width:0;min-height:calc(100vh - 132px);margin:28px 32px}.chat>.empty{padding:40px;text-align:center;background:linear-gradient(135deg,#fffdfb,#fff7f2);font-size:17px}@media(min-width:1001px){.chat:not(:has(.conversation)){grid-template-columns:minmax(280px,340px) minmax(0,1fr)}.chat:not(:has(.conversation))>.product{display:none}}@media(max-width:800px){.chat{min-height:650px;margin:16px}}
 .bubble{width:fit-content;min-width:54px;max-width:min(72%,680px);overflow-wrap:anywhere;word-break:break-word}.bubble.mine{width:fit-content}.read-receipt{display:block;margin-top:5px;text-align:right;font-size:11px;font-weight:500;opacity:.82}
@@ -372,6 +177,10 @@ document.addEventListener('DOMContentLoaded',()=>{
  @keyframes popIn { from { opacity: 0; transform: translateY(15px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
  </style>
 </head><body>
+Warning: Undefined array key "REQUEST_URI" in C:\laragon\www\wanawan_project\components\breadcrumb_history.php on line 12
+
+Deprecated: parse_url(): Passing null to parameter #1 ($url) of type string is deprecated in C:\laragon\www\wanawan_project\components\breadcrumb_history.php on line 13
+
 <style>
 /* =====================================================
    HEADER COMPONENT — ใช้ CSS Variables จาก styles.css
@@ -940,54 +749,54 @@ document.addEventListener('DOMContentLoaded',()=>{
                 <div class="notification-dropdown">
                     <div class="notification-header">การแจ้งเตือนล่าสุด</div>
                     <div class="notification-list" id="headerNotificationList">
-                                                                                    <a href="/pages/notifications.php?read=399" class="notification-item exchange unread">
+                                                                                    <a href="/pages/notifications.php?read=405" class="notification-item exchange unread">
                                     <span class="notification-icon">
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
                                                                             </span>
                                     <span class="notification-content">
                                         <h4>มีคำขอแลกเปลี่ยนใหม่</h4>
-                                        <p>ทดลองระบบ ex1 ยื่นคำขอแลกเปลี่ยนหนังสือ “Ex2”</p>
-                                        <span class="notification-time">17:52</span>
+                                        <p>Ex222 ยื่นคำขอแลกเปลี่ยนหนังสือ “Ex1”</p>
+                                        <span class="notification-time">09:40</span>
                                     </span>
                                 </a>
-                                                            <a href="/pages/notifications.php?read=398" class="notification-item exchange unread">
+                                                            <a href="/pages/notifications.php?read=404" class="notification-item exchange unread">
                                     <span class="notification-icon">
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
                                                                             </span>
                                     <span class="notification-content">
                                         <h4>อัปเดตคำขอแลกเปลี่ยน</h4>
-                                        <p>ยกเลิกคำขอแล้ว สำหรับ “Ex2”</p>
-                                        <span class="notification-time">17:52</span>
+                                        <p>ตอบรับคำขอแล้ว สำหรับ “Ex2”</p>
+                                        <span class="notification-time">21:40</span>
                                     </span>
                                 </a>
-                                                            <a href="/pages/notifications.php?read=396" class="notification-item exchange ">
+                                                            <a href="/pages/notifications.php?read=400" class="notification-item exchange unread">
                                     <span class="notification-icon">
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
                                                                             </span>
                                     <span class="notification-content">
-                                        <h4>มีคำขอแลกเปลี่ยนใหม่</h4>
-                                        <p>ทดลองระบบ ex1 ยื่นคำขอแลกเปลี่ยนหนังสือ “Ex2”</p>
-                                        <span class="notification-time">17:47</span>
+                                        <h4>อัปเดตคำขอแลกเปลี่ยน</h4>
+                                        <p>ตอบรับคำขอแล้ว สำหรับ “Ex2”</p>
+                                        <span class="notification-time">18:03</span>
                                     </span>
                                 </a>
-                                                            <a href="/pages/notifications.php?read=395" class="notification-item exchange unread">
+                                                            <a href="/pages/notifications.php?read=397" class="notification-item exchange unread">
                                     <span class="notification-icon">
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
                                                                             </span>
                                     <span class="notification-content">
-                                        <h4>มีคำขอแลกเปลี่ยนใหม่</h4>
-                                        <p>ทดลองระบบ ex1 ยื่นคำขอแลกเปลี่ยนหนังสือ “Ex2”</p>
-                                        <span class="notification-time">17:47</span>
+                                        <h4>อัปเดตคำขอแลกเปลี่ยน</h4>
+                                        <p>ตอบรับคำขอแล้ว สำหรับ “Ex2”</p>
+                                        <span class="notification-time">17:48</span>
                                     </span>
                                 </a>
-                                                            <a href="/pages/notifications.php?read=392" class="notification-item exchange unread">
+                                                            <a href="/pages/notifications.php?read=394" class="notification-item exchange unread">
                                     <span class="notification-icon">
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg>
                                                                             </span>
                                     <span class="notification-content">
-                                        <h4>มีคำขอแลกเปลี่ยนใหม่</h4>
-                                        <p>ทดลองระบบ ex1 ยื่นคำขอแลกเปลี่ยนหนังสือ “Ex2”</p>
-                                        <span class="notification-time">17:07</span>
+                                        <h4>อัปเดตคำขอแลกเปลี่ยน</h4>
+                                        <p>ปฏิเสธคำขอแล้ว สำหรับ “Ex2”</p>
+                                        <span class="notification-time">17:46</span>
                                     </span>
                                 </a>
                                                                         </div>
@@ -1018,7 +827,7 @@ document.addEventListener('DOMContentLoaded',()=>{
                                                 <span class="header-breadcrumb__sep">›</span>
             
                             <span class="header-breadcrumb__current">
-                    Check html                </span>
+                                    </span>
                         </nav>
     
 
@@ -1139,12 +948,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         
                 <div class="msb-user">
             <a href="/pages/profile.php" class="msb-user-info" style="text-decoration: none; color: inherit;">
-                                <img src="https://ui-avatars.com/api/?name=Ex222&amp;background=C97B8B&amp;color=fff" class="msb-avatar" alt="">
+                                <img src="https://ui-avatars.com/api/?name=%E0%B8%97%E0%B8%94%E0%B8%A5%E0%B8%AD%E0%B8%87%E0%B8%A3%E0%B8%B0%E0%B8%9A%E0%B8%9A+ex1&amp;background=C97B8B&amp;color=fff" class="msb-avatar" alt="">
                 <div class="msb-user-details">
                     <h3 class="msb-user-name">
-                        Ex222                        <span class="msb-user-badge">นักอ่าน</span>
+                        ทดลองระบบ ex1                        <span class="msb-user-badge">นักอ่าน</span>
                     </h3>
-                    <p class="msb-user-handle">@ex2</p>
+                    <p class="msb-user-handle">@ex1</p>
                     <p class="msb-user-loc">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                         อ.เมืองนครราชสีมา                    </p>
@@ -1187,7 +996,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             </a>
             <a href="/pages/exchange_requests.php" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span> ลานแลกเปลี่ยน
-                <span class="msb-badge">1</span>            </a>
+                            </a>
             <a href="/pages/chat.php" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> กล่องข้อความ
                 <span class="msb-badge">6</span>            </a>
@@ -1374,7 +1183,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <a class="profile-menu " href="/pages/exchange_requests.php">
         <span class="profile-menu__icon"><svg viewBox="0 0 24 24"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></svg></span>
         <span>ลานแลกเปลี่ยน</span>
-                <span class="profile-menu__badge">1</span>
             </a>
         <a class="profile-menu " href="/pages/user_wallet.php">
         <span class="profile-menu__icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
@@ -1421,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', function() {
     addEventListener('resize',sync);
 })();
 </script>
-<main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><style>.thread-swipe-wrapper::-webkit-scrollbar{display:none}</style><div class="thread-swipe-wrapper" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-bottom:1px solid #eee;"><a class="thread active" href="?conversation=27" style="flex:0 0 100%; scroll-snap-align:start; border-bottom:0; min-width:100%;"><strong>ทดลองระบบ ex1</strong><small>[CONDITION_FORM_ACCEPTED:56]</small></a><form method="post" style="flex:0 0 75px; scroll-snap-align:end; background:#d9534f; display:flex;" onsubmit="return handleThreadDelete(event, this);"><input type="hidden" name="csrf_token" value="abc1234"><input type="hidden" name="delete_conversation" value="1"><input type="hidden" name="delete_conversation_id" value="27"><button class="thread-delete-btn" type="submit" style="width:100%; border:0; background:transparent; color:#fff; font-weight:600; font:inherit; cursor:pointer;">ลบ</button></form></div></aside><section class="conversation"><h2 class="chat-head">ทดลองระบบ ex1</h2><div class="messages"><div class="bubble mine">สนใจแลกเปลี่ยนหนังสือ “Ex2”<time>15:49</time></div><div class="bubble ">[PROPOSE_FULL_TRADE:direct_escrow:3]<time>15:51</time></div><div class="bubble mine">[ACCEPTED_FULL_TRADE:direct_escrow:3]<time>15:51</time></div><div class="bubble ">[CONDITION_FORM_SUBMITTED:56]<time>16:05</time></div><div class="bubble ">[CONDITION_FORM_SUBMITTED:56]<time>16:06</time></div><div class="bubble mine">[CONDITION_FORM_SUBMITTED:57]<time>16:07</time></div><div class="bubble mine">[CONDITION_FORM_ACCEPTED:57]<time>16:07</time></div><div class="bubble ">[CONDITION_FORM_ACCEPTED:56]<time>16:07</time></div></div><form class="composer" method="post"><input type="hidden" name="csrf_token" value="abc1234"><input type="hidden" name="conversation_id" value="27"><input name="message_text" placeholder="พิมพ์ข้อความ..." required autocomplete="off"><button name="send_message">➤</button></form></section><aside class="product"><h3>ข้อมูลรายการแลกเปลี่ยน</h3><div class="product-card"><img src="/pages/uploads/exchanges/exchange_8b2cc042bceb458023c4.png" alt="Ex2"><strong>Ex2</strong><span>รายการแลกเปลี่ยน · สภาพ 90%</span><div class="chat-product-actions"><a class="chat-product-btn detail" href="/pages/book_detail.php?source=exchange&amp;id=13">ดูรายละเอียดรายการแลกเปลี่ยน</a></div></div></aside></main></div><style>
+<main class="chat"><aside class="threads"><h2>ข้อความล่าสุด</h2><style>.thread-swipe-wrapper::-webkit-scrollbar{display:none}</style><div class="thread-swipe-wrapper" style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; border-bottom:1px solid #eee;"><a class="thread " href="?conversation=28" style="flex:0 0 100%; scroll-snap-align:start; border-bottom:0; min-width:100%;"><strong>Ex222</strong><small>[ACCEPTED_FULL_TRADE:direct_escrow:3]</small></a><form method="post" style="flex:0 0 75px; scroll-snap-align:end; background:#d9534f; display:flex;" onsubmit="return handleThreadDelete(event, this);"><input type="hidden" name="csrf_token" value="802a22fa3cf21ce4e64f28ffe0c5058ea0f77dd80f245c80"><input type="hidden" name="delete_conversation" value="1"><input type="hidden" name="delete_conversation_id" value="28"><button class="thread-delete-btn" type="submit" style="width:100%; border:0; background:transparent; color:#fff; font-weight:600; font:inherit; cursor:pointer;">ลบ</button></form></div></aside><section class="empty">เลือกบทสนทนาเพื่อเริ่มแชต</section><aside class="product"></aside></main></div><style>
 body {
     min-height: 100vh;
     display: flex;
@@ -1573,7 +1381,16 @@ body {
     </div>
 </footer>
 <script src="/assets/js/location_distance.js?v=4" defer></script>
-<script>document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=13');</script> <div id="deleteConfirmModal" class="confirm-modal-overlay">
+  <div id="conditionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn 0.2s ease-out;">
+     <div style="background:#fff;width:95%;max-width:640px;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.2);display:flex;flex-direction:column;height:90vh;animation:popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+         <div style="padding:15px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#fffaf0;">
+             <h3 style="margin:0;color:#175564;font-size:16px;display:flex;align-items:center;gap:8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> ฟอร์มยืนยันสภาพสินค้า</h3>
+             <button onclick="document.getElementById('conditionModal').style.display='none';document.getElementById('conditionIframe').src='';" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;padding:0;line-height:1;">&times;</button>
+         </div>
+         <iframe id="conditionIframe" style="width:100%;flex:1;border:none;background:#f8fafc;" src=""></iframe>
+     </div>
+ </div>
+ <div id="deleteConfirmModal" class="confirm-modal-overlay">
      <div class="confirm-modal-box">
          <div class="confirm-icon">
              <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
@@ -1599,6 +1416,17 @@ body {
      currentDeleteForm = null;
  }
  document.addEventListener('DOMContentLoaded', () => {
+     window.addEventListener('message', function(e) {
+         if(e.data && e.data.action === 'close_condition_modal') {
+             const m = document.getElementById('conditionModal');
+             if(m) {
+                 m.style.display = 'none';
+                 document.getElementById('conditionIframe').src = '';
+                 window.location.reload();
+             }
+         }
+     });
+     
      document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
          if(currentDeleteForm) currentDeleteForm.submit();
      });

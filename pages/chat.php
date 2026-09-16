@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  oldCard.replaceWith(summary);
 
  const insertBanner=function(el){setTimeout(function(){const ex=document.querySelector('.trade-action-banner');if(ex)ex.remove();el.classList.add('trade-action-banner');el.style.margin='15px';el.style.marginBottom='0';const ctxBar=document.querySelector('.chat-context-bar');const chatHead=document.querySelector('.chat-head');if(ctxBar)ctxBar.after(el);else if(chatHead)chatHead.after(el);},150);};
- const makeCondBtn=function(){const w=document.createElement('div');w.style.cssText='padding:15px;background:#fffaf0;color:#92400e;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fde68a;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';w.innerHTML='\ud83d\udcdd <strong>\u0e01\u0e23\u0e2d\u0e01\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e2a\u0e20\u0e32\u0e1e\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e01\u0e23\u0e2d\u0e01\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e23\u0e39\u0e1b\u0e16\u0e48\u0e32\u0e22\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='\u0e01\u0e23\u0e2d\u0e01\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e2a\u0e20\u0e32\u0e1e\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';btn.style.cssText='padding:8px 20px;background:#d97706;border-color:#d97706';btn.onclick=function(){const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');if(modal&&iframe){iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1';modal.style.display='flex';}else{window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId;}};w.append(btn);return w;};
+ const makeCondBtn=function(){const w=document.createElement('div');w.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';w.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">กรอกฟอร์มยืนยันสภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">กรุณาแนบรูปภาพสินค้าของคุณ</span></div></div>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='กรอกฟอร์ม';btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';btn.onclick=function(){const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');if(modal&&iframe){iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;modal.style.display='flex';}else{window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;}};w.append(btn);return w;};
 
  if(data.rawStatus==='accepted' || data.rawStatus==='completed'){
   const needsDL=(data.tradeOption==='direct_escrow'||data.tradeOption==='admin_qc');
@@ -213,8 +213,66 @@ document.addEventListener('DOMContentLoaded',()=>{
    const b=document.createElement('div');b.style.cssText='padding:14px;background:#fff3cd;color:#856404;border-radius:8px;font-size:14px;text-align:center;border:1px solid #ffeeba';b.innerHTML='\u23f3 <strong>\u0e23\u0e2d\u0e02\u0e49\u0e2d\u0e2a\u0e23\u0e38\u0e1b\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e15\u0e01\u0e25\u0e07\u0e27\u0e31\u0e19\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e43\u0e19\u0e41\u0e0a\u0e17\u0e01\u0e48\u0e2d\u0e19\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e15\u0e48\u0e2d';const w=document.createElement('div');w.append(b);insertBanner(w);
   } else if(data.tradeOption==='admin_qc'){
    const cb=document.createElement('div');const mySlip=data.isRequester?data.requesterSlipStatus:data.offerSlipStatus;const myTr=data.isRequester?data.requesterTrackingToAdmin:data.offerTrackingToAdmin;const ptTr=data.isRequester?data.offerTrackingToAdmin:data.requesterTrackingToAdmin;
-   if(!data.conditionsAccepted){const banner = getCondBanner(); if(banner) cb.append(banner);}
-   else if(!mySlip){const b=document.createElement('div');b.style.cssText='padding:15px;background:#fff5f5;color:#c53030;border-radius:8px;font-size:14px;text-align:center;border:1px solid #feb2b2;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';b.innerHTML='\ud83d\udcb3 <strong>\u0e0a\u0e33\u0e23\u0e30\u0e04\u0e48\u0e32\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 (QC)</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e42\u0e2d\u0e19\u0e04\u0e48\u0e32\u0e18\u0e23\u0e23\u0e21\u0e40\u0e19\u0e35\u0e22\u0e21\u0e41\u0e25\u0e30\u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='\ud83d\udcb8 \u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b\u0e0a\u0e33\u0e23\u0e30 QC';btn.style.cssText='padding:8px 16px';btn.onclick=function(){
+   if(!data.conditionsAccepted){
+       if (data.myCondition && !data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;border:1px solid #fde68a;margin-bottom:12px;gap:12px;';
+           b.innerHTML = '<div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รออีกฝ่ายเพิ่มฟอร์มภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">คุณกรอกฟอร์มแล้ว กรุณารอให้อีกฝ่ายกรอกข้อมูล</span></div>';
+           cb.append(b);
+       } else if (!data.myCondition && data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">อีกฝ่ายเพิ่มรูปภาพสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">ดูรายละเอียดเพื่อตรวจสอบและกรอกข้อมูลของคุณ</span></div></div>';
+           const btn=document.createElement('button');
+           btn.className='btn primary';
+           btn.textContent='ดูแบบฟอร์ม';
+           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#d97706; border-color:#d97706; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+           btn.onclick=function(){
+               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
+               if(modal&&iframe){
+                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
+                   modal.style.display='flex';
+               }else{
+                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
+               }
+           };
+           b.append(btn);
+           cb.append(b);
+       } else if (data.myCondition && data.partnerCondition) {
+           const b = document.createElement('div');
+           b.style.cssText = 'padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fef08a;margin-bottom:12px;gap:10px;';
+           b.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ตรวจสอบสภาพสินค้า</strong><span style="font-size:12px;opacity:0.8;">ทั้งสองฝ่ายกรอกข้อมูลแล้ว กรุณาเข้าไปกดยอมรับ</span></div></div>';
+           const btn=document.createElement('button');
+           btn.className='btn primary';
+           btn.textContent='ตรวจสอบ';
+           btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#eab308; border-color:#eab308; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+           btn.onclick=function(){
+               const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
+               const cid=(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
+               if(modal&&iframe){
+                   iframe.src='/pages/trade_condition_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+cid;
+                   modal.style.display='flex';
+               }else{
+                   window.location.href='/pages/trade_condition_form.php?request_id='+data.requestId+'&conversation_id='+cid;
+               }
+           };
+           b.append(btn);
+           cb.append(b);
+       } else {
+           const banner = makeCondBtn(); 
+           if(banner) cb.append(banner);
+       }
+   }
+   else if(!mySlip){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#fff1f2;color:#be123c;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #ffe4e6;margin-bottom:12px;gap:10px;';
+       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">ชำระค่าบริการส่วนกลาง (QC)</strong><span style="font-size:12px;opacity:0.8;">กรุณาโอนเงินค่าบริการและแนบสลิป</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary';
+       btn.textContent='แนบสลิป';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#e11d48; border-color:#e11d48; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
     const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
     if(modal&&iframe){
         modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> ชำระค่าบริการส่วนกลาง (QC)';
@@ -224,17 +282,33 @@ document.addEventListener('DOMContentLoaded',()=>{
         window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
     }
 };b.append(btn);cb.append(b);}
-   else if(mySlip==='pending'||mySlip==='pending_verification'){const b=document.createElement('div');b.style.cssText='padding:14px;background:#fffbeb;color:#92400e;border-radius:8px;font-size:14px;text-align:center;border:1px solid #fde68a;margin-bottom:10px';b.innerHTML='\u23f3 <strong>\u0e23\u0e2d\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e2a\u0e25\u0e34\u0e1b</strong><br>\u0e17\u0e35\u0e21\u0e07\u0e32\u0e19\u0e01\u0e33\u0e25\u0e31\u0e07\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e01\u0e32\u0e23\u0e0a\u0e33\u0e23\u0e30\u0e40\u0e07\u0e34\u0e19\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='รอแอดมินตรวจสอบสลิป';btn.style.cssText='padding:8px 16px;';btn.onclick=function(){
+   else if(mySlip==='pending'||mySlip==='pending_verification'){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#fffbeb;color:#92400e;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #fde68a;margin-bottom:12px;gap:10px;';
+       b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#d97706;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอแอดมินตรวจสอบ</strong><span style="font-size:12px;opacity:0.8;">ทีมงานกำลังตรวจสอบสลิปการชำระเงินของคุณ</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary outline';
+       btn.textContent='รอแอดมินตรวจสอบ';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; border:1px solid #d97706; color:#d97706; background:transparent; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
     const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
     if(modal&&iframe){
         modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> สถานะการชำระเงิน (QC)';
         iframe.src='/pages/trade_qc_logistics_form.php?request_id='+data.requestId+'&iframe=1';
         modal.style.display='flex';
     } else {
-        window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
-    }
-};b.append(btn);cb.append(b);}
-   else if(mySlip==='approved'&&!myTr){const b=document.createElement('div');b.style.cssText='padding:15px;background:#f0fff4;color:#276749;border-radius:8px;font-size:14px;text-align:center;border:1px solid #c6f6d5;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';b.innerHTML='\u2705 <strong>\u0e2a\u0e25\u0e34\u0e1b\u0e44\u0e14\u0e49\u0e23\u0e31\u0e1a\u0e01\u0e32\u0e23\u0e2d\u0e19\u0e38\u0e21\u0e31\u0e15\u0e34!</strong><br>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e01\u0e23\u0e2d\u0e01\u0e17\u0e35\u0e48\u0e2d\u0e22\u0e39\u0e48\u0e41\u0e25\u0e30\u0e40\u0e25\u0e02\u0e1e\u0e31\u0e2a\u0e14\u0e38\u0e17\u0e35\u0e48\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e43\u0e2b\u0e49 QC<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='ที่อยู่ในการจัดส่งและกรอกเลขพัสดุ';btn.style.cssText='padding:8px 16px';btn.onclick=function(){
+        window.location.href='/pages/trade_qc_l   else if(myTr && (!ptTr || data.requesterQcStatus === 'pending' || data.offerQcStatus === 'pending')){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#f3f4f6;color:#374151;border-radius:8px;display:flex;align-items:center;border:1px solid #e5e7eb;margin-bottom:12px;gap:12px;';
+       b.innerHTML='<div style="color:#4b5563;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอสินค้าถึงแอดมิน แล้วตรวจสอบสินค้าอีกครั้ง</strong><span style="font-size:12px;opacity:0.8;">ส่งพัสดุเรียบร้อยแล้ว กรุณารอทีมงานตรวจสอบ</span></div>';
+       cb.append(b);
+   }
+   else if(myTr&&ptTr){�ที่อยู่และเลขพัสดุที่ส่งให้บริษัท</span></div></div>';
+       const btn=document.createElement('button');
+       btn.className='btn primary';
+       btn.textContent='เพิ่มที่อยู่และส่งสินค้าไปยังบริษัท';
+       btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#2563eb; border-color:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+       btn.onclick=function(){
     const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
     if(modal&&iframe){
         modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> แจ้งเลขพัสดุส่วนกลาง (QC)';
@@ -244,7 +318,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         window.location.href='/pages/trade_qc_logistics_form.php?request_id='+data.requestId;
     }
 };b.append(btn);cb.append(b);}
-   else if(myTr&&!ptTr){const b=document.createElement('div');b.style.cssText='padding:14px;background:#eff6ff;color:#1e40af;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bfdbfe';b.innerHTML='\ud83d\udce6 <strong>\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e1e\u0e31\u0e2a\u0e14\u0e38\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27</strong><br>\u0e23\u0e2d\u0e43\u0e2b\u0e49\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e41\u0e25\u0e30\u0e08\u0e30\u0e21\u0e35\u0e01\u0e32\u0e23\u0e2a\u0e48\u0e07\u0e1f\u0e2d\u0e23\u0e4c\u0e21\u0e21\u0e32\u0e43\u0e2b\u0e49';cb.append(b);}
+   else if(myTr&&!ptTr){
+       const b=document.createElement('div');
+       b.style.cssText='padding:12px 16px;background:#f3e8ff;color:#6b21a8;border-radius:8px;display:flex;align-items:center;border:1px solid #e9d5ff;margin-bottom:12px;gap:12px;';
+       b.innerHTML='<div style="color:#9333ea;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">จัดส่งพัสดุให้ QC เรียบร้อยแล้ว</strong><span style="font-size:12px;opacity:0.8;">รอให้อีกฝ่ายจัดส่งพัสดุเช่นกัน</span></div>';
+       cb.append(b);
+   }
    else if(myTr&&ptTr){
     const reqQc=data.requesterQcStatus;
     const offQc=data.offerQcStatus;
@@ -346,7 +425,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    }
    if(cb.children.length>0)insertBanner(cb);
   } else if(data.tradeOption==='direct_escrow'){
-   if(!data.conditionsAccepted){const cb=document.createElement('div');const banner = getCondBanner(); if(banner) cb.append(banner);insertBanner(cb);}
+   if(!data.conditionsAccepted){const cb=document.createElement('div');const banner = makeCondBtn(); if(banner) cb.append(banner);insertBanner(cb);}
    else{
     const myS=(data.myCondition&&data.myCondition.deposit_status)?data.myCondition.deposit_status:'pending';
     const ptS=(data.partnerCondition&&data.partnerCondition.deposit_status)?data.partnerCondition.deposit_status:'pending';
@@ -358,18 +437,127 @@ document.addEventListener('DOMContentLoaded',()=>{
     else{
      const myD=(parseFloat(ptR)===0)||(myS==='approved');
      const ptD=(parseFloat(myR)===0)||(ptS==='approved');
-     if(!myD){const b=document.createElement('div');b.style.cssText='padding:15px;background:#fff5f5;color:#c53030;border-radius:8px;font-size:14px;text-align:center;border:1px solid #feb2b2;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';if(myS==='pending_verification'){b.innerHTML='<i class="fas fa-hourglass-half"></i> <strong>\u0e23\u0e2d\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e2a\u0e25\u0e34\u0e1b\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33</strong><br>\u0e3f'+parseFloat(ptR).toFixed(2);}else{b.innerHTML='\u26a0\ufe0f <strong>\u0e04\u0e38\u0e13\u0e15\u0e49\u0e2d\u0e07\u0e0a\u0e33\u0e23\u0e30\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33</strong><br>\u0e3f'+parseFloat(ptR).toFixed(2)+'<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='\u0e41\u0e19\u0e1a\u0e2a\u0e25\u0e34\u0e1b\u0e0a\u0e33\u0e23\u0e30\u0e40\u0e07\u0e34\u0e19';btn.style.cssText='padding:8px 16px';btn.onclick=function(){
+     if(!myD){
+    const b=document.createElement('div');
+    b.id = 'my-deposit-banner';
+    b.style.cssText='padding:12px 16px;background:#fff1f2;color:#be123c;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #ffe4e6;margin-bottom:12px;gap:10px;';
+    if(myS==='pending_verification' || myS==='reviewing'){
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รอแอดมินตรวจสอบความถูกต้องของสลิป</strong><span style="font-size:12px;opacity:0.8;">จำนวน ฿'+parseFloat(ptR).toFixed(2)+'</span></div></div>';
+    }else{
+        b.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#e11d48;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">คุณต้องชำระเงินมัดจำ</strong><span style="font-size:12px;opacity:0.8;">จำนวน ฿'+parseFloat(ptR).toFixed(2)+'</span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.innerHTML='ชำระเงิน';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#e11d48; border-color:#e11d48; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
     const modal=document.getElementById('conditionModal');const iframe=document.getElementById('conditionIframe');
     if(modal&&iframe){
         modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg> แนบสลิปชำระเงินมัดจำ';
-        iframe.src='/pages/trade_upload_slip.php?request_id='+data.requestId+'&iframe=1';
+        iframe.src='/pages/trade_upload_slip.php?request_id='+data.requestId+'&iframe=1&conversation_id='+(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
         modal.style.display='flex';
     } else {
         window.location.href='/pages/trade_upload_slip.php?request_id='+data.requestId;
     }
 };b.append(btn);}cb.append(b);}
-     if(!ptD){const b=document.createElement('div');b.style.cssText='padding:14px;background:#ebf4ff;color:#2b6cb0;border-radius:8px;font-size:14px;text-align:center;border:1px solid #bee3f8;margin-bottom:10px';b.innerHTML='<i class="fas fa-clock"></i> <strong>\u0e23\u0e2d\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22\u0e0a\u0e33\u0e23\u0e30\u0e40\u0e07\u0e34\u0e19\u0e21\u0e31\u0e14\u0e08\u0e33</strong><br>\u0e3f'+parseFloat(myR).toFixed(2);cb.append(b);}
-     if(myD&&ptD){const dObj=new Date((data.myCondition&&data.myCondition.deposit_approved_at)||(data.partnerCondition&&data.partnerCondition.deposit_approved_at)||new Date());dObj.setDate(dObj.getDate()+parseInt(data.shippingDeadline));const dls=dObj.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});const myTr=(data.myCondition)?data.myCondition.tracking_number:null;const ptTr=(data.partnerCondition)?data.partnerCondition.tracking_number:null;const ptRv=(data.partnerCondition)?data.partnerCondition.is_received:0;const myRv=(data.myCondition)?data.myCondition.is_received:0;const sb=document.createElement('div');sb.style.cssText='padding:15px;background:#f0fff4;color:#276749;border-radius:8px;font-size:14px;text-align:center;border:1px solid #c6f6d5;box-shadow:0 2px 4px rgba(0,0,0,.05);margin-bottom:10px';if(!myTr){sb.innerHTML='\u2705 <strong>\u0e01\u0e32\u0e23\u0e27\u0e32\u0e07\u0e21\u0e31\u0e14\u0e08\u0e33\u0e40\u0e2a\u0e23\u0e47\u0e08\u0e2a\u0e34\u0e49\u0e19!</strong><br>\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e20\u0e32\u0e22\u0e43\u0e19 '+dls+'<br><br>';const btn=document.createElement('button');btn.className='btn primary';btn.textContent='\ud83d\udce6 \u0e41\u0e08\u0e49\u0e07\u0e40\u0e25\u0e02\u0e1e\u0e31\u0e2a\u0e14\u0e38';btn.style.cssText='padding:8px 16px';btn.onclick=function(){window.location.href='/pages/trade_p2p_logistics_form.php?request_id='+data.requestId;};sb.append(btn);}else if(!ptTr){sb.innerHTML='\ud83d\udce6 <strong>\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27</strong><br>\u0e23\u0e2d\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07';}else if(!ptRv){sb.innerHTML='\ud83d\udce6 <strong>\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07\u0e41\u0e25\u0e49\u0e27!</strong><br>\u0e40\u0e25\u0e02\u0e1e\u0e31\u0e2a\u0e14\u0e38: '+ptTr+'<br><br>';const btn=document.createElement('button');btn.className='btn';btn.style.cssText='background:#48bb78;color:#fff;padding:8px 16px';btn.textContent='\u2705 \u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e44\u0e14\u0e49\u0e23\u0e31\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27';btn.onclick=function(){if(confirm('\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e27\u0e48\u0e32\u0e44\u0e14\u0e49\u0e23\u0e31\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19\u0e2a\u0e20\u0e32\u0e1e\u0e17\u0e35\u0e48\u0e15\u0e01\u0e25\u0e07\u0e44\u0e27\u0e49?')){const f=document.createElement('form');f.method='post';f.action='/pages/handlers/trade_submit_logistics.php';f.innerHTML='<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="'+data.requestId+'">';document.body.append(f);f.submit();}};sb.append(btn);}else if(!myRv){sb.innerHTML='\u2705 <strong>\u0e04\u0e38\u0e13\u0e44\u0e14\u0e49\u0e23\u0e31\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27</strong><br>\u0e23\u0e2d\u0e2d\u0e35\u0e01\u0e1d\u0e48\u0e32\u0e22\u0e01\u0e14\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e23\u0e31\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';}else{sb.innerHTML='\ud83c\udf89 <strong>\u0e41\u0e25\u0e01\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08!</strong>';}cb.append(sb);}
+     if(!ptD){
+    const b=document.createElement('div');
+    b.style.cssText='padding:12px 16px;background:#eff6ff;color:#1e40af;border-radius:8px;display:flex;align-items:center;border:1px solid #dbeafe;margin-bottom:12px;gap:12px;';
+    b.innerHTML='<div style="color:#3b82f6;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">รออีกฝ่ายชำระเงินมัดจำ</strong><span style="font-size:12px;opacity:0.8;">จำนวน ฿'+parseFloat(myR).toFixed(2)+'</span></div>';
+    cb.append(b);
+}
+     if(myD&&ptD){
+    const dObj=new Date((data.myCondition&&data.myCondition.deposit_approved_at)||(data.partnerCondition&&data.partnerCondition.deposit_approved_at)||new Date());
+    dObj.setDate(dObj.getDate()+parseInt(data.shippingDeadline));
+    const dls=dObj.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+    const myTr=(data.myCondition)?data.myCondition.tracking_number:null;
+    const ptTr=(data.partnerCondition)?data.partnerCondition.tracking_number:null;
+    const ptRv=(data.partnerCondition)?data.partnerCondition.is_received:0;
+    const myRv=(data.myCondition)?data.myCondition.is_received:0;
+    const sb=document.createElement('div');
+    
+    if(!myTr){
+        sb.style.cssText='padding:12px 16px;background:#fdf5f7;color:#8b5266;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #f8e1e7;margin-bottom:12px;gap:10px;';
+        sb.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#b66f68;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">การวางมัดจำเสร็จสิ้น!</strong><span style="font-size:12px;opacity:0.8;">จัดส่งสินค้าภายใน '+dls+'</span></div></div>';
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.innerHTML='แจ้งเลขพัสดุ';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:linear-gradient(135deg, #d18aa7, #b66f68); border:none; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:"Kanit", sans-serif;';
+        btn.onclick=function(){
+            const modal=document.getElementById('conditionModal');
+            const iframe=document.getElementById('conditionIframe');
+            if(modal&&iframe){
+                modal.querySelector('h3').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> แจ้งเลขพัสดุ';
+                iframe.src='/pages/trade_p2p_logistics_form.php?request_id='+data.requestId+'&iframe=1&conversation_id='+(window.wanawanChatReadStatus&&window.wanawanChatReadStatus.conversationId||'');
+                modal.style.display='flex';
+            } else {
+                window.location.href='/pages/trade_p2p_logistics_form.php?request_id='+data.requestId;
+            }
+        };
+        sb.append(btn);
+    } else if(!ptTr){
+        sb.style.cssText='padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;border:1px solid #fef08a;margin-bottom:12px;gap:12px;';
+        sb.innerHTML='<div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">จัดส่งสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">รออีกฝ่ายจัดส่ง</span></div>';
+    } else if(!ptRv){
+        sb.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;justify-content:space-between;border:1px solid #bbf7d0;margin-bottom:12px;gap:10px;';
+        sb.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">อีกฝ่ายจัดส่งแล้ว!</strong><span style="font-size:12px;opacity:0.8;">เลขพัสดุ: '+ptTr+'</span></div></div>';
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display:flex; gap:8px;';
+        const btnClaim=document.createElement('button');
+        btnClaim.className='btn outline';
+        btnClaim.innerHTML='รายงานปัญหา';
+        btnClaim.style.cssText='white-space:nowrap; padding:6px 14px; background:#fff; border:1px solid #ef4444; color:#ef4444; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btnClaim.onclick=function(){
+            alert('ระบบเคลมสินค้ากำลังอยู่ในช่วงพัฒนาค่ะ หากมีปัญหากรุณาติดต่อแอดมิน');
+        };
+        const btn=document.createElement('button');
+        btn.className='btn primary';
+        btn.innerHTML='ยืนยันได้รับสินค้า';
+        btn.style.cssText='white-space:nowrap; padding:6px 14px; background:#22c55e; border-color:#22c55e; color:#fff; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit;';
+        btn.onclick=function(){
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(2px);';
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.2);font-family:inherit;';
+            modal.innerHTML = '<div style="color:#22c55e;margin-bottom:12px;"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin:0 auto;display:block;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><strong style="display:block;font-size:18px;margin-bottom:8px;color:#1f2937;">ยืนยันการรับสินค้า</strong><p style="font-size:14px;color:#4b5563;margin:0 0 20px;">คุณได้รับสินค้าในสภาพที่ตกลงไว้เรียบร้อยแล้วใช่หรือไม่?</p>';
+            const btnWrap = document.createElement('div');
+            btnWrap.style.cssText = 'display:flex;gap:12px;justify-content:center;';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.innerHTML = 'ยกเลิก';
+            cancelBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#f3f4f6;color:#4b5563;border-radius:8px;font-weight:500;cursor:pointer;font-family:inherit;transition:background 0.2s;';
+            cancelBtn.onmouseover = () => cancelBtn.style.background = '#e5e7eb';
+            cancelBtn.onmouseout = () => cancelBtn.style.background = '#f3f4f6';
+            cancelBtn.onclick = () => overlay.remove();
+            const confirmBtn = document.createElement('button');
+            confirmBtn.innerHTML = 'ยืนยันได้รับสินค้า';
+            confirmBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#22c55e;color:#fff;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.2s;';
+            confirmBtn.onmouseover = () => confirmBtn.style.background = '#16a34a';
+            confirmBtn.onmouseout = () => confirmBtn.style.background = '#22c55e';
+            confirmBtn.onclick = () => {
+                confirmBtn.innerText = 'กำลังดำเนินการ...';
+                confirmBtn.disabled = true;
+                const f=document.createElement('form');
+                f.method='post';
+                f.action='/pages/handlers/trade_submit_logistics.php';
+                f.innerHTML='<input type="hidden" name="action" value="receive_item"><input type="hidden" name="request_id" value="'+data.requestId+'">';
+                document.body.append(f);
+                f.submit();
+            };
+            btnWrap.append(cancelBtn, confirmBtn);
+            modal.append(btnWrap);
+            overlay.append(modal);
+            document.body.append(overlay);
+        };
+        btnContainer.append(btnClaim, btn);
+        sb.append(btnContainer);
+    } else if(!myRv){
+        sb.style.cssText='padding:12px 16px;background:#fefce8;color:#854d0e;border-radius:8px;display:flex;align-items:center;border:1px solid #fef08a;margin-bottom:12px;gap:12px;';
+        sb.innerHTML='<div style="color:#eab308;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">คุณได้รับสินค้าแล้ว</strong><span style="font-size:12px;opacity:0.8;">รออีกฝ่ายกดยืนยันรับสินค้า</span></div>';
+    } else {
+        sb.style.cssText='padding:12px 16px;background:#f0fdf4;color:#166534;border-radius:8px;display:flex;align-items:center;border:1px solid #bbf7d0;margin-bottom:12px;gap:12px;';
+        sb.innerHTML='<div style="color:#22c55e;display:flex;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div style="text-align:left;"><strong style="display:block;font-size:14px;">การแลกเปลี่ยนสำเร็จ!</strong></div>';
+    }
+    cb.append(sb);
+}
     }
     if(cb.children.length>0)insertBanner(cb);
    }
@@ -551,7 +739,7 @@ document.addEventListener('DOMContentLoaded',()=>{
              <h3 style="margin:0;color:#175564;font-size:16px;display:flex;align-items:center;gap:8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> ฟอร์มยืนยันสภาพสินค้า</h3>
              <button onclick="document.getElementById('conditionModal').style.display='none';document.getElementById('conditionIframe').src='';" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;padding:0;line-height:1;">&times;</button>
          </div>
-         <iframe id="conditionIframe" style="width:100%;flex:1;border:none;background:#f8fafc;" src=""></iframe>
+         <iframe id="conditionIframe" style="width:100%;flex:1;border:none;background:#fff;" src=""></iframe>
      </div>
  </div>
  <div id="deleteConfirmModal" class="confirm-modal-overlay">

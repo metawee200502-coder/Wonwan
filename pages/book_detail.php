@@ -27,7 +27,7 @@ function reviewerImageUrl(?string $value): ?string {
 }
 
 if ($source === 'exchange') {
-    $stmt = $pdo->prepare('SELECT e.*, u.display_name AS seller_name, u.email AS seller_email, u.latitude, u.longitude FROM exchanges e LEFT JOIN users u ON u.user_id = e.owner_id WHERE e.exchange_id = ? AND e.status <> "completed"');
+    $stmt = $pdo->prepare('SELECT e.*, u.display_name AS seller_name, u.email AS seller_email, u.latitude, u.longitude FROM exchanges e LEFT JOIN users u ON u.user_id = e.owner_id WHERE e.exchange_id = ?');
     $stmt->execute([$id]);
     $item = $stmt->fetch(PDO::FETCH_ASSOC);
     $isExchange = true;
@@ -288,8 +288,14 @@ if (($_GET['source'] ?? '') === 'mood_match') {
                 <div class="exchange-actions">
                     <?php $follow_type='user';$follow_id=(int)$item['owner_id'];$follow_class='action-btn action-outline';require __DIR__.'/../components/follow_button.php';?>
                     <?php if (!$isOwner): ?>
-                    <a class="action-btn action-primary" href="/pages/exchange_request.php?exchange_id=<?= $id ?>">ยื่นคำขอแลกเปลี่ยน</a>
-                    <a class="action-btn action-outline" href="/pages/chat.php?seller_type=user&amp;seller_id=<?= (int)$item['owner_id'] ?>&amp;exchange_id=<?= $id ?>&amp;t=<?= time() ?>">แชทพูดคุยเบื้องต้นกับคนขาย</a>
+                    <?php if (in_array($item['status'], ['in_progress', 'completed'])): ?>
+                        <div class="owner-notice" style="padding:16px 20px;border-radius:10px;background:#f5f5f5;border:1px solid #ddd;color:#666;text-align:center;font-weight:600">
+                            <?= $item['status'] === 'in_progress' ? 'กำลังเจรจา' : 'แลกเปลี่ยนแล้ว' ?>
+                        </div>
+                    <?php else: ?>
+                        <a class="action-btn action-primary" href="/pages/exchange_request.php?exchange_id=<?= $id ?>">ยื่นคำขอแลกเปลี่ยน</a>
+                        <a class="action-btn action-outline" href="/pages/chat.php?seller_type=user&amp;seller_id=<?= (int)$item['owner_id'] ?>&amp;exchange_id=<?= $id ?>&amp;t=<?= time() ?>">แชทพูดคุยเบื้องต้นกับคนขาย</a>
+                    <?php endif; ?>
                     <a class="action-btn twin" href="/pages/digital_twin.php?source=exchange&amp;id=<?= $id ?>">คุยกับ Digital Twin ของหนังสือเล่มนี้</a>
                     <?php else: ?>
                     <div class="owner-notice" style="padding:16px 20px;border-radius:10px;background:#fff5f0;border:1px solid #ead4c8;color:#8c6a5d;text-align:center;font-weight:600">นี่คือโพสต์แลกเปลี่ยนของคุณ</div>

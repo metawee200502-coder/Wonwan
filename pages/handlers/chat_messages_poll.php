@@ -203,6 +203,16 @@ foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $message){
         $sysContent = '<div style="background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);border:1px solid #bbf7d0;padding:10px 14px;border-radius:10px;color:#166534;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
             '<span style="font-size:14px;margin-right:4px;">🎉</span> <strong>ยืนยันการรับสินค้า</strong> ได้รับสินค้าเรียบร้อยแล้ว'.
             '</div>';
+    } elseif (preg_match('/\[P2P_TRACKING_SUBMITTED:(.*?):(.*?)\]/', $text, $matches)) {
+        $isSystem = true;
+        $sysContent = '<div style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);border:1px solid #bfdbfe;padding:10px 14px;border-radius:10px;color:#1e40af;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
+            '<span style="font-size:14px;margin-right:4px;">📦</span> <strong>จัดส่งสินค้าแล้ว</strong><br>ขนส่ง: <strong>'.htmlspecialchars($matches[1]).'</strong> เลขพัสดุ: <strong>'.htmlspecialchars($matches[2]).'</strong>'.
+            '</div>';
+    } elseif (preg_match('/\[P2P_TRACKING_SUBMITTED:(\d+)\]/', $text, $matches)) {
+        $isSystem = true;
+        $sysContent = '<div style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);border:1px solid #bfdbfe;padding:10px 14px;border-radius:10px;color:#1e40af;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,0.03);display:inline-block;font-family:inherit;">'.
+            '<span style="font-size:14px;margin-right:4px;">📦</span> <strong>แจ้งเลขพัสดุ</strong> จัดส่งสินค้าและแจ้งเลขพัสดุเรียบร้อยแล้ว'.
+            '</div>';
     }
 
     $messages[]=['id'=>(int)$message['message_id'],'text'=>$message['message_text'],'image'=>$message['image_path']?'/pages/'.ltrim($message['image_path'],'/'):null,'media_type'=>$message['media_type']?:'image','mine'=>$isMine,'is_read'=>(bool)$message['is_read'],'time'=>date('H:i',$timestamp),'date_key'=>date('Y-m-d',$timestamp),'date_label'=>date('d/m/Y',$timestamp),'is_system'=>$isSystem,'html_content'=>$sysContent];

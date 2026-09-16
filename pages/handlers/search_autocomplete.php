@@ -34,7 +34,7 @@ try {
             SELECT exchange_id AS id, title, author, image_cover,
                    'exchange' AS cond, 'exchange' AS type
             FROM exchanges
-            WHERE status='open' AND (title LIKE ? OR author LIKE ?)
+            WHERE status<>'hidden' AND (title LIKE ? OR author LIKE ?)
             ORDER BY CASE WHEN title=? THEN 0 WHEN title LIKE ? THEN 1 ELSE 2 END, exchange_id DESC
             LIMIT $limit
         ");

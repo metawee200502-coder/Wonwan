@@ -36,15 +36,15 @@ function homeBookImage(?string $value):string{
 // ─── ดึงข้อมูลหนังสือตาม tab ──────────────────────────────
 try {
     if ($active_tab === 'exchange') {
-        $count_stmt = $pdo->query("SELECT COUNT(*) FROM exchanges WHERE status = 'open'");
+        $count_stmt = $pdo->query("SELECT COUNT(*) FROM exchanges WHERE status <> 'hidden'");
         $total_books = (int)$count_stmt->fetchColumn();
         $stmt = $pdo->prepare("
-            SELECT exchange_id AS book_id, title, author,
+            SELECT exchange_id AS book_id, title, author, status,
                    'exchange' AS condition_level, 0 AS price,
                    image_cover, 1 AS stock_quantity,
                    owner_lat AS seller_lat, owner_lng AS seller_lng, owner_province AS seller_province
             FROM exchanges
-            WHERE status = 'open'
+            WHERE status <> 'hidden'
             ORDER BY exchange_id DESC
             LIMIT :limit OFFSET :offset
         ");
@@ -694,6 +694,7 @@ try {
                             'seller_lat'      => $row['seller_lat'] ?? null,
                             'seller_lng'      => $row['seller_lng'] ?? null,
                             'stock_quantity'  => $row['stock_quantity'] ?? 1,
+                            'status'          => $row['status'] ?? 'open',
                         ];
                         // กำหนด card_type ตาม condition_level จาก DB
                         $card_type = match($row['condition_level'] ?? 'new') {

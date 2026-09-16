@@ -1,0 +1,88 @@
+
+document.addEventListener('DOMContentLoaded',()=>{
+ const composer=document.querySelector('.composer');
+ const textInput=composer?.querySelector('[name="message_text"]');
+ const layout=document.querySelector('.layout');
+ const fitChatToViewport=()=>{
+  if(!layout||window.innerWidth>1200)return;
+  const top=Math.max(0,layout.getBoundingClientRect().top);
+  layout.style.height=Math.max(280,window.innerHeight-top)+'px';
+ };
+ fitChatToViewport();
+ window.addEventListener('resize',fitChatToViewport);
+ window.addEventListener('orientationchange',()=>setTimeout(fitChatToViewport,150));
+
+ const chatHead=document.querySelector('.chat-head');
+ if(chatHead&&!chatHead.querySelector('.chat-back')){
+  const back=document.createElement('a');
+  back.className='chat-back';
+  back.href='/pages/chat.php';
+  back.setAttribute('aria-label','กลับไปรายการแชท');
+ back.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
+ chatHead.prepend(back);
+ }
+ const contextData=<?=json_encode($chatContextBar,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;
+ if(chatHead&&contextData&&!document.querySelector('.chat-context-bar')){
+  const context=document.createElement('a');
+  context.className='chat-context-bar';
+  context.href=contextData.url;
+  if(contextData.image){
+   const thumb=document.createElement('img');
+   thumb.src=contextData.image;
+   thumb.alt='';
+   context.append(thumb);
+  }else{
+   const placeholder=document.createElement('span');
+   placeholder.className='chat-context-placeholder';
+   context.append(placeholder);
+  }
+  const copy=document.createElement('span');
+  copy.className='chat-context-copy';
+  const title=document.createElement('strong');
+  title.textContent=contextData.title;
+  const subtitle=document.createElement('small');
+  subtitle.textContent=contextData.subtitle;
+  copy.append(title,subtitle);
+  const arrow=document.createElement('span');
+  arrow.className='chat-context-arrow';
+  arrow.textContent='›';
+  context.append(copy,arrow);
+  chatHead.after(context);
+ }
+ if(!composer||!textInput||composer.querySelector('[name="chat_image"]'))return;
+ textInput.required=false;
+ const label=document.createElement('label');
+ label.className='chat-attach';
+ label.title='ถ่ายภาพหรือเลือกรูป';
+ label.setAttribute('aria-label','ถ่ายภาพหรือเลือกรูป');
+ label.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 5l1.4-2h5.2L16 5"/></svg>';
+ const input=document.createElement('input');
+ input.type='file';
+ input.name='chat_image';
+ input.accept='image/jpeg,image/png,image/webp,image/gif';
+ label.append(input);
+ composer.insertBefore(label,textInput);
+ const preview=document.createElement('div');
+ preview.className='chat-image-preview';
+ preview.hidden=true;
+ const image=document.createElement('img');
+ image.alt='ตัวอย่างรูปที่จะส่ง';
+ const remove=document.createElement('button');
+ remove.type='button';
+ remove.setAttribute('aria-label','นำรูปออก');
+ remove.textContent='×';
+ preview.append(image,remove);
+ composer.before(preview);
+ let previewUrl='';
+ const clear=()=>{input.value='';preview.hidden=true;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=''};
+ input.addEventListener('change',()=>{
+  const file=input.files?.[0];
+  if(!file)return clear();
+  if(file.size>8*1024*1024){clear();alert('รูปภาพต้องมีขนาดไม่เกิน 8 MB');return}
+  if(previewUrl)URL.revokeObjectURL(previewUrl);
+  previewUrl=URL.createObjectURL(file);
+  image.src=previewUrl;
+  preview.hidden=false;
+ });
+ remove.addEventListener('click',clear);
+});

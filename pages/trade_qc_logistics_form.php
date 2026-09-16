@@ -34,6 +34,10 @@ $myTracking = $isRequester ? $req['requester_tracking_to_admin'] : $req['offer_t
 $myQcStatus = $isRequester ? $req['admin_qc_requester_status'] : $req['admin_qc_offer_status'];
 $myAdminTracking = $isRequester ? $req['admin_tracking_to_requester'] : $req['admin_tracking_to_offer'];
 
+$walletStmt = $pdo->prepare("SELECT available_balance FROM vendor_wallets WHERE seller_type='user' AND seller_id=?");
+$walletStmt->execute([$userId]);
+$walletBal = (float)$walletStmt->fetchColumn();
+
 // Placeholder data
 $feeAmount = 100;
 $bankName = "ธนาคารกสิกรไทย (KBank)";
@@ -157,33 +161,88 @@ $adminAddress = "บริษัท วนวรรณ จำกัด\n123 อ�
                     </div>
                 <?php endif; ?>
 
+                <style>
+                    .payment-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+                    .pay-tab { flex: 1; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; cursor: pointer; font-size: 14px; font-weight: 500; background: #fff; color: #64748B; transition: all 0.2s; }
+                    .pay-tab.active { background: #175564; color: white; border-color: #175564; }
+                    .pay-content { display: none; }
+                    .pay-content.active { display: block; }
+                    .qr-container { text-align: center; padding: 15px; background: white; border-radius: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
+                    .qr-container img { max-width: 200px; margin-bottom: 10px; border-radius: 8px; }
+                </style>
                 <div class="info-box">
-                    <strong>รายละเอียดค่าใช้จ่าย (รวม 100 บาท)</strong><br>
+                    <strong>รายละเอียดค่าใช้จ่าย (รวม <?= $feeAmount ?> บาท)</strong><br>
                     - ค่าบริการส่วนกลาง (QC): 50 บาท<br>
-                    - ค่าส่งสินค้ากลับ: 50 บาท<br><br>
-                    <strong>บัญชีธนาคาร:</strong> <?= $bankName ?><br>
-                    <strong>ชื่อบัญชี:</strong> <?= $bankAccountName ?><br>
-                    <strong>เลขที่บัญชี:</strong> <strong style="font-size:16px; color:#d97706;"><?= $bankAccountNumber ?></strong>
+                    - ค่าส่งสินค้ากลับ: 50 บาท<br>
                 </div>
-                
-                <form action="/pages/handlers/trade_submit_logistics.php" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="request_id" value="<?= $requestId ?>">
-                    <input type="hidden" name="action_type" value="upload_slip">
-<?php if($isIframe): ?><input type="hidden" name="iframe" value="1"><?php endif; ?>
-                    
-                    <div class="form-group">
-                        <label>หลักฐานการโอนเงิน (สลิป)</label>
-                        <div class="file-upload-wrapper">
-                            <div class="btn-upload" id="uploadBtnText">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> คลิกเพื่อเลือกไฟล์สลิป (รูปภาพ)
-                            </div>
-                            <input type="file" name="slip_image" accept="image/*" required onchange="previewImage(this)">
+
+                <div class="payment-tabs">
+                    <div class="pay-tab active" onclick="switchPayTab('qr')">สแกน QR Code</div>
+                    <div class="pay-tab" onclick="switchPayTab('wallet')">Wonwan Wallet</div>
+                </div>
+
+                <!-- QR Code Payment -->
+                <div id="pay-qr" class="pay-content active">
+                    <div class="qr-container">
+                        <img src="https://promptpay.io/0812345678/<?= $feeAmount ?>.png" alt="PromptPay QR">
+                        <div style="font-size:14px; color:#475569;">
+                            <strong>สแกนเพื่อชำระเงินด้วยแอปธนาคาร</strong><br>
+                            ชื่อบัญชี: <?= $bankAccountName ?>
                         </div>
-                        <img id="imgPreview" class="upload-preview" src="">
                     </div>
-                    
-                    <button type="submit" class="btn">ยืนยันการชำระเงิน</button>
-                </form>
+                    <form action="/pages/handlers/trade_submit_logistics.php" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="request_id" value="<?= $requestId ?>">
+                        <input type="hidden" name="action_type" value="upload_slip">
+                        <?php if($isIframe): ?><input type="hidden" name="iframe" value="1"><?php endif; ?>
+                        
+                        <div class="form-group">
+                            <label>หลักฐานการโอนเงิน (สลิป)</label>
+                            <div class="file-upload-wrapper">
+                                <div class="btn-upload" id="uploadBtnText">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> คลิกเพื่อเลือกไฟล์สลิป (รูปภาพ)
+                                </div>
+                                <input type="file" name="slip_image" accept="image/*" required onchange="previewImage(this)">
+                            </div>
+                            <img id="imgPreview" class="upload-preview" src="">
+                        </div>
+                        <button type="submit" class="btn">ยืนยันการชำระเงิน</button>
+                    </form>
+                </div>
+
+                <!-- Wallet Payment -->
+                <div id="pay-wallet" class="pay-content">
+                    <div class="info-box <?= $walletBal >= $feeAmount ? 'info-green' : 'info-red' ?>" style="text-align:center; padding: 25px 15px;">
+                        <div style="font-size:14px; margin-bottom: 5px;">ยอดเงินในกระเป๋าของคุณ</div>
+                        <div style="font-size:32px; font-weight:bold; margin-bottom: 10px;">฿<?= number_format($walletBal, 2) ?></div>
+                        <?php if($walletBal >= $feeAmount): ?>
+                            <div style="font-size:13px; opacity:0.8;">ยอดเงินเพียงพอสำหรับชำระค่าบริการ (หัก <?= $feeAmount ?> บาท)</div>
+                            
+                            <form action="/pages/handlers/trade_submit_logistics.php" method="POST" style="margin-top:20px;">
+                                <input type="hidden" name="request_id" value="<?= $requestId ?>">
+                                <input type="hidden" name="action_type" value="pay_wallet">
+                                <?php if($isIframe): ?><input type="hidden" name="iframe" value="1"><?php endif; ?>
+                                <button type="submit" class="btn" style="background:linear-gradient(135deg, #047857, #065f46);">ชำระเงินผ่าน Wallet</button>
+                            </form>
+                        <?php else: ?>
+                            <div style="font-size:13px; opacity:0.8;">ยอดเงินไม่เพียงพอ กรุณาเติมเงินหรือชำระผ่าน QR Code</div>
+                            <a href="/pages/user_wallet.php" target="_parent" class="btn" style="display:inline-block; margin-top:20px; background:linear-gradient(135deg, #64748b, #475569); text-decoration:none;">ไปที่ Wonwan Wallet</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <script>
+                function switchPayTab(tab) {
+                    document.querySelectorAll('.pay-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.pay-content').forEach(c => c.classList.remove('active'));
+                    if(tab === 'qr') {
+                        document.querySelectorAll('.pay-tab')[0].classList.add('active');
+                        document.getElementById('pay-qr').classList.add('active');
+                    } else {
+                        document.querySelectorAll('.pay-tab')[1].classList.add('active');
+                        document.getElementById('pay-wallet').classList.add('active');
+                    }
+                }
+                </script>
             </div>
         <?php else: ?>
             <div class="step" style="opacity: 0.7;">

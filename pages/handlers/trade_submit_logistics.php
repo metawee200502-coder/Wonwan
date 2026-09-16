@@ -64,6 +64,48 @@ try {
         header("Location: /pages/trade_qc_logistics_form.php?request_id=" . $requestId);
         exit;
         
+    } elseif ($action === 'pay_wallet') {
+        $feeAmount = 100;
+        
+        $pdo->beginTransaction();
+        try {
+            $lockStmt = $pdo->prepare("SELECT available_balance FROM vendor_wallets WHERE seller_type='user' AND seller_id=? FOR UPDATE");
+            $lockStmt->execute([$userId]);
+            $currentBalance = (float)$lockStmt->fetchColumn();
+            
+            if ($currentBalance < $feeAmount) {
+                throw new Exception('ยอดเงินในกระเป๋าไม่เพียงพอ');
+            }
+            
+            // Deduct from wallet
+            $pdo->prepare("UPDATE vendor_wallets SET available_balance = available_balance - ? WHERE seller_type='user' AND seller_id=?")->execute([$feeAmount, $userId]);
+            
+            // Record transaction
+            $txnDesc = "ชำระค่าบริการส่วนกลาง (QC) สำหรับรายการที่ #" . $requestId;
+            $pdo->prepare("INSERT INTO wallet_transactions (wallet_id, type, amount, status, withdrawal_bank_info) 
+                SELECT wallet_id, 'DEDUCTION', ?, 'SUCCESS', ? FROM vendor_wallets WHERE seller_type='user' AND seller_id=?")->execute([$feeAmount, $txnDesc, $userId]);
+                
+            // Set slip status to approved directly since it's paid via wallet
+            $colStatus = $isRequester ? 'requester_slip_status' : 'offer_slip_status';
+            $pdo->prepare("UPDATE exchange_requests SET {$colStatus} = 'approved' WHERE request_id = ?")->execute([$requestId]);
+            
+            // Notify in chat
+            $q = $pdo->prepare('SELECT conversation_id FROM chat_conversations WHERE referenced_exchange_id=? AND customer_user_id=? AND seller_id=? LIMIT 1');
+            $q->execute([$req['exchange_id'], $req['requester_id'], $req['owner_id'] ?? 0]);
+            $convId = $q->fetchColumn();
+            if ($convId) {
+                $pdo->prepare('INSERT INTO chat_messages(conversation_id, sender_user_id, message_text) VALUES(?,?,?)')
+                    ->execute([$convId, $userId, '[QC_PAYMENT_SUBMITTED:' . $userId . ']']);
+            }
+            
+            $pdo->commit();
+            header("Location: /pages/trade_qc_logistics_form.php?request_id=" . $requestId);
+            exit;
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+        
     } elseif ($action === 'submit_tracking') {
         $address = trim($_POST['user_address'] ?? '');
         $carrier = trim($_POST['carrier'] ?? '');

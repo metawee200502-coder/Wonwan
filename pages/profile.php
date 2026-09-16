@@ -14,7 +14,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['delete_book'])){
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['delete_exchange'])){
     $token=(string)($_POST['csrf_token']??'');$exchangeId=(int)($_POST['exchange_id']??0);
     if(!hash_equals((string)$_SESSION['profile_csrf_token'],$token)){$profileMessage='ไม่สามารถยืนยันคำขอได้ กรุณาลองใหม่';}
-    else{$delete=$pdo->prepare("UPDATE exchanges SET status='completed' WHERE exchange_id=? AND owner_id=? AND status<>'completed'");$delete->execute([$exchangeId,$userId]);$profileMessage=$delete->rowCount()?'ลบโพสต์แลกเปลี่ยนเรียบร้อยแล้ว':'ไม่พบโพสต์หรือคุณไม่มีสิทธิ์ลบโพสต์นี้';}
+    else{$delete=$pdo->prepare("UPDATE exchanges SET status='hidden' WHERE exchange_id=? AND owner_id=? AND status<>'hidden'");$delete->execute([$exchangeId,$userId]);$profileMessage=$delete->rowCount()?'ลบโพสต์แลกเปลี่ยนเรียบร้อยแล้ว':'ไม่พบโพสต์หรือคุณไม่มีสิทธิ์ลบโพสต์นี้';}
 }
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['save_notify'])){
     $token=(string)($_POST['csrf_token']??'');
@@ -36,11 +36,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['save_notify'])){
 if(empty($_SESSION['line_disconnect_csrf']))$_SESSION['line_disconnect_csrf']=bin2hex(random_bytes(24));
 $stmt=$pdo->prepare('SELECT * FROM users WHERE user_id=?');$stmt->execute([$userId]);$user=$stmt->fetch(PDO::FETCH_ASSOC);if(!$user)exit('ไม่พบผู้ใช้');
 $tab=$_GET['tab']??'selling';$profile_active=in_array($tab,['orders','notify'])?$tab:'profile';$items=[];$orders=[];$reviews=[];
-if($tab==='exchange'){$q=$pdo->prepare("SELECT exchange_id id,title,author,image_cover FROM exchanges WHERE owner_id=? AND status<>'completed' ORDER BY created_at DESC");$q->execute([$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
+if($tab==='exchange'){$q=$pdo->prepare("SELECT exchange_id id,title,author,image_cover,status FROM exchanges WHERE owner_id=? AND status<>'hidden' ORDER BY created_at DESC");$q->execute([$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
 elseif($tab==='orders'){$q=$pdo->prepare('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC');$q->execute([$userId]);$orders=$q->fetchAll(PDO::FETCH_ASSOC);}
 elseif($tab==='reviews'){$q=$pdo->prepare('SELECT r.*,b.title,b.image_cover,o.order_number FROM book_reviews r JOIN books b ON b.book_id=r.book_id LEFT JOIN order_items oi ON oi.order_item_id=r.order_item_id LEFT JOIN orders o ON o.order_id=oi.order_id WHERE r.user_id=? ORDER BY r.created_at DESC');$q->execute([$userId]);$reviews=$q->fetchAll(PDO::FETCH_ASSOC);}
 else{$q=$pdo->prepare("SELECT b.book_id id,b.title,b.author,b.price,b.image_cover,b.book_type,b.stock_quantity FROM books b WHERE b.status<>'hidden' AND ((b.seller_type='user' AND b.seller_id=?) OR (b.seller_type='shop' AND b.seller_id IN(SELECT shop_id FROM shop_staff WHERE user_id=?)) OR (b.seller_type='publisher' AND b.seller_id IN(SELECT publisher_id FROM publisher_staff WHERE user_id=?))) ORDER BY b.created_at DESC");$q->execute([$userId,$userId,$userId]);$items=$q->fetchAll(PDO::FETCH_ASSOC);}
-$exchangeCount=$pdo->prepare("SELECT COUNT(*) FROM exchanges WHERE owner_id=? AND status<>'completed'");$exchangeCount->execute([$userId]);$bookCount=(int)$exchangeCount->fetchColumn();
+$exchangeCount=$pdo->prepare("SELECT COUNT(*) FROM exchanges WHERE owner_id=? AND status<>'hidden'");$exchangeCount->execute([$userId]);$bookCount=(int)$exchangeCount->fetchColumn();
 
 // Fetch the user's most recent province
 $provStmt = $pdo->prepare("
@@ -166,4 +166,4 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
     }
     </script>
-<?php else:?><div class="grid"><?php if(!$items):?><div class="empty">ยังไม่มีหนังสือในหมวดนี้</div><?php else:foreach($items as $row){$book=['id'=>$row['id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>$row['price']??0,'badge'=>$tab==='exchange'?'แลกเปลี่ยน':'มาใหม่','image'=>profileImage($row['image_cover']??null),'stock_quantity'=>$row['stock_quantity']??1];$card_type=$tab==='exchange'?'exchange':(($row['book_type']??'used')==='new'?'new':'used');$owner_controls=in_array($tab,['selling','exchange'],true);$owner_csrf_token=$_SESSION['profile_csrf_token'];require __DIR__.'/../components/book_card.php';$owner_controls=false;}endif;?></div><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?></body></html>
+<?php else:?><div class="grid"><?php if(!$items):?><div class="empty">ยังไม่มีหนังสือในหมวดนี้</div><?php else:foreach($items as $row){$book=['id'=>$row['id'],'title'=>$row['title'],'author'=>$row['author']??'','price'=>$row['price']??0,'badge'=>$tab==='exchange'?'แลกเปลี่ยน':'มาใหม่','image'=>profileImage($row['image_cover']??null),'stock_quantity'=>$row['stock_quantity']??1,'status'=>$row['status']??'open'];$card_type=$tab==='exchange'?'exchange':(($row['book_type']??'used')==='new'?'new':'used');$owner_controls=in_array($tab,['selling','exchange'],true);$owner_csrf_token=$_SESSION['profile_csrf_token'];require __DIR__.'/../components/book_card.php';$owner_controls=false;}endif;?></div><?php endif;?></main></div><?php require __DIR__.'/../components/footer.php';?></body></html>

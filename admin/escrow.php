@@ -62,7 +62,7 @@ $search = ltrim(trim($_GET['search'] ?? ''), '#');
 if ($tab === 'p2p') {
     $statsQuery = $pdo->query("
         SELECT 
-            COUNT(CASE WHEN deposit_status = 'pending_verification' THEN 1 END) as reviewing_count,
+            COUNT(CASE WHEN deposit_status = 'reviewing' THEN 1 END) as reviewing_count,
             COUNT(CASE WHEN DATE(deposit_approved_at) = CURDATE() THEN 1 END) as approved_today
         FROM trade_condition_forms WHERE required_deposit_amount > 0
     ");
@@ -74,7 +74,7 @@ if ($tab === 'p2p') {
     if ($status === 'pending') {
         $where .= " AND t.deposit_status = 'pending'";
     } elseif ($status === 'reviewing') {
-        $where .= " AND t.deposit_status = 'pending_verification'";
+        $where .= " AND t.deposit_status = 'reviewing'";
     } elseif ($status === 'completed') {
         $where .= " AND t.deposit_status = 'approved'";
     }
@@ -257,11 +257,7 @@ $active_menu = 'escrow';
     <?php require_once __DIR__ . '/../components/admin_sidebar.php'; ?>
     <div class="admin-main-wrap">
         <div class="head" style="margin-bottom:15px;">
-            <h1>จัดการการชำระเงิน / มัดจำ</h1>
-        </div>
-        <div style="margin-bottom:28px; display:flex; gap:10px;">
-            <a href="escrow.php" class="btn" style="<?= $tab !== 'p2p' ? 'background:#91576d;color:#fff;' : 'background:#eee;color:#555;' ?>">คำสั่งซื้อปกติ</a>
-            <a href="escrow.php?tab=p2p" class="btn" style="<?= $tab === 'p2p' ? 'background:#91576d;color:#fff;' : 'background:#eee;color:#555;' ?>">เงินมัดจำแลกเปลี่ยน (P2P)</a>
+            <h1>จัดการการชำระเงิน</h1>
         </div>
 
         <div class="stats">
@@ -282,20 +278,24 @@ $active_menu = 'escrow';
             <div class="toolbar-top">
                 <h3>รายการคำสั่งซื้อทั้งหมด</h3>
                 <form method="get" style="display:flex;gap:8px;align-items:center;">
+                    <?php if($tab === 'p2p'): ?><input type="hidden" name="tab" value="p2p"><?php endif; ?>
                     <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
-                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="ค้นหาเลขคำสั่งซื้อ, ชื่อลูกค้า..." style="padding:8px 12px;border:1px solid #d8c9c4;border-radius:8px;outline:none;font-size:13px;width:240px">
+                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="<?= $tab === 'p2p' ? 'ค้นหาชื่อลูกค้า, รหัสคำขอ...' : 'ค้นหาเลขคำสั่งซื้อ, ชื่อลูกค้า...' ?>" style="padding:8px 12px;border:1px solid #d8c9c4;border-radius:8px;outline:none;font-size:13px;width:240px">
                     <button type="submit" class="btn" style="padding:8px 15px;min-height:0">ค้นหา</button>
-                    <a href="?status=<?= htmlspecialchars($status) ?>" class="btn" style="padding:8px 15px;min-height:0;background:#f3f4f6;color:#555;border:1px solid #ddd;">ล้าง</a>
+                    <a href="?status=<?= htmlspecialchars($status) ?><?= $tab === 'p2p' ? '&tab=p2p' : '' ?>" class="btn" style="padding:8px 15px;min-height:0;background:#f3f4f6;color:#555;border:1px solid #ddd;">ล้าง</a>
                 </form>
             </div>
+            <?php $tabParam = $tab === 'p2p' ? '&tab=p2p' : ''; ?>
             <nav class="filters">
-                <a class="<?= $status === 'all' ? 'active' : '' ?>" href="?status=all<?= $search ? '&search='.urlencode($search) : '' ?>">ทั้งหมด</a>
-                <a class="<?= $status === 'pending' ? 'active' : '' ?>" href="?status=pending<?= $search ? '&search='.urlencode($search) : '' ?>">รอชำระเงิน</a>
-                <a class="<?= $status === 'reviewing' ? 'active' : '' ?>" href="?status=reviewing<?= $search ? '&search='.urlencode($search) : '' ?>">รอตรวจสอบสลิป</a>
-                <a class="<?= $status === 'packing' ? 'active' : '' ?>" href="?status=packing<?= $search ? '&search='.urlencode($search) : '' ?>">รอร้านส่งของ</a>
-                <a class="<?= $status === 'shipped' ? 'active' : '' ?>" href="?status=shipped<?= $search ? '&search='.urlencode($search) : '' ?>">ร้านส่งแล้ว</a>
-                <a class="<?= $status === 'completed' ? 'active' : '' ?>" href="?status=completed<?= $search ? '&search='.urlencode($search) : '' ?>">ส่งสำเร็จ / ลูกค้ายืนยัน</a>
-                <a class="<?= $status === 'cancelled' ? 'active' : '' ?>" href="?status=cancelled<?= $search ? '&search='.urlencode($search) : '' ?>">ยกเลิก / คืนเงิน</a>
+                <a class="<?= $status === 'all' ? 'active' : '' ?>" href="?status=all<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">ทั้งหมด</a>
+                <a class="<?= $status === 'pending' ? 'active' : '' ?>" href="?status=pending<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">รอชำระเงิน</a>
+                <a class="<?= $status === 'reviewing' ? 'active' : '' ?>" href="?status=reviewing<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">รอตรวจสอบสลิป</a>
+                <?php if ($tab !== 'p2p'): ?>
+                <a class="<?= $status === 'packing' ? 'active' : '' ?>" href="?status=packing<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">รอร้านส่งของ</a>
+                <a class="<?= $status === 'shipped' ? 'active' : '' ?>" href="?status=shipped<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">ร้านส่งแล้ว</a>
+                <?php endif; ?>
+                <a class="<?= $status === 'completed' ? 'active' : '' ?>" href="?status=completed<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">ส่งสำเร็จ / ลูกค้ายืนยัน</a>
+                <a class="<?= $status === 'cancelled' ? 'active' : '' ?>" href="?status=cancelled<?= $search ? '&search='.urlencode($search) : '' ?><?= $tabParam ?>">ยกเลิก / คืนเงิน</a>
             </nav>
         </div>
         
@@ -335,8 +335,8 @@ $active_menu = 'escrow';
                                 <span class="badge badge-<?= $statusClass ?>"><?= $statusText ?></span>
                             </td>
                             <td>
-                                <button class="btn detail-p2p" data-form='<?= htmlspecialchars(json_encode($p2p, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>' <?= $p2p['deposit_status'] === 'pending_verification' ? 'style="background:#f0a500; color:#fff;"' : 'style="background:#fff; color:#91576d; border:1px solid #91576d;"' ?>>
-                                    <?= $p2p['deposit_status'] === 'pending_verification' ? 'ตรวจสอบสลิป' : 'ดูรายละเอียด' ?>
+                                <button class="btn detail-p2p" data-form='<?= htmlspecialchars(json_encode($p2p, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>' <?= $p2p['deposit_status'] === 'reviewing' ? 'style="background:#f0a500; color:#fff;"' : 'style="background:#fff; color:#91576d; border:1px solid #91576d;"' ?>>
+                                    <?= $p2p['deposit_status'] === 'reviewing' ? 'ตรวจสอบสลิป' : 'ดูรายละเอียด' ?>
                                 </button>
                             </td>
                         </tr>
@@ -534,7 +534,7 @@ $active_menu = 'escrow';
                 document.getElementById('mShippingInfo').style.display = 'none';
                 
                 const actions = document.getElementById('mActions');
-                if (o.deposit_status === 'pending_verification') {
+                if (o.deposit_status === 'reviewing') {
                     actions.innerHTML = getP2PActionForm(o.form_id);
                 } else {
                     actions.innerHTML = '';
@@ -543,7 +543,7 @@ $active_menu = 'escrow';
                 let badge = document.getElementById('mStatusBadge');
                 if (o.deposit_status === 'approved') {
                     badge.className = 'badge badge-completed'; badge.textContent = 'ตรวจสอบผ่านแล้ว';
-                } else if (o.deposit_status === 'pending_verification') {
+                } else if (o.deposit_status === 'reviewing') {
                     badge.className = 'badge badge-reviewing'; badge.textContent = 'รอตรวจสอบสลิป';
                 } else {
                     badge.className = 'badge badge-pending'; badge.textContent = 'รอชำระเงิน';

@@ -30,6 +30,10 @@ $myCondition = $condQ->fetch(PDO::FETCH_ASSOC);
 if (!$myCondition) exit('ไม่พบข้อมูลสภาพสินค้า');
 
 // Process submission
+$isRequester = ($userId === (int)$req['requester_id']);
+$partnerAddress = $isRequester ? $req['offer_address'] : $req['requester_address'];
+$partnerAddressHTML = $partnerAddress ? nl2br(htmlspecialchars($partnerAddress)) : '<span style="color:#a0aec0;font-style:italic;">ยังไม่ได้ระบุที่อยู่จัดส่ง</span>';
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tracking_number'], $_POST['logistics_company'])) {
     if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
@@ -41,6 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tracking_number'], $_
             $stmt = $pdo->prepare("UPDATE trade_condition_forms SET tracking_number = ?, logistics_company = ?, shipped_at = NOW() WHERE form_id = ?");
             $stmt->execute([$tracking, $company, $myCondition['form_id']]);
             
+            // Insert system message
+            if ($conversationId > 0) {
+                $msgQ = $pdo->prepare("INSERT INTO chat_messages (conversation_id, sender_user_id, message_text) VALUES (?, ?, ?)");
+                $msgQ->execute([$conversationId, $userId, "[P2P_TRACKING_SUBMITTED:{$company}:{$tracking}]"]);
+            }
+            
+            if (!empty($_REQUEST['iframe'])) {
+                echo "<script>window.parent.location.reload();</script>";
+                exit;
+            }
             // Redirect back to chat
             header("Location: /pages/chat.php?conversation=" . $conversationId);
             exit;
@@ -62,6 +76,10 @@ if(empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_byte
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: 'Kanit', sans-serif; background: #fdf5f7; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        <?php if (!empty($_REQUEST['iframe'])): ?>
+        body { min-height: auto; background: transparent; padding: 20px; }
+        .card { box-shadow: none; max-width: 100%; padding: 0; background: transparent; }
+        <?php endif; ?>
         .card { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(209,138,167,0.15); width: 100%; max-width: 400px; text-align: center; }
         .card h2 { color: #8b5266; margin-top: 0; }
         .form-group { text-align: left; margin-bottom: 15px; }
@@ -77,7 +95,9 @@ if(empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_byte
 </head>
 <body>
     <div class="card">
+        <?php if (empty($_REQUEST['iframe'])): ?>
         <h2>📦 แจ้งเลขพัสดุ</h2>
+        <?php endif; ?>
         
         <?php if($error): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
@@ -85,7 +105,15 @@ if(empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_byte
         
         <p style="color: #718096; margin-bottom: 20px; font-size: 14px;">กรุณากรอกข้อมูลการจัดส่งให้ครบถ้วน เพื่อให้ระบบและอีกฝ่ายสามารถติดตามสถานะพัสดุได้</p>
         
+        <div style="margin:0 0 20px 0;padding:15px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;text-align:left;">
+            <strong style="color:#4a5568;font-size:13px;display:block;margin-bottom:8px;"><i class="fas fa-map-marker-alt"></i> ที่อยู่จัดส่งของอีกฝ่าย:</strong>
+            <div style="color:#2d3748;font-size:14px;line-height:1.5;"><?= $partnerAddressHTML ?></div>
+        </div>
+        
         <form method="post">
+            <?php if (!empty($_REQUEST['iframe'])): ?>
+            <input type="hidden" name="iframe" value="1">
+            <?php endif; ?>
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
             
             <div class="form-group">
@@ -107,7 +135,9 @@ if(empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_byte
             </div>
             
             <button type="submit" class="btn">ยืนยันการจัดส่ง</button>
+            <?php if (empty($_REQUEST['iframe'])): ?>
             <a href="/pages/chat.php?conversation=<?= urlencode($conversationId) ?>" class="btn btn-outline" style="display:inline-block; text-align:center;">ยกเลิก</a>
+            <?php endif; ?>
         </form>
     </div>
 </body>

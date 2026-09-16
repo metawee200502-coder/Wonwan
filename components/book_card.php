@@ -24,8 +24,18 @@ if (isset($book) && is_array($book)) {
     // If stock_quantity is provided, use it. Otherwise, assume in stock for backward compatibility
     $stock_quantity = array_key_exists('stock_quantity', $book) ? (int)$book['stock_quantity'] : 1;
 }
-$is_out_of_stock = ($stock_quantity ?? 1) <= 0;
+
 $detail_source = ($card_type ?? '') === 'exchange' ? 'exchange' : 'book';
+$exchange_status = $book['status'] ?? null;
+$out_of_stock_text = 'สินค้าหมด';
+
+if ($detail_source === 'exchange' && in_array($exchange_status, ['in_progress', 'completed'])) {
+    $is_out_of_stock = true;
+    $out_of_stock_text = $exchange_status === 'in_progress' ? 'กำลังเจรจา' : 'แลกเปลี่ยนแล้ว';
+} else {
+    $is_out_of_stock = ($stock_quantity ?? 1) <= 0;
+}
+
 $activePromotion=null;
 if($detail_source==='book'&&!empty($book_id)&&isset($pdo)){require_once __DIR__.'/../config/promotions.php';$activePromotion=wanawanActiveBookPromotion($pdo,(int)$book_id);}
 $detail_url = '/pages/book_detail.php?source=' . $detail_source . '&id=' . (int)($book_id ?? 0);
@@ -73,7 +83,7 @@ $sourceTag = match ($source_seller_type) {
     cursor: pointer;
 }
 .book-card.out-of-stock .book-card__img-zone::after {
-    content: "สินค้าหมด";
+    content: attr(data-oos-text);
     position: absolute;
     inset: 0;
     background-color: rgba(200, 200, 200, 0.6);
@@ -355,10 +365,10 @@ $sourceTag = match ($source_seller_type) {
      CARD TEMPLATE
      ============================================= -->
 <article class="book-card <?= $is_out_of_stock ? 'is-out-of-stock' : '' ?>" onclick="location.href='<?= $detail_url ?>'">
-    <!-- Zone รูปภาพ -->
-    <div class="book-card__img-zone">
+    <!-- Zone ภาพ -->
+    <div class="book-card__img-zone" <?= $is_out_of_stock ? 'data-oos-text="'.htmlspecialchars($out_of_stock_text).'"' : '' ?>>
         <?php if($is_out_of_stock): ?>
-            <div class="out-of-stock-overlay">สินค้าหมด</div>
+            <div class="out-of-stock-overlay"><?= htmlspecialchars($out_of_stock_text) ?></div>
         <?php endif; ?>
 
         <?php if (!empty($badge)): ?>
@@ -433,16 +443,28 @@ $sourceTag = match ($source_seller_type) {
 
         <?php elseif ($card_type === 'exchange'): ?>
             <!-- ปุ่มแลกเปลี่ยน -->
-            <button class="btn-exchange"
-                    onclick="event.stopPropagation(); location.href='/pages/exchange_request.php?exchange_id=<?= (int)$book_id ?>'">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
-                    <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
-                </svg>
-                แลกเปลี่ยน
-            </button>
+            <?php if ($is_out_of_stock): ?>
+                <button class="btn-exchange" style="background:#e0e0e0;color:#888;border-color:#ccc;cursor:not-allowed;" onclick="event.stopPropagation();">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
+                        <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                    <?= htmlspecialchars($out_of_stock_text) ?>
+                </button>
+            <?php else: ?>
+                <button class="btn-exchange"
+                        onclick="event.stopPropagation(); location.href='/pages/exchange_request.php?exchange_id=<?= (int)$book_id ?>'">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
+                        <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                    แลกเปลี่ยน
+                </button>
+            <?php endif; ?>
 
         <?php else: ?>
             <!-- ปุ่ม Add to Cart (มือ 1 / มือ 2) -->

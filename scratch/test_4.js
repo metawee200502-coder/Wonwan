@@ -1,0 +1,1 @@
+document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?source=exchange&id=<?=$exchange['exchange_id']?>');

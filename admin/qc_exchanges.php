@@ -26,6 +26,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'VERIFY_SLIP', (string)$request_id, "บันทึกผลตรวจสอบสลิปของ {$sideLabel} ว่า {$slip_result} สำหรับคำขอที่ {$request_id}");
 
         $_SESSION['flash_msg'] = "บันทึกผลตรวจสอบสลิปเรียบร้อยแล้ว";
+    } elseif ($action === 'approve_p2p_slip') {
+        $request_id = (int)$_POST['request_id'];
+        $side = $_POST['side']; // 'requester' or 'offer'
+        $slip_result = $_POST['slip_result']; // 'approved' or 'rejected'
+
+        $exQuery = $pdo->prepare("SELECT r.requester_id, e.owner_id as offer_id FROM exchange_requests r JOIN exchanges e ON r.exchange_id = e.exchange_id WHERE r.request_id = ?");
+        $exQuery->execute([$request_id]);
+        $exData = $exQuery->fetch(PDO::FETCH_ASSOC);
+
+        if ($exData) {
+            $owner_id = ($side === 'requester') ? $exData['requester_id'] : $exData['offer_id'];
+            
+            // Get latest form for this side
+            $fStmt = $pdo->prepare("SELECT form_id FROM trade_condition_forms WHERE request_id = ? AND owner_id = ? ORDER BY form_id DESC LIMIT 1");
+            $fStmt->execute([$request_id, $owner_id]);
+            $fId = $fStmt->fetchColumn();
+
+            if ($fId) {
+                $stmt = $pdo->prepare("UPDATE trade_condition_forms SET deposit_status = ?, deposit_approved_at = NOW() WHERE form_id = ?");
+                $stmt->execute([$slip_result, $fId]);
+                
+                $sideLabel = ($side === 'requester') ? 'ผู้ขอแลก' : 'ผู้ตั้งโพสต์';
+                logAdminAction($pdo, $_SESSION['email'] ?? 'unknown', 'VERIFY_P2P_SLIP', (string)$request_id, "บันทึกผลตรวจสอบสลิปมัดจำ P2P ของ {$sideLabel} ว่า {$slip_result} สำหรับคำขอที่ {$request_id}");
+
+                $_SESSION['flash_msg'] = "อนุมัติสลิปมัดจำ P2P เรียบร้อยแล้ว";
+            } else {
+                $_SESSION['flash_error'] = "ไม่พบฟอร์มมัดจำ";
+            }
+        }
     } elseif ($action === 'submit_qc_report_both') {
         $request_id = (int)$_POST['request_id'];
         $req_user_id = (int)$_POST['requester_id'];
@@ -142,7 +171,12 @@ $reqs = $pdo->query("
            u1.display_name as target_owner_name, u1.profile_image as target_owner_image, u1.email as target_owner_email,
            u2.display_name as requester_name, u2.profile_image as requester_image, u2.email as requester_email,
            c_off.front_cover_url as off_cond_front, c_off.back_cover_url as off_cond_back, c_off.spine_url as off_cond_spine, c_off.defect_urls as off_cond_defects, c_off.defects_description as off_cond_defects_desc, c_off.notes as off_cond_notes,
-           c_req.front_cover_url as req_cond_front, c_req.back_cover_url as req_cond_back, c_req.spine_url as req_cond_spine, c_req.defect_urls as req_cond_defects, c_req.defects_description as req_cond_defects_desc, c_req.notes as req_cond_notes
+           c_req.front_cover_url as req_cond_front, c_req.back_cover_url as req_cond_back, c_req.spine_url as req_cond_spine, c_req.defect_urls as req_cond_defects, c_req.defects_description as req_cond_defects_desc, c_req.notes as req_cond_notes,
+           c_off.deposit_status as off_deposit_status, c_off.deposit_slip_url as off_deposit_slip_url,
+           c_req.deposit_status as req_deposit_status, c_req.deposit_slip_url as req_deposit_slip_url,
+           c_off.required_deposit_amount as off_deposit_amount, c_req.required_deposit_amount as req_deposit_amount,
+           c_off.tracking_number as off_p2p_tracking, c_req.tracking_number as req_p2p_tracking,
+           c_off.logistics_company as off_p2p_company, c_req.logistics_company as req_p2p_company
     FROM exchange_requests r
     LEFT JOIN exchanges e_req ON r.exchange_id = e_req.exchange_id
     LEFT JOIN exchanges e_off ON r.offered_exchange_id = e_off.exchange_id
@@ -179,14 +213,21 @@ function formatTradeOption($opt) {
     return 'ยังไม่ระบุ';
 }
 
-function getSlipBadgeHtml($status, $url) {
+function getSlipBadgeHtml($status, $url, $isP2P = false, $amount = 0, $reqId = 0, $side = '') {
     $btn = '';
     if (!empty($url)) {
-        $btn = ' <button type="button" class="qc-slip-view-btn" onclick="openModal(\''.htmlspecialchars(str_replace('\\', '/', $url)).'\')">ดูสลิป</button>';
+        $meta = htmlspecialchars(json_encode([
+            'isP2P' => $isP2P,
+            'status' => $status,
+            'amount' => $amount,
+            'request_id' => $reqId,
+            'side' => $side
+        ], JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+        $btn = ' <button type="button" class="qc-slip-view-btn" onclick="openModal(\''.htmlspecialchars(str_replace('\\', '/', $url)).'\', '.$meta.')">ดูสลิป</button>';
     }
     
     if ($status === 'verified' || $status === 'approved') return '<span class="qc-slip-badge success">แนบแล้ว (ตรวจสอบแล้ว)</span>'.$btn;
-    if ($status === 'pending') return '<span class="qc-slip-badge warning">แนบแล้ว (รอตรวจสอบ)</span>'.$btn;
+    if ($status === 'pending' || $status === 'reviewing') return '<span class="qc-slip-badge warning">แนบแล้ว (รอตรวจสอบ)</span>'.$btn;
     if ($status === 'rejected') return '<span class="qc-slip-badge danger">สลิปไม่ถูกต้อง</span>'.$btn;
     return '<span class="qc-slip-badge warning-light">ยังไม่แนบสลิป</span>';
 }
@@ -562,6 +603,12 @@ function chatImage($v) {
                 </div>
 
                 <?php foreach ($reqs as $r): 
+                    $isP2P = ($r['trade_option'] === 'direct_escrow');
+                    $req_slip_status = $isP2P ? ($r['req_deposit_status'] ?: 'pending') : ($r['requester_slip_status'] ?: 'pending');
+                    $req_slip_url = $isP2P ? $r['req_deposit_slip_url'] : $r['requester_slip_url'];
+                    $off_slip_status = $isP2P ? ($r['off_deposit_status'] ?: 'pending') : ($r['offer_slip_status'] ?: 'pending');
+                    $off_slip_url = $isP2P ? $r['off_deposit_slip_url'] : $r['offer_slip_url'];
+                    
                     $data_status = 'pending_qc';
                     if ($r['status'] === 'cancelled' || $r['status'] === 'rejected') {
                         $data_status = 'cancelled';
@@ -608,15 +655,19 @@ function chatImage($v) {
                                         <div class="qc-val"><?= mb_strimwidth(htmlspecialchars($r['requester_address'] ?? 'ยังไม่ระบุ'), 0, 30, '...') ?></div>
                                     </div>
                                     <div>
-                                        <div class="qc-label">เลขพัสดุขาเข้า</div>
-                                        <div class="qc-val tracking"><?= htmlspecialchars($r['requester_tracking_to_admin'] ?? '-') ?></div>
+                                        <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
+                                        <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['req_p2p_company']) && !empty($r['req_p2p_tracking'])) ? $r['req_p2p_company'].' : '.$r['req_p2p_tracking'] : ($r['req_p2p_tracking'] ?? '-')) : ($r['requester_tracking_to_admin'] ?? '-')) ?></div>
                                     </div>
                                 </div>
                                 <div class="qc-slip-row">
                                     <div class="qc-label">สลิปมัดจำ/ขนส่ง:</div>
-                                    <div><?= getSlipBadgeHtml($r['requester_slip_status'], $r['requester_slip_url']) ?></div>
+                                    <div><?= getSlipBadgeHtml($req_slip_status, $req_slip_url, $isP2P, $isP2P ? ($r['req_deposit_amount'] ?: 0) : 100, $r['request_id'], 'requester', $r['requester_name'] ?? 'ไม่มีชื่อ', $r['created_at']) ?></div>
                                 </div>
-                                <?php if ($r['requester_slip_status'] === 'pending' && !empty($r['requester_slip_url'])): ?>
+                                <?php if ($req_slip_status === 'reviewing' && $isP2P): ?>
+                                    <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-light); text-align:right;">
+                                        <a href="escrow.php?tab=p2p" style="font-size:11px; color:#91576d; text-decoration:underline;">ไปที่เมนู P2P Escrow เพื่ออนุมัติ</a>
+                                    </div>
+                                <?php elseif ($req_slip_status === 'pending' && !empty($req_slip_url) && !$isP2P): ?>
                                     <form method="POST" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-light); display:flex; gap:5px; justify-content:flex-end;">
                                         <input type="hidden" name="request_id" value="<?= $r['request_id'] ?>">
                                         <input type="hidden" name="side" value="requester">
@@ -639,15 +690,15 @@ function chatImage($v) {
                                         <div class="qc-val"><?= mb_strimwidth(htmlspecialchars($r['offer_address'] ?? 'ยังไม่ระบุ'), 0, 30, '...') ?></div>
                                     </div>
                                     <div>
-                                        <div class="qc-label">เลขพัสดุขาเข้า</div>
-                                        <div class="qc-val tracking"><?= htmlspecialchars($r['offer_tracking_to_admin'] ?? '-') ?></div>
+                                        <div class="qc-label"><?= $isP2P ? 'การติดตามพัสดุ' : 'เลขพัสดุขาเข้า' ?></div>
+                                        <div class="qc-val tracking"><?= htmlspecialchars($isP2P ? ((!empty($r['off_p2p_company']) && !empty($r['off_p2p_tracking'])) ? $r['off_p2p_company'].' : '.$r['off_p2p_tracking'] : ($r['off_p2p_tracking'] ?? '-')) : ($r['offer_tracking_to_admin'] ?? '-')) ?></div>
                                     </div>
                                 </div>
                                 <div class="qc-slip-row">
                                     <div class="qc-label">สลิปมัดจำ/ขนส่ง:</div>
-                                    <div><?= getSlipBadgeHtml($r['offer_slip_status'], $r['offer_slip_url']) ?></div>
+                                    <div><?= getSlipBadgeHtml($off_slip_status, $off_slip_url, $isP2P, $isP2P ? ($r['off_deposit_amount'] ?: 0) : 100, $r['request_id'], 'offer', $r['target_owner_name'] ?? 'ไม่มีชื่อ', $r['created_at']) ?></div>
                                 </div>
-                                <?php if ($r['offer_slip_status'] === 'pending' && !empty($r['offer_slip_url'])): ?>
+                                <?php if ($off_slip_status === 'pending' && !empty($off_slip_url)): ?>
                                     <form method="POST" style="margin-top:10px; padding-top:10px; border-top:1px dashed #FECACA; display:flex; gap:5px; justify-content:flex-end;">
                                         <input type="hidden" name="request_id" value="<?= $r['request_id'] ?>">
                                         <input type="hidden" name="side" value="offer">
@@ -803,10 +854,17 @@ function chatImage($v) {
                             <?php elseif ($r['admin_qc_requester_status'] === 'pending' || $r['admin_qc_offer_status'] === 'pending'): ?>
                                 <!-- Not yet QC'd -->
                                 <div>
-                                    <button type="button" class="qc-primary-btn" onclick="openAdminQcForm(<?= $r['request_id'] ?>, <?= (int)$r['requester_id'] ?>, <?= (int)$r['target_owner_id'] ?>)">
-                                        <i class="fas fa-clipboard-list"></i> ส่งฟอร์มรายงาน QC
-                                    </button>
-                                    <div class="qc-primary-note">* กรอกฟอร์มเพื่อส่งรายงานภาพสภาพจริงปัจจุบันให้ลูกค้าตรวจสอบและตัดสินใจ</div>
+                                    <?php if ($r['trade_option'] === 'admin_qc'): ?>
+                                        <button type="button" class="qc-primary-btn" onclick="openAdminQcForm(<?= $r['request_id'] ?>, <?= (int)$r['requester_id'] ?>, <?= (int)$r['target_owner_id'] ?>)">
+                                            <i class="fas fa-clipboard-list"></i> ส่งฟอร์มรายงาน QC
+                                        </button>
+                                        <div class="qc-primary-note">* กรอกฟอร์มเพื่อส่งรายงานภาพสภาพจริงปัจจุบันให้ลูกค้าตรวจสอบและตัดสินใจ</div>
+                                    <?php else: ?>
+                                        <button type="button" class="qc-primary-btn" style="background:#cbd5e1; border-color:#cbd5e1; cursor:not-allowed; box-shadow:none;" disabled>
+                                            <i class="fas fa-clipboard-list"></i> ส่งฟอร์มรายงาน QC (ไม่รองรับ)
+                                        </button>
+                                        <div class="qc-primary-note" style="color:#ef4444;">* รายการนี้ไม่ใช่แบบผ่านจุดตรวจส่วนกลาง ไม่จำเป็นต้องส่งฟอร์ม QC</div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="qc-step-box">
                                     <div class="title"><span class="qc-dot grey" style="display:inline-block;"></span> 4. จัดส่งขาออก (ถึงลูกค้า)</div>
@@ -971,8 +1029,62 @@ function chatImage($v) {
     </div>
 
     <!-- Modals -->
-    <div id="imgModal" class="modal" onclick="this.style.display='none'">
-        <img class="modal-content" id="imgModalContent">
+    <div id="imgModal" class="modal" onclick="if(event.target===this) this.style.display='none'" style="background:rgba(0,0,0,0.6);">
+        <div class="modal-content" style="background:#fff; border-radius:16px; max-width:800px; max-height:95vh; overflow-y:auto; margin:5% auto; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+            
+            <!-- Header -->
+            <div style="background:#fdf2f4; padding:20px 30px; border-bottom:1px solid #f3e6e9; display:flex; justify-content:space-between; align-items:center; border-radius:16px 16px 0 0;">
+                <h3 style="margin:0; color:#1f2937; font-size:20px;">มัดจำคำขอ #<span id="imgModalReqIdTxt">-</span></h3>
+                <span id="imgModalBadge" style="background:#fef3c7; color:#92400e; padding:4px 12px; border-radius:20px; font-size:13px; font-weight:600;">รอตรวจสอบสลิป</span>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:30px; display:flex; flex-wrap:wrap; gap:30px;">
+                <!-- Left: Image -->
+                <div style="flex:1; min-width:300px;">
+                    <h4 style="margin:0 0 15px 0; color:#147A6B;">หลักฐานการชำระเงิน</h4>
+                    <img id="imgModalContent" style="width:100%; height:auto; display:block; border-radius:12px; border:1px solid #eee; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                </div>
+                
+                <!-- Right: Details -->
+                <div style="flex:1; min-width:300px; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                        <div style="color:#64748b; font-size:13px; margin-bottom:5px;">สั่งซื้อเมื่อ: <span id="imgModalDate">-</span></div>
+                        <div style="color:#64748b; font-size:13px; margin-bottom:20px;">อนุมัติเมื่อ: -</div>
+                        
+                        <h4 style="margin:0 0 15px 0; color:#147A6B;">รายการสินค้า</h4>
+                        
+                        <!-- Box 1 -->
+                        <div style="border:1px solid #eaeaea; border-radius:8px; padding:15px; margin-bottom:15px;">
+                            <div style="color:#475569; font-size:14px; margin-bottom:5px;" id="imgModalAmountLabel">ยอดมัดจำที่ต้องชำระ:</div>
+                            <div style="color:#dc2626; font-size:24px; font-weight:bold;">฿<span id="imgModalAmount">0.00</span></div>
+                        </div>
+
+                        <!-- Box 2 -->
+                        <div style="border:1px solid #eaeaea; border-radius:8px; padding:15px; margin-bottom:20px;">
+                            <div style="color:#475569; font-size:14px; margin-bottom:5px;">ผู้ชำระเงิน:</div>
+                            <div style="color:#1f2937; font-size:15px;"><span id="imgModalPayer">-</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div id="imgModalActions" style="display:none;">
+                        <form method="POST" style="display:flex; gap:10px;">
+                            <input type="hidden" name="action" id="imgModalActionInput" value="approve_p2p_slip">
+                            <input type="hidden" name="request_id" id="imgModalReqIdInput">
+                            <input type="hidden" name="side" id="imgModalSide">
+                            <button type="submit" name="slip_result" value="rejected" style="background:#fff; color:#ef4444; border:1px solid #ef4444; padding:12px; border-radius:6px; cursor:pointer; flex:1; font-weight:600;">ไม่อนุมัติ</button>
+                            <button type="submit" name="slip_result" id="imgModalApproveBtn" value="approved" style="background:#15803d; color:white; border:none; padding:12px; border-radius:6px; cursor:pointer; flex:1.2; font-weight:600;">✓ อนุมัติสลิปโอนเงิน</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:20px 30px; border-top:1px solid #eee; text-align:center; background:#fafafa; border-radius:0 0 16px 16px;">
+                <button type="button" onclick="document.getElementById('imgModal').style.display='none'" style="background:#fff; border:1px solid #ddd; color:#91576d; padding:12px 30px; border-radius:6px; cursor:pointer; font-weight:600; width:100%; max-width:300px;">ปิดหน้าต่าง</button>
+            </div>
+        </div>
     </div>
 
     <div id="condModal" class="modal" onclick="if(event.target===this)this.style.display='none'">
@@ -1112,8 +1224,57 @@ function chatImage($v) {
     </div>
     
     <script>
-        function openModal(src) {
+        function openModal(src, meta = {}) {
             document.getElementById('imgModalContent').src = src;
+            
+            const actionsDiv = document.getElementById('imgModalActions');
+            if (meta && (meta.isP2P !== undefined)) {
+                document.getElementById('imgModalAmount').innerText = parseFloat(meta.amount || 0).toLocaleString('th-TH', {minimumFractionDigits:2});
+                document.getElementById('imgModalReqIdTxt').innerText = meta.request_id;
+                document.getElementById('imgModalReqIdInput').value = meta.request_id;
+                document.getElementById('imgModalSide').value = meta.side;
+                document.getElementById('imgModalPayer').innerText = meta.payerName || '-';
+                document.getElementById('imgModalDate').innerText = meta.createdAt ? meta.createdAt : '-';
+                
+                if (meta.isP2P) {
+                    document.getElementById('imgModalActionInput').value = 'approve_p2p_slip';
+                    document.getElementById('imgModalAmountLabel').innerText = 'ยอดมัดจำที่ต้องชำระ:';
+                    document.getElementById('imgModalApproveBtn').innerText = '✓ อนุมัติสลิปโอนเงินมัดจำ (P2P)';
+                } else {
+                    document.getElementById('imgModalActionInput').value = 'approve_slip';
+                    document.getElementById('imgModalAmountLabel').innerText = 'ค่าบริการส่วนกลาง (QC):';
+                    document.getElementById('imgModalApproveBtn').innerText = '✓ อนุมัติสลิปค่าบริการ';
+                }
+
+                const badge = document.getElementById('imgModalBadge');
+                if (meta.status === 'reviewing' || meta.status === 'pending') {
+                    badge.innerText = 'รอตรวจสอบสลิป';
+                    badge.style.background = '#fef3c7';
+                    badge.style.color = '#92400e';
+                    actionsDiv.style.display = 'flex';
+                } else if (meta.status === 'approved' || meta.status === 'verified') {
+                    badge.innerText = 'ตรวจสอบแล้ว';
+                    badge.style.background = '#d1fae5';
+                    badge.style.color = '#065f46';
+                    actionsDiv.style.display = 'none';
+                } else if (meta.status === 'rejected') {
+                    badge.innerText = 'ไม่อนุมัติ';
+                    badge.style.background = '#fee2e2';
+                    badge.style.color = '#991b1b';
+                    actionsDiv.style.display = 'none';
+                } else {
+                    badge.innerText = 'รอผู้ใช้ชำระเงิน';
+                    badge.style.background = '#f3f4f6';
+                    badge.style.color = '#374151';
+                    actionsDiv.style.display = 'none';
+                }
+            } else {
+                // Not P2P
+                actionsDiv.style.display = 'none';
+                document.getElementById('imgModalReqIdTxt').innerText = '-';
+                document.getElementById('imgModalBadge').style.display = 'none';
+            }
+            
             document.getElementById('imgModal').style.display = 'flex';
         }
         function openImgModal(src) {

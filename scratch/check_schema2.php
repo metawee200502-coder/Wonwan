@@ -1,5 +1,4 @@
 <?php
-require 'c:/laragon/www/wanawan_project/config/config.php';
-foreach ($pdo->query('SHOW COLUMNS FROM exchange_requests') as $row) {
-    echo $row['Field'] . ' - ' . $row['Type'] . "\n";
-}
+require 'c:\laragon\www\wanawan_project\config\config.php';
+$stmt = $pdo->query('DESCRIBE exchange_requests');
+print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
