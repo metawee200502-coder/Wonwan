@@ -487,14 +487,14 @@ foreach($transactions as $tx) {
                                 <td>
                                     <?php if($tx['type']==='EARNING'): ?>
                                         <div class="tx-detail">
-                                            ออเดอร์: <strong>#<?=htmlspecialchars($tx['order_number'] ?? $tx['order_id'])?></strong><br>
+                                            ออเดอร์: <strong><?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></strong><br>
                                             <span class="tx-detail-muted">📖 <?=htmlspecialchars($tx['book_title'] ?? 'หนังสือ')?></span><br>
                                             <span class="tx-detail-muted">ยอดขาย: ฿<?=number_format($tx['subtotal'] ?? 0, 2)?></span> 
                                             <span class="tx-detail-red">หักค่าธรรมเนียม: -฿<?=number_format($tx['gp_amount'] ?? 0, 2)?></span> 
                                             <span class="tx-detail-green">ค่าจัดส่งได้รับ: +฿<?=number_format($tx['shipping_fee'] ?? 0, 2)?></span>
                                         </div>
                                     <?php elseif($tx['type']==='REFUND'): ?>
-                                        <div class="tx-detail">คืนเงินออเดอร์ #<?=htmlspecialchars($tx['order_number'] ?? $tx['order_id'])?></div>
+                                        <div class="tx-detail">คืนเงินออเดอร์ #<?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></div>
                                     <?php else: ?>
                                         <?php 
                                             $bankName = ''; $accNo = ''; $accName = '';
@@ -763,3 +763,4 @@ foreach($transactions as $tx) {
     </script>
 </body>
 </html>
+

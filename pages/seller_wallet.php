@@ -457,16 +457,16 @@ body{font-family:var(--font-family);background:#fff;color:var(--text-dark);displ
                     <td>
                         <?php if($tx['type']==='EARNING'): ?>
                             <div style="font-size:13px; color:#444; line-height:1.6;">
-                                <strong style="color:#91576d;">ออเดอร์ #<?=htmlspecialchars($tx['order_number'] ?? $tx['order_id'])?></strong><br>
+                                <strong style="color:#91576d;">ออเดอร์ #<?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></strong><br>
                                 <span style="color:#666;">ยอดขาย: ฿<?=number_format($tx['subtotal'] ?? 0, 2)?></span><br>
                                 <span style="color:#d32f2f;">หักค่าธรรมเนียม: -฿<?=number_format($tx['gp_amount'] ?? 0, 2)?></span><br>
                                 <span style="color:#388e3c;">ค่าจัดส่ง: +฿<?=number_format($tx['shipping_fee'] ?? 0, 2)?></span><br>
-                                <button type="button" class="btn-sm" style="font-family:inherit; margin-top:8px; padding:4px 10px; font-size:12px; background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:10px; cursor:pointer;" onclick="openOrderModal(<?=$tx['order_id']?>, '<?=htmlspecialchars($tx['order_number'] ?? $tx['order_id'])?>')">
+                                <button type="button" class="btn-sm" style="font-family:inherit; margin-top:8px; padding:4px 10px; font-size:12px; background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:10px; cursor:pointer;" onclick="openOrderModal(<?=$tx['order_id']?>, '<?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?>')">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>ดูรายละเอียด
                                 </button>
                             </div>
                         <?php elseif($tx['type']==='REFUND'): ?>
-                            <small style="color:#777">คืนเงินออเดอร์ #<?=htmlspecialchars($tx['order_number'] ?? $tx['order_id'])?></small>
+                            <small style="color:#777">คืนเงินออเดอร์ #<?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></small>
                                 <?php else: ?>
                                     <small style="color:#777" title="<?=htmlspecialchars($tx['bank_account_info'])?>">รหัสอ้างอิง: <strong><?=htmlspecialchars($tx['txn_code'])?></strong><br>เข้าบัญชีธนาคาร<br><?=nl2br(htmlspecialchars($tx['bank_account_info']))?></small>
                                 <?php endif; ?>
@@ -877,3 +877,4 @@ document.querySelectorAll('.tx-tab').forEach(btn => {
 </script>
 </body>
 </html>
+

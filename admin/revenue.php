@@ -163,14 +163,20 @@ if ($tab === 'withdraw') {
 } else {
     $history = $pdo->query("
         SELECT o.*,
-               (SELECT GROUP_CONCAT(DISTINCT COALESCE(s.shop_name, p.company_name, u.display_name) SEPARATOR ', ')
-                FROM order_items oi
-                JOIN books b ON b.book_id = oi.book_id
-                LEFT JOIN shops s ON b.seller_type = 'shop' AND b.seller_id = s.shop_id
-                LEFT JOIN publishers p ON b.seller_type = 'publisher' AND b.seller_id = p.publisher_id
-                LEFT JOIN users u ON b.seller_type = 'user' AND b.seller_id = u.user_id
-                WHERE oi.order_id = o.order_id) as seller_names,
-               (SELECT MAX(b.seller_type) FROM order_items oi JOIN books b ON oi.book_id = b.book_id WHERE oi.order_id = o.order_id) as seller_type
+               IF(o.order_number LIKE 'EXC-FEE-%', 
+                  (SELECT display_name FROM users WHERE user_id = o.user_id),
+                  (SELECT GROUP_CONCAT(DISTINCT COALESCE(s.shop_name, p.company_name, u.display_name) SEPARATOR ', ')
+                   FROM order_items oi
+                   JOIN books b ON b.book_id = oi.book_id
+                   LEFT JOIN shops s ON b.seller_type = 'shop' AND b.seller_id = s.shop_id
+                   LEFT JOIN publishers p ON b.seller_type = 'publisher' AND b.seller_id = p.publisher_id
+                   LEFT JOIN users u ON b.seller_type = 'user' AND b.seller_id = u.user_id
+                   WHERE oi.order_id = o.order_id)
+               ) as seller_names,
+               IF(o.order_number LIKE 'EXC-FEE-%',
+                  'user',
+                  (SELECT MAX(b.seller_type) FROM order_items oi JOIN books b ON oi.book_id = b.book_id WHERE oi.order_id = o.order_id)
+               ) as seller_type
         FROM orders o
         WHERE o.shipping_status = 'delivered' AND o.gp_amount > 0
         ORDER BY COALESCE(o.delivered_at, o.created_at) DESC

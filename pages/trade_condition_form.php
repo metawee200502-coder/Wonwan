@@ -401,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="header-title">
             <h1>ยืนยันสภาพสินค้า (Escrow)</h1>
             <p>ระบบคนกลางเพื่อความปลอดภัยในการแลกเปลี่ยนของคุณ</p>
-            <div class="status-badge">รายการเทรด #<?= $requestId ?> • <?= htmlspecialchars($request['trade_option'] ?: 'ยังไม่ระบุ') ?></div>
+            <div class="status-badge">รายการเทรด <?=formatExchangeOrderId($requestId)?> • <?= htmlspecialchars($request['trade_option'] ?: 'ยังไม่ระบุ') ?></div>
         </div>
 
         <?php if ($success): ?><div class="alert alert-success">✓ <?= htmlspecialchars($success) ?></div><?php endif; ?>

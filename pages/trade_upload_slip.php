@@ -67,6 +67,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $pdo->prepare("UPDATE trade_condition_forms SET deposit_status = 'approved', deposit_approved_at = NOW() WHERE form_id = ?")
                         ->execute([$myCondition['form_id']]);
+
+                    $orderNum = 'EXC-FEE-' . $requestId . '-' . $userId;
+                    $pdo->prepare("INSERT IGNORE INTO orders (user_id, order_number, subtotal, total_amount, gp_amount, payment_status, shipping_status, shipping_name, shipping_address, shipping_phone, shipping_method) VALUES (?, ?, ?, ?, ?, 'paid', 'pending', 'ระบบกลาง', 'N/A', 'N/A', 'N/A')")
+                        ->execute([$userId, $orderNum, $requiredDeposit, $requiredDeposit, $requiredDeposit]);
+
                         
                     if ($isOwner) {
                         $pdo->prepare("UPDATE exchange_requests SET offer_address = ? WHERE request_id = ?")->execute([$address, $requestId]);

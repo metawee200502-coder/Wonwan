@@ -156,3 +156,10 @@ if (!function_exists('logSellerAction')) {
         }
     }
 }
+
+
+function formatExchangeOrderId($requestId) {
+    if (!$requestId) return '';
+    return '#EX-' . str_pad($requestId, 6, '0', STR_PAD_LEFT);
+}
+

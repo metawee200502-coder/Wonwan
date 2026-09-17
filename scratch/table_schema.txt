@@ -1,0 +1,27 @@
+CREATE TABLE `wallet_transactions` (
+  `transaction_id` int NOT NULL AUTO_INCREMENT,
+  `wallet_id` int NOT NULL,
+  `order_id` int DEFAULT NULL,
+  `type` enum('EARNING','WITHDRAWAL') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `withdrawal_bank_info` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('SUCCESS','PENDING','FAILED','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'SUCCESS',
+  `bank_account_info` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`transaction_id`),
+  KEY `fk_txn_vendor_wallet` (`wallet_id`),
+  CONSTRAINT `fk_txn_vendor_wallet` FOREIGN KEY (`wallet_id`) REFERENCES `vendor_wallets` (`wallet_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `vendor_wallets` (
+  `wallet_id` int NOT NULL AUTO_INCREMENT,
+  `seller_type` enum('shop','publisher','user') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `seller_id` int NOT NULL,
+  `available_balance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `pending_withdrawal_balance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `escrow_balance` decimal(10,2) DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`wallet_id`),
+  UNIQUE KEY `uq_seller` (`seller_type`,`seller_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

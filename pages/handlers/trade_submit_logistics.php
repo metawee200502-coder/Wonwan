@@ -78,7 +78,10 @@ try {
             }
             
             // Deduct from wallet
-            $pdo->prepare("UPDATE vendor_wallets SET available_balance = available_balance - ? WHERE seller_type='user' AND seller_id=?")->execute([$feeAmount, $userId]);
+            $pdo->prepare("UPDATE vendor_wallets SET available_balance = available_balance - ?, escrow_balance = escrow_balance + ? WHERE seller_type='user' AND seller_id=?")->execute([$feeAmount, $feeAmount, $userId]);
+            
+            $orderNum = 'EXC-FEE-' . $requestId . '-' . $userId;
+            $pdo->prepare("INSERT IGNORE INTO orders (user_id, order_number, subtotal, total_amount, gp_amount, payment_status, shipping_status, shipping_name, shipping_address, shipping_phone, shipping_method) VALUES (?, ?, ?, ?, ?, 'paid', 'pending', 'ระบบกลาง', 'N/A', 'N/A', 'N/A')")->execute([$userId, $orderNum, $feeAmount, $feeAmount, $feeAmount]);
             
             // Record transaction
             $txnDesc = "ชำระค่าบริการส่วนกลาง (QC) สำหรับรายการที่ #" . $requestId;
