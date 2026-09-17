@@ -87,6 +87,23 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             รายได้ทั้งหมด
         </a>
+        <?php
+        // Badge: คำขอคืนสินค้าที่รอพิจารณา
+        $admin_return_badge = 0;
+        if ($seller_profile_id && isset($pdo)) {
+            try {
+                $sellerTypeForReturn = $role === 'publisher_admin' ? 'publisher' : 'shop';
+                $retBadge = $pdo->prepare("SELECT COUNT(*) FROM return_requests WHERE seller_type = ? AND seller_id = ? AND status = 'pending'");
+                $retBadge->execute([$sellerTypeForReturn, $seller_profile_id]);
+                $admin_return_badge = (int)$retBadge->fetchColumn();
+            } catch (Throwable $e) {}
+        }
+        ?>
+        <a href="admin_returns.php" class="nav-item <?= $active_menu === 'returns' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            คำขอคืนสินค้า
+            <?php if ($admin_return_badge > 0): ?><span class="admin-order-badge" style="background:#d97706"><?= $admin_return_badge ?></span><?php endif; ?>
+        </a>
         <a href="admin_promotions.php" class="nav-item <?= $active_menu === 'promotions' ? 'active' : '' ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 7v13"/><path d="M12 7H7.5a2.5 2.5 0 1 1 2.2-3.7L12 7zm0 0h4.5a2.5 2.5 0 1 0-2.2-3.7L12 7z"/></svg>
             จัดการโปรโมชั่น

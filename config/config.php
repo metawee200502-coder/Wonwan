@@ -120,7 +120,8 @@ if (session_status() === PHP_SESSION_ACTIVE
         'admin_notifications.php', 'admin_chat.php', 'add_book.php', 'edit_book.php',
         'publisher_setup.php', 'shop_setup.php', 'admin_profile.php', 'partner_detail.php',
         'book_detail.php', 'seller_review_management.php', 'seller_reviews.php',
-        'admin_promotions.php', 'seller_wallet.php', 'manage_seller_admins.php', 'seller_action_logs.php'
+        'admin_promotions.php', 'seller_wallet.php', 'manage_seller_admins.php', 'seller_action_logs.php',
+        'shop_return_address.php', 'admin_returns.php',
     ];
     $currentPage = basename($scriptPath);
     $isBackendAction = str_contains($scriptPath, '/process/')

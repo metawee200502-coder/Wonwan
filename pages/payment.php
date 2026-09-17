@@ -48,7 +48,7 @@ $qr = 'https://quickchart.io/qr?size=300&margin=2&ecLevel=M&text=' . rawurlencod
 </div></section><aside class="card summary"><h2>สรุปรายการสั่งซื้อ</h2><?php foreach($items as $item):?><div class="item"><span><?=htmlspecialchars($item['title']?:'หนังสือ')?> × <?=$item['quantity']?></span><strong>฿<?=number_format($item['price_at_purchase']*$item['quantity'],2)?></strong></div><?php endforeach;?><div class="row"><span>ยอดรวมสินค้า</span><span>฿<?=number_format($order['subtotal'],2)?></span></div><div class="row"><span>ค่าจัดส่ง</span><span>฿<?=number_format($order['shipping_fee'],2)?></span></div><div class="row total"><span>ยอดสุทธิ</span><span>฿<?=number_format($order['total_amount'],2)?></span></div><div><strong>ที่อยู่สำหรับจัดส่ง</strong><p><?=nl2br(htmlspecialchars($order['shipping_name']."\n".$order['shipping_address']."\nโทร: ".$order['shipping_phone']))?></p></div><a href="/pages/orders.php?tab=pending" class="btn-pay-later">ชำระเงินภายหลัง</a></aside></div></main><?php require __DIR__.'/../components/footer.php';?>
 <script>
 let polling = setInterval(() => {
-    fetch('/api/check_payment.php?order_id=<?=$orderId?>')
+    fetch('../api/check_payment.php?order_id=<?=$orderId?>')
     .then(res => res.json())
     .then(data => {
         if (data.status === 'reviewing' || data.status === 'paid' || data.status === 'preparing') {
@@ -60,7 +60,7 @@ let polling = setInterval(() => {
 }, 3000);
 
 function simulateWebhook() {
-    fetch('/api/simulate_webhook.php', {
+    fetch('../api/simulate_webhook.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({order_ids: [<?=$orderId?>]})

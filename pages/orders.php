@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if(empty($_SESSION['user_id'])){header('Location:/pages/login.php');exit;}
 require_once __DIR__.'/../config/config.php';
@@ -143,6 +143,26 @@ function formatThaiDate($datetime) {
 }
 
 $profile_active='orders';
+
+// ดึง return_request ที่มีอยู่แล้วของผู้ใช้ (สำหรับแสดง/ซ่อนปุ่มคืนสินค้า)
+$existingReturnsMap = [];
+if ($orders) {
+    $orderIds = [];
+    foreach ($orders as $__o) {
+        if (!empty($__o['order_id'])) $orderIds[] = (int)$__o['order_id'];
+    }
+    if ($orderIds) {
+        $placeholders = implode(',', array_fill(0, count($orderIds), '?'));
+        try {
+            $retStmt = $pdo->prepare("SELECT order_id, status FROM return_requests WHERE order_id IN ($placeholders) AND user_id = ?");
+            $retStmt->execute(array_merge($orderIds, [$userId]));
+            foreach ($retStmt->fetchAll(PDO::FETCH_ASSOC) as $ret) {
+                $existingReturnsMap[(int)$ret['order_id']] = $ret['status'];
+            }
+        } catch (Throwable $e) { /* ตาราง return_requests ยังไม่มี migration ก็ไม่ crash */ }
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -348,6 +368,7 @@ $profile_active='orders';
                 $sellerType = $o['items'][0]['seller_type'] ?? 'user';
                 $sellerName = htmlspecialchars(implode(', ',array_unique(array_map('orderSellerName',$o['items'])))?:'ร้านวนวรรณ');
                 $sellerBadge = '';
+                $reviewableItems = count(array_filter($o['items'], fn($item) => empty($item['review_id'])));
                 $iconClass = 'store-icon user';
                 $iconSvg = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>';
                 
@@ -356,17 +377,10 @@ $profile_active='orders';
                     $iconClass = 'store-icon publisher';
                     $iconSvg = '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>';
                 } elseif ($sellerType === 'shop') {
-                    $sellerBadge = '<span class="seller-badge official">ร้านค้าทางการ</span>';
+                    $sellerBadge = '<span class="seller-badge shop">ร้านค้า</span>';
                     $iconClass = 'store-icon shop';
                     $iconSvg = '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>';
-                } else {
-                    $sellerBadge = '<span class="seller-badge">ผู้ขายยืนยันตัวตน</span>';
                 }
-
-                $reviewableItems=array_values(array_filter($o['items'],fn($i)=>!empty($i['book_id'])));
-                $reviewedCount=count(array_filter($reviewableItems,fn($i)=>!empty($i['review_id'])));
-                
-                $orderJson=htmlspecialchars(json_encode(['id'=>$o['order_id'],'number'=>$o['order_number'],'state'=>$state,'stateClass'=>$stateClass,'seller'=>implode(', ',array_unique(array_map('orderSellerName',$o['items'])))?:'ร้านวนวรรณ','buyer'=>$o['shipping_name'],'phone'=>$o['shipping_phone'],'address'=>$o['shipping_address'],'courier'=>$o['shipping_courier']??'','tracking'=>$o['tracking_number']??'','subtotal'=>(float)($o['subtotal']??0),'shipping_fee'=>(float)($o['shipping_fee']??0),'total'=>(float)($o['total_amount']??0),'items'=>array_map(fn($i)=>['title'=>$i['title']?:'หนังสือ','author'=>$i['author']??'','qty'=>$i['quantity'],'price'=>(float)$i['price_at_purchase'],'img'=>orderImage($i['image_cover'])??''],$o['items'])],JSON_UNESCAPED_UNICODE),ENT_QUOTES);
             ?>
             <article class="order-card" onclick="openOrderDetail(this)" data-od='<?=$orderJson?>'>
                 <header class="order-head">
@@ -377,7 +391,7 @@ $profile_active='orders';
                         <span class="seller-name"><?=$sellerName?></span>
                         <?=$sellerBadge?>
                     </div>
-                    <?php 
+                    <?php
                         $statusIcon = '';
                         if($stateClass === 'completed') $statusIcon = '<polyline points="20 6 9 17 4 12"></polyline>';
                         elseif($stateClass === 'cancelled') $statusIcon = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
@@ -392,17 +406,17 @@ $profile_active='orders';
                 
                 <div class="order-body">
                     <div class="book-info">
-                        <?php $firstItem = $o['items'][0]; ?>
+                        <?php $firstItem = $o['items'][0] ?? null; ?>
                         <div class="cover">
-                            <?php if($img=orderImage($firstItem['image_cover'])):?>
+                            <?php if($firstItem && ($img = orderImage($firstItem['image_cover'] ?? null))):?>
                                 <img src="<?=htmlspecialchars($img)?>" alt="">
                             <?php else: ?>
                                 <img src="/assets/image/placeholder.png" alt="">
                             <?php endif;?>
                         </div>
                         <div class="details">
-                            <h3><?=htmlspecialchars($firstItem['title']?:'หนังสือ')?></h3>
-                            <p class="author">ผู้เขียน: <?=htmlspecialchars($firstItem['author']?:'-')?></p>
+                            <h3><?=htmlspecialchars(($firstItem['title'] ?? null)?:'หนังสือ')?></h3>
+                            <p class="author">ผู้เขียน: <?=htmlspecialchars(($firstItem['author'] ?? null)?:'-')?></p>
                             <p class="qty">จำนวน: <strong>×<?=count($o['items'])==1 ? $firstItem['quantity'] : count($o['items'])?> เล่ม</strong></p>
                             <?php if(count($o['items']) > 1): ?>
                                 <span class="edition-badge">+ ดูสินค้าอีก <?=count($o['items'])-1?> เล่มในออเดอร์นี้</span>
@@ -449,6 +463,29 @@ $profile_active='orders';
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> ให้คะแนน / รีวิว
                         </a>
                         <?php endif; ?>
+                        <?php
+                        // ปุ่ม "ขอคืนสินค้า" — แสดงเฉพาะ delivered และยังไม่เคยยื่นคำขอ
+                        $returnStatus = $existingReturnsMap[(int)$o['order_id']] ?? null;
+                        if ($o['shipping_status'] === 'delivered'):
+                            if ($returnStatus === null):
+                        ?>
+                        <button type="button" class="btn-outline" style="color:#d97706;border-color:#fde68a;background:#fffbeb;cursor:pointer;" onclick="openReturnPopup(<?=(int)$o['order_id']?>, event)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                            ขอคืนสินค้า
+                        </button>
+                        <?php elseif ($returnStatus === 'pending'): ?>
+                        <span class="btn-outline" style="color:#d97706;border-color:#fde68a;background:#fffbeb;cursor:default;opacity:.8;">
+                            ⏳ รอพิจารณาคืน
+                        </span>
+                        <?php elseif ($returnStatus === 'approved'): ?>
+                        <span class="btn-outline" style="color:#059669;border-color:#a7f3d0;background:#d1fae5;cursor:default;opacity:.8;">
+                            ✅ คืนเงินแล้ว
+                        </span>
+                        <?php elseif ($returnStatus === 'rejected'): ?>
+                        <span class="btn-outline" style="color:#dc2626;border-color:#fecaca;background:#fee2e2;cursor:default;opacity:.8;">
+                            ❌ คำขอถูกปฏิเสธ
+                        </span>
+                        <?php endif; endif; ?>
                         
                         <?php if($stateClass==='pending'):?>
                         <form method="post" style="margin:0; display:inline-block;">
@@ -529,5 +566,34 @@ $profile_active='orders';
     </script>
 
     <?php require __DIR__.'/../components/footer.php';?>
+<div id="rr-modal-container" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999;">
+    <iframe id="rr-modal-iframe" src="" style="width:100%; height:100%; border:none; background:transparent;"></iframe>
+</div>
+<script>
+function openReturnPopup(orderId, event) {
+    if(event) { event.preventDefault(); event.stopPropagation(); }
+    const container = document.getElementById('rr-modal-container');
+    const iframe = document.getElementById('rr-modal-iframe');
+    iframe.src = '/pages/return_request.php?order_id=' + orderId;
+    container.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+function closeReturnPopup() {
+    const container = document.getElementById('rr-modal-container');
+    const iframe = document.getElementById('rr-modal-iframe');
+    container.style.display = 'none';
+    iframe.src = '';
+    document.body.style.overflow = '';
+}
+window.addEventListener('message', function(e) {
+    if (e.data === 'close_rr_modal') {
+        closeReturnPopup();
+    } else if (e.data === 'reload_orders') {
+        window.location.reload();
+    }
+});
+</script>
 </body>
 </html>
+
+

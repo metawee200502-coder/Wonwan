@@ -529,7 +529,7 @@ function openExchangeDetails(requestId) {
     let optEl = document.getElementById('modal-trade-option');
     if (optEl) optEl.textContent = 'กำลังโหลด...';
     
-    fetch('/api/get_exchange_details.php?request_id=' + requestId)
+    fetch('../api/get_exchange_details.php?request_id=' + requestId)
         .then(res => res.json())
         .then(data => {
             if (!data.success) {

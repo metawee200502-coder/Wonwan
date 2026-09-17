@@ -591,7 +591,7 @@ $breadcrumbs = [
 
         async function loadMarkers(type) {
             try {
-                const res = await fetch('/api/map_data.php?type=' + type);
+                const res = await fetch('../api/map_data.php?type=' + type);
                 const json = await res.json();
                 
                 if (json.status === 'success' && json.data) {

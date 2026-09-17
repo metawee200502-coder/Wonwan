@@ -25,7 +25,7 @@ $qr = 'https://quickchart.io/qr?size=300&margin=2&ecLevel=M&text=' . rawurlencod
 <script>
 const orderIdsStr = <?=json_encode(implode(',', array_column($orders, 'order_id')))?>;
 let polling = setInterval(() => {
-    fetch('/api/check_payment.php?order_ids=' + orderIdsStr)
+    fetch('../api/check_payment.php?order_ids=' + orderIdsStr)
     .then(res => res.json())
     .then(data => {
         if (data.status === 'reviewing' || data.status === 'paid' || data.status === 'preparing') {
@@ -37,7 +37,7 @@ let polling = setInterval(() => {
 }, 3000);
 
 function simulateWebhook() {
-    fetch('/api/simulate_webhook.php', {
+    fetch('../api/simulate_webhook.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({order_ids: orderIdsStr.split(',')})
