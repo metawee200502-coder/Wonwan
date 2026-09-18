@@ -90,11 +90,10 @@ try {
         exit;
     }
 
-    // --- คำนวณ refund_amount (ยอดสินค้า + ค่าส่ง - GP ที่หักไปแล้ว) ---
-    $amountStmt = $pdo->prepare("SELECT COALESCE(SUM(oi.price_at_purchase * oi.quantity), 0) subtotal, o.shipping_fee, o.gp_amount FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.order_id = ? GROUP BY o.order_id");
+    // --- คำนวณ refund_amount (ดึงจาก total_amount ซึ่งหักส่วนลดแล้ว) ---
+    $amountStmt = $pdo->prepare("SELECT total_amount FROM orders WHERE order_id = ?");
     $amountStmt->execute([$orderId]);
-    $amounts = $amountStmt->fetch(PDO::FETCH_ASSOC);
-    $refundAmount = (float)($amounts['subtotal'] ?? 0) + (float)($amounts['shipping_fee'] ?? 0);
+    $refundAmount = (float)$amountStmt->fetchColumn();
 
     // --- File upload ---
     if (empty($_FILES['evidence']) || $_FILES['evidence']['error'] === UPLOAD_ERR_NO_FILE) {

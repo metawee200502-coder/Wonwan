@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 if(empty($_SESSION['user_id'])){header('Location:/pages/login.php');exit;}
 require_once __DIR__.'/../config/config.php';
@@ -71,12 +71,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 
 // Counts for Tabs
-$counts = ['all'=>0, 'pending'=>0, 'shipping'=>0, 'completed'=>0, 'cancelled'=>0];
+$counts = ['all'=>0, 'pending'=>0, 'shipping'=>0, 'completed'=>0, 'returned'=>0, 'cancelled'=>0];
 $allOrdersStmt = $pdo->prepare("SELECT payment_status, shipping_status FROM orders WHERE user_id=?");
 $allOrdersStmt->execute([$userId]);
 foreach($allOrdersStmt as $row) {
     $counts['all']++;
-    if ($row['payment_status'] === 'cancelled' || $row['shipping_status'] === 'cancelled') {
+    if ($row['shipping_status'] === 'returned') {
+        $counts['returned']++;
+    } elseif ($row['payment_status'] === 'cancelled' || $row['shipping_status'] === 'cancelled') {
         $counts['cancelled']++;
     } elseif ($row['shipping_status'] === 'delivered') {
         $counts['completed']++;
@@ -89,6 +91,7 @@ foreach($allOrdersStmt as $row) {
 
 $tab=$_GET['tab']??'all';
 $q=trim($_GET['q']??'');
+$q=ltrim($q, '#');
 $where=['o.user_id=:uid'];
 $params=[':uid'=>$userId];
 
@@ -96,6 +99,7 @@ if($tab==='pending') $where[]="o.payment_status='pending'";
 elseif($tab==='shipping') $where[]="o.payment_status='paid' AND o.shipping_status IN ('pending','packing','shipped')";
 elseif($tab==='completed') $where[]="o.shipping_status='delivered'";
 elseif($tab==='cancelled') $where[]="(o.payment_status='cancelled' OR o.shipping_status='cancelled')";
+elseif($tab==='returned') $where[]="o.shipping_status='returned'";
 
 if($q!==''){
     $where[]='(o.order_number LIKE :q_order OR EXISTS(SELECT 1 FROM order_items sx JOIN books bx ON bx.book_id=sx.book_id WHERE sx.order_id=o.order_id AND bx.title LIKE :q_title))';
@@ -128,6 +132,7 @@ function orderSellerName(array $item):string{
 }
 
 function orderState(array $o):array{
+    if($o['shipping_status']==='returned') return ['คืนสินค้า/คืนเงิน','cancelled'];
     if($o['payment_status']==='cancelled'||$o['shipping_status']==='cancelled') return ['ยกเลิกแล้ว','cancelled'];
     if($o['shipping_status']==='delivered') return ['สำเร็จแล้ว','completed'];
     if($o['payment_status']==='pending') return ['รอการชำระ','pending'];
@@ -333,6 +338,7 @@ if ($orders) {
                     'pending' => ['รอการชำระ', $counts['pending']],
                     'shipping' => ['กำลังจัดส่ง', $counts['shipping']],
                     'completed' => ['สำเร็จแล้ว', $counts['completed']],
+                    'returned' => ['คืนสินค้า/คืนเงิน', $counts['returned'] ?? 0],
                     'cancelled' => ['ยกเลิกแล้ว', $counts['cancelled']]
                 ];
                 foreach($tabsDef as $key=>$data):

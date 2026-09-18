@@ -77,67 +77,76 @@ try {
     $sellerType   = $returnReq['seller_type'];
     $sellerId     = (int)$returnReq['seller_id'];
 
+    // Fetch order details for the note and deduction logic
+    $orderInfoStmt = $pdo->prepare("SELECT order_number, net_payout, payout_status FROM orders WHERE order_id = ?");
+    $orderInfoStmt->execute([$orderId]);
+    $orderInfo = $orderInfoStmt->fetch(PDO::FETCH_ASSOC);
+    $orderNumber = $orderInfo['order_number'] ?: $orderId;
+    $netPayout = (float)($orderInfo['net_payout'] ?? 0);
+    $payoutStatus = $orderInfo['payout_status'] ?? 'pending';
+
     // ─── BEGIN TRANSACTION ───
     $pdo->beginTransaction();
 
-    // ── Step 1: Lock & upsert user_wallets ──
-    $wq = $pdo->prepare('SELECT wallet_id, balance FROM user_wallets WHERE user_id = ? FOR UPDATE');
+    // ── Step 1: Lock & upsert vendor_wallets สำหรับ buyer ──
+    $wq = $pdo->prepare("SELECT wallet_id, available_balance FROM vendor_wallets WHERE seller_type = 'user' AND seller_id = ? FOR UPDATE");
     $wq->execute([$buyerId]);
     $userWallet = $wq->fetch(PDO::FETCH_ASSOC);
 
     if (!$userWallet) {
         // สร้าง wallet ใหม่
         $pdo->prepare(
-            'INSERT INTO user_wallets (user_id, balance) VALUES (?, ?)'
+            "INSERT INTO vendor_wallets (seller_type, seller_id, available_balance) VALUES ('user', ?, ?)"
         )->execute([$buyerId, $refundAmount]);
         $userWalletId = (int)$pdo->lastInsertId();
     } else {
         $userWalletId = (int)$userWallet['wallet_id'];
         // เพิ่ม balance (ใช้ SQL arithmetic เพื่อ atomic update)
         $pdo->prepare(
-            'UPDATE user_wallets SET balance = balance + ? WHERE wallet_id = ?'
+            'UPDATE vendor_wallets SET available_balance = available_balance + ? WHERE wallet_id = ?'
         )->execute([$refundAmount, $userWalletId]);
     }
 
-    // ── Step 2: บันทึก user_wallet_transactions ──
+    // ── Step 2: บันทึก wallet_transactions สำหรับ buyer ──
     $pdo->prepare(
-        "INSERT INTO user_wallet_transactions
-            (wallet_id, return_id, order_id, type, amount, note)
-         VALUES (?, ?, ?, 'REFUND', ?, ?)"
+        "INSERT INTO wallet_transactions
+            (wallet_id, order_id, type, amount, status, note)
+         VALUES (?, ?, 'REFUND', ?, 'SUCCESS', ?)"
     )->execute([
         $userWalletId,
-        $returnId,
         $orderId,
         $refundAmount,
-        'คืนเงินจากการคืนสินค้า คำสั่งซื้อ #' . $orderId .
+        'คืนเงินจากการคืนสินค้า คำสั่งซื้อ #' . $orderNumber .
             ($refundNote ? ' — ' . $refundNote : ''),
     ]);
 
-    // ── Step 3: ตัดเงินออกจาก vendor_wallet (ถ้ามี) ──
-    $vq = $pdo->prepare(
-        'SELECT wallet_id, available_balance FROM vendor_wallets
-         WHERE seller_type = ? AND seller_id = ? FOR UPDATE'
-    );
-    $vq->execute([$sellerType, $sellerId]);
-    $vendorWallet = $vq->fetch(PDO::FETCH_ASSOC);
+    // ── Step 3: ตัดเงินออกจาก vendor_wallet เฉพาะกรณีที่ร้านค้าได้รับเงินไปแล้ว ──
+    if ($payoutStatus === 'paid_to_seller' || $payoutStatus === 'refunded') {
+        $vq = $pdo->prepare(
+            'SELECT wallet_id, available_balance FROM vendor_wallets
+             WHERE seller_type = ? AND seller_id = ? FOR UPDATE'
+        );
+        $vq->execute([$sellerType, $sellerId]);
+        $vendorWallet = $vq->fetch(PDO::FETCH_ASSOC);
 
-    if ($vendorWallet) {
-        $deductAmount = min($refundAmount, (float)$vendorWallet['available_balance']);
-        if ($deductAmount > 0) {
-            $pdo->prepare(
-                'UPDATE vendor_wallets SET available_balance = available_balance - ? WHERE wallet_id = ?'
-            )->execute([$deductAmount, $vendorWallet['wallet_id']]);
+        if ($vendorWallet) {
+            $deductAmount = min($netPayout, (float)$vendorWallet['available_balance']);
+            if ($deductAmount > 0) {
+                $pdo->prepare(
+                    'UPDATE vendor_wallets SET available_balance = available_balance - ? WHERE wallet_id = ?'
+                )->execute([$deductAmount, $vendorWallet['wallet_id']]);
 
-            $pdo->prepare(
-                "INSERT INTO wallet_transactions
-                    (wallet_id, order_id, type, amount, status, note)
-                 VALUES (?, ?, 'REFUND', ?, 'SUCCESS', ?)"
-            )->execute([
-                $vendorWallet['wallet_id'],
-                $orderId,
-                $deductAmount,
-                'หักคืนจาก Return Request #' . $returnId,
-            ]);
+                $pdo->prepare(
+                    "INSERT INTO wallet_transactions
+                        (wallet_id, order_id, type, amount, status, note)
+                     VALUES (?, ?, 'REFUND', ?, 'SUCCESS', ?)"
+                )->execute([
+                    $vendorWallet['wallet_id'],
+                    $orderId,
+                    $deductAmount,
+                    'หักคืนจาก Return Request #' . $returnId . ' (คำสั่งซื้อ #' . $orderNumber . ')',
+                ]);
+            }
         }
     }
 
@@ -150,6 +159,9 @@ try {
              refunded_at = NOW()
          WHERE return_id = ?"
     )->execute([$refundNote, $adminId, $returnId]);
+
+    // ── Step 5: อัปเดต orders.shipping_status → returned ──
+    $pdo->prepare("UPDATE orders SET payout_status = 'refunded', shipping_status = 'returned' WHERE order_id = ?")->execute([$orderId]);
 
     // ── Notify ผู้ซื้อ ──
     wanawanNotifyUser(

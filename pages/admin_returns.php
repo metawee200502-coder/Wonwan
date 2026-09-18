@@ -34,6 +34,90 @@ if (empty($_SESSION['admin_return_csrf'])) {
     $_SESSION['admin_return_csrf'] = bin2hex(random_bytes(24));
 }
 
+// ─── Handle POST: ยืนยันรับสินค้าคืน (ไม่ผ่าน API) ───
+$actionError   = '';
+$actionSuccess = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_confirm_received'])) {
+    $postReturnId = (int)($_POST['return_id'] ?? 0);
+    if (!hash_equals($_SESSION['admin_return_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
+        $actionError = 'คำขอหมดอายุ กรุณาโหลดหน้าใหม่';
+    } elseif ($postReturnId <= 0) {
+        $actionError = 'ข้อมูลไม่ครบถ้วน';
+    } else {
+        try {
+            // ดึงคำขอ — ต้องเป็นของร้านนี้ สถานะ waiting_for_shop
+            $rq = $pdo->prepare(
+                'SELECT * FROM return_requests
+                 WHERE return_id = ?
+                   AND seller_type = ?
+                   AND seller_id   = ?
+                   AND status      = ?
+                 LIMIT 1'
+            );
+            $rq->execute([$postReturnId, $sellerType, $sellerId, 'waiting_for_shop']);
+            $returnReq = $rq->fetch(PDO::FETCH_ASSOC);
+
+            if (!$returnReq) {
+                $actionError = 'ไม่พบคำขอ หรือยังไม่ได้รับการอนุมัติจาก Super Admin';
+            } else {
+                $buyerId = (int)$returnReq['user_id'];
+                $orderId = (int)$returnReq['order_id'];
+
+                $pdo->beginTransaction();
+                // เปลี่ยน status → shop_received
+                $pdo->prepare(
+                    "UPDATE return_requests
+                     SET status           = 'shop_received',
+                         shop_received_at = NOW(),
+                         shop_received_by = ?
+                     WHERE return_id = ?"
+                )->execute([$userId, $postReturnId]);
+
+                // Notify Super Admin
+                $saStmt = $pdo->query("SELECT user_id FROM users WHERE role = 'super_admin' LIMIT 20");
+                foreach ($saStmt->fetchAll(PDO::FETCH_COLUMN) as $saId) {
+                    wanawanNotifyUser(
+                        $pdo, (int)$saId,
+                        '💰 ร้านค้ายืนยันรับสินค้าคืนแล้ว — รอโอนเงิน',
+                        'ร้านค้ายืนยันรับสินค้าคืนจากคำสั่งซื้อ #' . $orderId . ' เรียบร้อยแล้ว กรุณาดำเนินการโอนเงิน ฿' .
+                            number_format((float)$returnReq['refund_amount'], 2) . ' เข้า Wonwan Wallet ของลูกค้า',
+                        'order',
+                        ['related_order_id' => $orderId, 'related_return_id' => $postReturnId]
+                    );
+                }
+
+                // Notify ผู้ซื้อ
+                wanawanNotifyUser(
+                    $pdo, $buyerId,
+                    '📬 ร้านค้าได้รับสินค้าคืนแล้ว',
+                    'ร้านค้ายืนยันการรับสินค้าคืนแล้ว ระบบกำลังดำเนินการโอนเงิน ฿' .
+                        number_format((float)$returnReq['refund_amount'], 2) . ' เข้า Wonwan Wallet ของคุณ',
+                    'order',
+                    ['related_order_id' => $orderId, 'related_return_id' => $postReturnId]
+                );
+
+                if (function_exists('logSellerAction')) {
+                    logSellerAction(
+                        $pdo, $sellerType, $sellerId, $userId,
+                        'CONFIRM_RETURN_RECEIVED', (string)$postReturnId,
+                        'return_id=' . $postReturnId . ' order_id=' . $orderId
+                    );
+                }
+
+                $pdo->commit();
+                $actionSuccess = 'ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว ระบบจะดำเนินการคืนเงินให้ลูกค้าต่อไป';
+                // redirect เพื่อป้องกัน re-submit
+                header('Location: /pages/admin_returns.php?confirmed=1');
+                exit;
+            }
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            error_log('admin_returns confirm: ' . $e->getMessage());
+            $actionError = 'เกิดข้อผิดพลาด: ' . $e->getMessage();
+        }
+    }
+}
+
 // Filters — ร้านค้าเห็นเฉพาะ 2 สถานะ
 $filterStatus = $_GET['status'] ?? 'waiting_for_shop';
 $search       = trim($_GET['search'] ?? '');
@@ -223,6 +307,12 @@ $reasonMap = [
             ที่อยู่รับคืน
         </a>
     </div>
+
+    <?php if ($actionError): ?>
+    <div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:14px;padding:14px 20px;margin-bottom:20px;color:#b91c1c;font-weight:600;font-size:14px;">
+        ❌ <?= htmlspecialchars($actionError) ?>
+    </div>
+    <?php endif; ?>
 
     <!-- Info Banner -->
     <div class="info-banner">
@@ -428,41 +518,30 @@ function openModal(r) {
 document.getElementById('close-modal').onclick = () => document.getElementById('modal').classList.remove('open');
 document.getElementById('modal').onclick = e => { if (e.target === document.getElementById('modal')) document.getElementById('modal').classList.remove('open'); };
 
-// Confirm received
+// Confirm received — POST ตรง ไม่ผ่าน fetch API
 document.getElementById('btn-confirm-received').onclick = () => {
     if (!currentReturnId) return;
     if (!confirm('ยืนยันว่าได้รับสินค้าคืนจากลูกค้าเรียบร้อยแล้ว?\n\nระบบจะแจ้ง Super Admin เพื่อดำเนินการโอนเงินคืนให้ลูกค้าทันที')) return;
 
-    const btn = document.getElementById('btn-confirm-received');
-    btn.disabled = true;
-    btn.textContent = '⏳ กำลังบันทึก...';
+    // สร้าง form POST แบบ native (ไม่ใช้ fetch)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/pages/admin_returns.php' + window.location.search;
 
-    const fd = new FormData();
-    fd.append('csrf_token', CSRF);
-    fd.append('return_id', currentReturnId);
-
-    (async () => {
-        try {
-            const res = await fetch('../api/shop_confirm_received.php', { method: 'POST', body: fd });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-
-            if (data.ok) {
-                showToast('✅ ' + data.message, false);
-                document.getElementById('modal').classList.remove('open');
-                setTimeout(() => location.reload(), 1400);
-            } else {
-                showToast('❌ ' + (data.message || 'เกิดข้อผิดพลาด'), true);
-                btn.disabled = false;
-                btn.textContent = '✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว';
-            }
-        } catch (err) {
-            // Network error / Timeout — reset state ทันที
-            showToast('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่', true);
-            btn.disabled = false;
-            btn.textContent = '✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว';
-        }
-    })();
+    const fields = {
+        action_confirm_received: '1',
+        return_id: currentReturnId,
+        csrf_token: CSRF,
+    };
+    Object.entries(fields).forEach(([k, v]) => {
+        const input = document.createElement('input');
+        input.type  = 'hidden';
+        input.name  = k;
+        input.value = v;
+        form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
 };
 
 function showToast(msg, isError = false) {
@@ -470,7 +549,14 @@ function showToast(msg, isError = false) {
     t.textContent = msg;
     t.style.background = isError ? '#dc2626' : '#059669';
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 4000);
+    setTimeout(() => t.classList.remove('show'), 4500);
+}
+
+// แสดง toast หลัง redirect สำเร็จ
+if (new URLSearchParams(location.search).get('confirmed') === '1') {
+    setTimeout(() => showToast('✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว ระบบจะดำเนินการคืนเงินให้ลูกค้าต่อไป', false), 200);
+    // ลบ ?confirmed=1 ออกจาก URL
+    history.replaceState(null, '', location.pathname + (location.search.replace(/[?&]confirmed=1/, '') || ''));
 }
 </script>
 </body>

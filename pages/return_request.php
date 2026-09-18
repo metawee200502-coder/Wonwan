@@ -16,8 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reason = trim($_POST['reason'] ?? '');
         $returnTracking = trim($_POST['return_tracking'] ?? '');
         
-        if (!$reason || !$returnTracking) {
-            $formError = 'กรุณากรอกข้อมูลให้ครบถ้วน';
+        $hasFile = isset($_FILES['evidence']) && $_FILES['evidence']['error'] === UPLOAD_ERR_OK;
+        if (!$reason || !$returnTracking || !$hasFile) {
+            $formError = 'กรุณากรอกข้อมูลให้ครบถ้วน และแนบรูปภาพหลักฐาน';
         } else {
             $checkStmt = $pdo->prepare('SELECT return_id FROM return_requests WHERE order_id = ? LIMIT 1');
             $checkStmt->execute([$orderId]);
@@ -39,27 +40,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $seller = $itemsData[0];
                         $refundAmount = array_sum(array_map(fn($i) => (float)$i['price_at_purchase'] * (int)$i['quantity'], $itemsData)) + (float)$orderData['shipping_fee'];
 
-                        if (isset($_FILES['evidence']) && $_FILES['evidence']['error'] === UPLOAD_ERR_OK) {
-                            $file = $_FILES['evidence'];
-                            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                            if (!in_array($ext, ['jpg','jpeg','png','webp']) || $file['size'] > 5 * 1024 * 1024) {
-                                $formError = 'ไฟล์รูปภาพไม่ถูกต้อง หรือขนาดเกิน 5MB';
-                            } else {
+                        // File validation
+                        $file = $_FILES['evidence'];
+                        $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                        $finfo = new finfo(FILEINFO_MIME_TYPE);
+                        $mime  = $finfo->file($file['tmp_name']);
+                        $allowedExt  = ['jpg','jpeg','png','webp'];
+                        $allowedMime = ['image/jpeg','image/png','image/webp'];
+
+                        if (!in_array($ext, $allowedExt, true) || !in_array($mime, $allowedMime, true)) {
+                            $formError = 'รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP';
+                        } elseif ($file['size'] > 5 * 1024 * 1024) {
+                            $formError = 'ขนาดไฟล์ต้องไม่เกิน 5MB';
+                        } else {
                                 $uploadDir = __DIR__ . '/uploads/returns/';
-                                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-                                $filename = uniqid('rt_') . '.' . $ext;
+                                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                                $filename    = uniqid('rt_', true) . '.' . $ext;
                                 $destination = $uploadDir . $filename;
                                 
                                 if (move_uploaded_file($file['tmp_name'], $destination)) {
                                     $evidenceUrl = 'uploads/returns/' . $filename;
                                     $pdo->beginTransaction();
                                     try {
-                                        $insertStmt = $pdo->prepare("INSERT INTO return_requests (order_id, user_id, seller_type, seller_id, reason, evidence_url, return_tracking, refund_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+                                        // v2 flow: status = 'pending_super_admin'
+                                        $insertStmt = $pdo->prepare("INSERT INTO return_requests (order_id, user_id, seller_type, seller_id, reason, evidence_url, return_tracking, refund_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_super_admin')");
                                         $insertStmt->execute([$orderId, $userId, $seller['seller_type'], $seller['seller_id'], $reason, $evidenceUrl, $returnTracking, $refundAmount]);
-                                        
-                                        $notifyIds = wanawanSellerUserIds($pdo, $seller['seller_type'], (int)$seller['seller_id']);
-                                        foreach ($notifyIds as $adminId) {
-                                            wanawanNotifyUser($pdo, $adminId, 'มีคำขอคืนสินค้าใหม่', 'ลูกค้าส่งคำขอคืนสินค้าสำหรับคำสั่งซื้อ #' . $orderId, 'order', ['related_order_id' => $orderId]);
+                                        $newReturnId = (int)$pdo->lastInsertId();
+
+                                        // v2 flow: notify super_admin (ไม่ใช่ร้านค้า)
+                                        $saStmt = $pdo->query("SELECT user_id FROM users WHERE role = 'super_admin' LIMIT 20");
+                                        foreach ($saStmt->fetchAll(PDO::FETCH_COLUMN) as $saId) {
+                                            wanawanNotifyUser($pdo, (int)$saId, '📦 คำขอคืนสินค้าใหม่ รอการพิจารณา', 'ลูกค้ายื่นขอคืนสินค้าสำหรับคำสั่งซื้อ #' . $orderId . ' — กรุณาตรวจสอบหลักฐาน', 'order', ['related_order_id' => $orderId, 'related_return_id' => $newReturnId]);
                                         }
                                         $pdo->commit();
                                         echo "<script>window.parent.postMessage('reload_orders', '*');</script>";
@@ -72,7 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 } else {
                                     $formError = 'อัปโหลดไฟล์ไม่สำเร็จ';
                                 }
-                            }
                         }
                     }
                 }

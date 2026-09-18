@@ -39,13 +39,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
 $tab=$_GET['tab']??'all';
 $search=trim($_GET['search']??'');
+$search=ltrim($search, '#');
 $where="b.seller_type='user' AND b.seller_id=:uid";
 $params=[':uid'=>$userId];
 
 if($tab==='packing')$where.=" AND o.payment_status='paid' AND o.shipping_status IN('pending','packing')";
 elseif($tab==='shipped')$where.=" AND o.shipping_status='shipped'";
 elseif($tab==='done')$where.=" AND o.shipping_status='delivered'";
-elseif($tab==='cancelled')$where.=" AND (o.payment_status='cancelled' OR o.shipping_status IN ('cancelled','returned'))";
+elseif($tab==='cancelled')$where.=" AND (o.payment_status='cancelled' OR o.shipping_status='cancelled')";
+elseif($tab==='returned')$where.=" AND o.shipping_status='returned'";
 
 if($search!==''){
     $where.=" AND (o.order_number LIKE :search OR b.title LIKE :search OR o.shipping_name LIKE :search)";
@@ -63,10 +65,10 @@ $revQ->execute([$userId]);
 $totalRevenue = (float)$revQ->fetchColumn();
 $netRevenue = $totalRevenue * 0.85; // Mocking 15% GP deduction for display
 
-$sq=$pdo->prepare("SELECT COUNT(*) total,SUM(payment_status='paid' AND shipping_status IN('pending','packing')) paid,SUM(shipping_status='shipped') shipping,SUM(shipping_status='delivered') completed,SUM(payment_status='cancelled' OR shipping_status IN('cancelled','returned')) cancelled FROM (SELECT DISTINCT o.* FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type='user' AND b.seller_id=?) x");$sq->execute([$userId]);$stat=$sq->fetch(PDO::FETCH_ASSOC)?:[];
+$sq=$pdo->prepare("SELECT COUNT(*) total,SUM(payment_status='paid' AND shipping_status IN('pending','packing')) paid,SUM(shipping_status='shipped') shipping,SUM(shipping_status='delivered') completed,SUM(payment_status='cancelled' OR shipping_status='cancelled') cancelled,SUM(shipping_status='returned') returned FROM (SELECT DISTINCT o.* FROM orders o JOIN order_items oi ON oi.order_id=o.order_id JOIN books b ON b.book_id=oi.book_id WHERE b.seller_type='user' AND b.seller_id=?) x");$sq->execute([$userId]);$stat=$sq->fetch(PDO::FETCH_ASSOC)?:[];
 function smImg(?string $v):?string{if(!$v)return null;$v=ltrim(str_replace('\\','/',$v),'/');return preg_match('#^https?://#',$v)?$v:(str_starts_with($v,'uploads/')?'/pages/'.$v:'/assets/image/books/'.$v);}
 function smSlip(?string $v):?string{if(!$v)return null;$v=ltrim(str_replace('\\','/',$v),'/');return '/pages/'.$v;}
-function smStatus(array $o):array{if($o['payment_status']==='cancelled'||in_array($o['shipping_status'],['cancelled','returned'],true))return['ยกเลิกแล้ว','cancel'];if($o['shipping_status']==='delivered')return['สำเร็จแล้ว','done'];if($o['shipping_status']==='shipped')return['กำลังจัดส่ง','ship'];if($o['payment_status']==='paid')return['รอจัดส่ง','paid'];return['รอชำระ','wait'];}
+function smStatus(array $o):array{if($o['shipping_status']==='returned')return['คืนสินค้า/คืนเงิน','cancel'];if($o['payment_status']==='cancelled'||$o['shipping_status']==='cancelled')return['ยกเลิกแล้ว','cancel'];if($o['shipping_status']==='delivered')return['สำเร็จแล้ว','done'];if($o['shipping_status']==='shipped')return['กำลังจัดส่ง','ship'];if($o['payment_status']==='paid')return['รอจัดส่ง','paid'];return['รอชำระ','wait'];}
 $profile_active='market';
 ?>
 <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตลาดซื้อขายหนังสือ - วนวรรณ</title><link rel="stylesheet" href="../assets/css/styles.css?v=<?= filemtime(__DIR__.'/../assets/css/styles.css') ?>">
@@ -267,6 +269,7 @@ body {background: #fdfdfd;}
                 <a class="<?=$tab==='packing'?'active':''?>" href="?tab=packing">รอจัดส่ง <span class="badge"><?=number_format((int)($stat['paid']??0))?></span></a>
                 <a class="<?=$tab==='shipped'?'active':''?>" href="?tab=shipped">กำลังจัดส่ง <span class="badge"><?=number_format((int)($stat['shipping']??0))?></span></a>
                 <a class="<?=$tab==='done'?'active':''?>" href="?tab=done">สำเร็จแล้ว <span class="badge"><?=number_format((int)($stat['completed']??0))?></span></a>
+                <a class="<?=$tab==='returned'?'active':''?>" href="?tab=returned">คืนสินค้า/คืนเงิน <span class="badge"><?=number_format((int)($stat['returned']??0))?></span></a>
                 <a class="<?=$tab==='cancelled'?'active':''?>" href="?tab=cancelled">ยกเลิก <span class="badge"><?=number_format((int)($stat['cancelled']??0))?></span></a>
             </div>
 

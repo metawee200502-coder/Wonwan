@@ -494,7 +494,7 @@ foreach($transactions as $tx) {
                                             <span class="tx-detail-green">ค่าจัดส่งได้รับ: +฿<?=number_format($tx['shipping_fee'] ?? 0, 2)?></span>
                                         </div>
                                     <?php elseif($tx['type']==='REFUND'): ?>
-                                        <div class="tx-detail">คืนเงินออเดอร์ #<?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></div>
+                                        <div class="tx-detail">คืนเงินออเดอร์ <?=strpos($tx['order_number'] ?? '', 'EXC-FEE-') === 0 ? formatExchangeOrderId((int)explode('-', $tx['order_number'])[2]) : '#' . htmlspecialchars($tx['order_number'] ?? $tx['order_id'] ?? '')?></div>
                                     <?php else: ?>
                                         <?php 
                                             $bankName = ''; $accNo = ''; $accName = '';
