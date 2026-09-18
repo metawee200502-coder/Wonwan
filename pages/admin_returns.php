@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_confirm_receiv
                 // Notify ผู้ซื้อ
                 wanawanNotifyUser(
                     $pdo, $buyerId,
-                    '📬 ร้านค้าได้รับสินค้าคืนแล้ว',
+                    '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>ร้านค้าได้รับสินค้าคืนแล้ว',
                     'ร้านค้ายืนยันการรับสินค้าคืนแล้ว ระบบกำลังดำเนินการโอนเงิน ฿' .
                         number_format((float)$returnReq['refund_amount'], 2) . ' เข้า Wonwan Wallet ของคุณ',
                     'order',
@@ -118,12 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_confirm_receiv
     }
 }
 
-// Filters — ร้านค้าเห็นเฉพาะ 2 สถานะ
+// Filters — ร้านค้าเห็นสถานะที่เกี่ยวข้อง
 $filterStatus = $_GET['status'] ?? 'waiting_for_shop';
 $search       = trim($_GET['search'] ?? '');
 
-// ร้านค้าเห็นเฉพาะ waiting_for_shop และ shop_received
-$shopStatuses = ['waiting_for_shop', 'shop_received'];
+$shopStatuses = ['waiting_for_shop', 'shop_received', 'refunded_to_wallet', 'rejected'];
 if (!in_array($filterStatus, array_merge($shopStatuses, ['all']), true)) {
     $filterStatus = 'waiting_for_shop';
 }
@@ -136,7 +135,7 @@ if ($filterStatus !== 'all') {
     $params['status'] = $filterStatus;
 } else {
     // แสดงเฉพาะสถานะที่ร้านค้าเกี่ยวข้อง
-    $where .= " AND rr.status IN ('waiting_for_shop', 'shop_received')";
+    $where .= " AND rr.status IN ('waiting_for_shop', 'shop_received', 'refunded_to_wallet', 'rejected')";
 }
 
 if ($search !== '') {
@@ -167,16 +166,18 @@ $returns = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 $statsStmt = $pdo->prepare(
     "SELECT
         SUM(status='waiting_for_shop') waiting_count,
-        SUM(status='shop_received')    received_count
+        SUM(status='shop_received')    received_count,
+        SUM(status='refunded_to_wallet') refunded_count,
+        SUM(status='rejected') rejected_count
      FROM return_requests WHERE seller_type = ? AND seller_id = ?"
 );
 $statsStmt->execute([$sellerType, $sellerId]);
 $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 
 $reasonMap = [
-    'damaged'          => '🔧 สินค้าชำรุด/เสียหาย',
-    'not_as_described' => '📷 สินค้าไม่ตรงตามโฆษณา',
-    'wrong_item'       => '📦 ได้รับสินค้าผิดรายการ',
+    'damaged'          => '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>สินค้าชำรุด/เสียหาย',
+    'not_as_described' => '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>สินค้าไม่ตรงตามโฆษณา',
+    'wrong_item'       => '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>ได้รับสินค้าผิดรายการ',
 ];
 ?>
 <!DOCTYPE html>
@@ -190,6 +191,7 @@ $reasonMap = [
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: var(--font-family); background: #fdf8f9; color: #1a1a2e; display: flex; min-height: 100vh; }
+        :root { --secondary-color: #C97B8B; }
         .main { margin-left: 220px; flex: 1; padding: 44px 48px; min-width: 0; overflow-y: auto; }
         @media (max-width: 900px) { body { display: block; } .main { margin-left: 0; padding: 24px 16px; } }
 
@@ -199,21 +201,23 @@ $reasonMap = [
 
         /* Info Banner */
         .info-banner {
-            background: linear-gradient(135deg, #eff6ff, #dbeafe);
-            border: 1.5px solid #bfdbfe; border-radius: 16px;
+            background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+            border: 1.5px solid #fecdd3; border-radius: 16px;
             padding: 16px 20px; margin-bottom: 24px;
             display: flex; align-items: flex-start; gap: 12px;
-            font-size: 14px; color: #1e40af;
+            font-size: 14px; color: #be123c;
         }
         .info-banner strong { display: block; margin-bottom: 4px; font-size: 15px; }
 
         /* Stats */
-        .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; margin-bottom: 28px; max-width: 500px; }
+        .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-bottom: 28px; max-width: 750px; }
         .stat { background: #fff; border: 1px solid #f0e4ea; border-radius: 18px; padding: 22px; }
         .stat .s-val { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
         .stat .s-lbl { font-size: 13px; color: #6b7280; }
         .stat.waiting  .s-val { color: #2563eb; }
         .stat.received .s-val { color: #059669; }
+        .stat.refunded { border-color: #a7f3d0; }
+        .stat.refunded .s-val { color: #166534; }
 
         /* Toolbar */
         .toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
@@ -276,8 +280,8 @@ $reasonMap = [
         .evidence-wrap img { max-width: 100%; max-height: 280px; border-radius: 12px; border: 1px solid #e5e7eb; object-fit: contain; }
 
         /* Confirm area */
-        .confirm-area { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 16px; padding: 20px; margin-bottom: 0; }
-        .confirm-area p { font-size: 14px; color: #1e40af; margin-bottom: 16px; line-height: 1.7; }
+        .confirm-area { background: linear-gradient(135deg, #fff1f2, #ffe4e6); border-radius: 16px; padding: 20px; margin-bottom: 0; }
+        .confirm-area p { font-size: 14px; color: #be123c; margin-bottom: 16px; line-height: 1.7; }
         .btn-confirm-large {
             width: 100%; padding: 16px; border: none; border-radius: 12px;
             font: inherit; font-size: 16px; font-weight: 800;
@@ -299,7 +303,7 @@ $reasonMap = [
 <main class="main">
     <div class="page-head">
         <div>
-            <h1>📦 สินค้าที่รอการยืนยันรับคืน</h1>
+            <h1><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>สินค้าที่รอการยืนยันรับคืน</h1>
             <p>ยืนยันรับสินค้าเมื่อพัสดุมาถึงร้านค้าแล้ว ระบบจะโอนเงินคืนให้ลูกค้าอัตโนมัติ</p>
         </div>
         <a href="shop_return_address.php" class="btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
@@ -310,13 +314,13 @@ $reasonMap = [
 
     <?php if ($actionError): ?>
     <div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:14px;padding:14px 20px;margin-bottom:20px;color:#b91c1c;font-weight:600;font-size:14px;">
-        ❌ <?= htmlspecialchars($actionError) ?>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg><?= htmlspecialchars($actionError) ?>
     </div>
     <?php endif; ?>
 
     <!-- Info Banner -->
     <div class="info-banner">
-        <span style="font-size:22px">ℹ️</span>
+        <span style="font-size:22px"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span>
         <div>
             <strong>กระบวนการคืนสินค้าใหม่ (v2)</strong>
             Super Admin ตรวจสอบและอนุมัติคำขอก่อน → ลูกค้าส่งพัสดุมาให้ท่าน →
@@ -328,11 +332,15 @@ $reasonMap = [
     <div class="stats">
         <div class="stat waiting">
             <div class="s-val"><?= (int)($stats['waiting_count'] ?? 0) ?></div>
-            <div class="s-lbl">📦 รอรับสินค้าคืน</div>
+            <div class="s-lbl"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>รอรับสินค้าคืน</div>
         </div>
         <div class="stat received">
             <div class="s-val"><?= (int)($stats['received_count'] ?? 0) ?></div>
-            <div class="s-lbl">✅ ยืนยันรับแล้ว</div>
+            <div class="s-lbl"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>รับแล้ว (รอโอนเงิน)</div>
+        </div>
+        <div class="stat refunded">
+            <div class="s-val"><?= (int)($stats['refunded_count'] ?? 0) ?></div>
+            <div class="s-lbl"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>คืนเงินเรียบร้อยแล้ว</div>
         </div>
     </div>
 
@@ -342,9 +350,13 @@ $reasonMap = [
             <a href="?status=all<?= $search ? '&search='.urlencode($search) : '' ?>"
                class="filter-btn <?= $filterStatus === 'all' ? 'active' : '' ?>">ทั้งหมด</a>
             <a href="?status=waiting_for_shop<?= $search ? '&search='.urlencode($search) : '' ?>"
-               class="filter-btn <?= $filterStatus === 'waiting_for_shop' ? 'active' : '' ?>">📦 รอรับสินค้า</a>
+               class="filter-btn <?= $filterStatus === 'waiting_for_shop' ? 'active' : '' ?>"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>รอรับสินค้า</a>
             <a href="?status=shop_received<?= $search ? '&search='.urlencode($search) : '' ?>"
-               class="filter-btn <?= $filterStatus === 'shop_received' ? 'active' : '' ?>">✅ ยืนยันรับแล้ว</a>
+               class="filter-btn <?= $filterStatus === 'shop_received' ? 'active' : '' ?>"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>รับแล้ว</a>
+            <a href="?status=refunded_to_wallet<?= $search ? '&search='.urlencode($search) : '' ?>"
+               class="filter-btn <?= $filterStatus === 'refunded_to_wallet' ? 'active' : '' ?>"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>คืนเงินแล้ว</a>
+            <a href="?status=rejected<?= $search ? '&search='.urlencode($search) : '' ?>"
+               class="filter-btn <?= $filterStatus === 'rejected' ? 'active' : '' ?>"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>ปฏิเสธ</a>
         </div>
         <form class="search-form" method="get">
             <?php if ($filterStatus !== 'all'): ?><input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>"><?php endif; ?>
@@ -359,7 +371,7 @@ $reasonMap = [
     <div class="table-wrap" style="overflow:auto">
         <?php if (!$returns): ?>
         <div class="empty-state">
-            <div class="e-icon">📭</div>
+            <div class="e-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
             <h3>ไม่มีรายการคืนสินค้าที่รอการยืนยัน</h3>
             <p>เมื่อ Super Admin อนุมัติคำขอจากลูกค้า รายการจะปรากฏที่นี่</p>
         </div>
@@ -392,15 +404,23 @@ $reasonMap = [
                 <td><strong style="color:var(--secondary-color)">฿<?= number_format((float)$r['refund_amount'], 2) ?></strong></td>
                 <td style="font-size:12px;color:#6b7280"><?= date('d/m/Y H:i', strtotime($r['created_at'])) ?></td>
                 <td>
-                    <span class="badge <?= $isWaiting ? 'badge-waiting' : 'badge-received' ?>">
-                        <?= $isWaiting ? '📦 รอรับสินค้า' : '✅ ยืนยันรับแล้ว' ?>
-                    </span>
+                    <?php if ($isWaiting): ?>
+                        <span class="badge badge-waiting"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>รอรับสินค้า</span>
+                    <?php elseif ($r['status'] === 'shop_received'): ?>
+                        <span class="badge badge-received"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับแล้ว</span>
+                    <?php elseif ($r['status'] === 'refunded_to_wallet'): ?>
+                        <span class="badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>คืนเงินแล้ว</span>
+                    <?php elseif ($r['status'] === 'rejected'): ?>
+                        <span class="badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>ปฏิเสธคำขอ</span>
+                    <?php else: ?>
+                        <span class="badge"><?= htmlspecialchars($r['status']) ?></span>
+                    <?php endif; ?>
                 </td>
                 <td>
                     <?php if ($isWaiting): ?>
                     <button class="btn-confirm"
                             onclick="openModal(<?= htmlspecialchars(json_encode($r, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)">
-                        ✅ ยืนยันรับสินค้า
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับสินค้า
                     </button>
                     <?php else: ?>
                     <button class="btn-detail"
@@ -435,7 +455,7 @@ $reasonMap = [
             </div>
 
             <div class="evidence-wrap">
-                <label>📸 รูปภาพหลักฐานจากลูกค้า</label>
+                <label><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>รูปภาพหลักฐานจากลูกค้า</label>
                 <img id="m-evidence" src="" alt="หลักฐาน" style="display:none">
                 <p id="m-no-evidence" style="color:#9ca3af;font-size:14px;display:none">ไม่มีรูปภาพ</p>
             </div>
@@ -444,22 +464,21 @@ $reasonMap = [
             <div id="zone-confirm">
                 <div class="confirm-area">
                     <p>
-                        🚚 <strong>กรุณากดยืนยันเมื่อได้รับพัสดุคืนจริงแล้วเท่านั้น</strong><br>
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg><strong>กรุณากดยืนยันเมื่อได้รับพัสดุคืนจริงแล้วเท่านั้น</strong><br>
                         เมื่อกดยืนยัน ระบบจะแจ้ง Super Admin ทันที และจะดำเนินการโอนเงิน
                         <strong>฿<span id="m-confirm-amount"></span></strong>
                         เข้า Wonwan Wallet ของลูกค้าโดยไม่ต้องดำเนินการใด ๆ เพิ่มเติมจากท่าน
                     </p>
                     <button class="btn-confirm-large" id="btn-confirm-received">
-                        ✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว
                     </button>
                 </div>
             </div>
 
-            <!-- Already received -->
+            <!-- Status badge -->
             <div id="zone-received" style="display:none">
-                <div class="received-badge">
-                    ✅ ยืนยันรับสินค้าคืนแล้ว เมื่อ <span id="m-received-at"></span><br>
-                    <small style="font-weight:400;font-size:13px">Super Admin กำลังดำเนินการโอนเงินคืนให้ลูกค้า</small>
+                <div class="received-badge" id="m-received-badge">
+                    <span id="m-received-text"></span>
                 </div>
             </div>
         </div>
@@ -471,9 +490,9 @@ $reasonMap = [
 <script>
 const CSRF = <?= json_encode($_SESSION['admin_return_csrf']) ?>;
 const REASONS = {
-    damaged: '🔧 สินค้าชำรุด/เสียหาย',
-    not_as_described: '📷 สินค้าไม่ตรงตามโฆษณา',
-    wrong_item: '📦 ได้รับสินค้าผิดรายการ',
+    damaged: '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>สินค้าชำรุด/เสียหาย',
+    not_as_described: '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>สินค้าไม่ตรงตามโฆษณา',
+    wrong_item: '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>ได้รับสินค้าผิดรายการ',
 };
 
 let currentReturnId = null;
@@ -493,24 +512,52 @@ function openModal(r) {
     const img  = document.getElementById('m-evidence');
     const noEv = document.getElementById('m-no-evidence');
     if (r.evidence_url) {
-        img.src = '/' + r.evidence_url.replace(/^\//, '');
-        img.style.display = 'block'; noEv.style.display = 'none';
+        let ev = r.evidence_url.replace(/^\//, '');
+        img.src = ev.startsWith('uploads/') ? '/pages/' + ev : '/' + ev;
+        img.onerror = function() {
+            this.style.display = 'none';
+            noEv.textContent = 'รูปภาพหลักฐานถูกลบหรือไม่พบไฟล์';
+            noEv.style.display = 'block';
+        };
+        img.onload = function() {
+            this.style.display = 'block';
+            noEv.style.display = 'none';
+        };
+        img.style.display = 'block';
+        noEv.style.display = 'none';
     } else {
-        img.style.display = 'none'; noEv.style.display = 'block';
+        img.style.display = 'none'; 
+        noEv.textContent = 'ไม่มีรูปภาพ';
+        noEv.style.display = 'block';
     }
 
     // Zones
     const isWaiting = r.status === 'waiting_for_shop';
+    const isReceived = r.status === 'shop_received';
+    const isRefunded = r.status === 'refunded_to_wallet';
+    const isRejected = r.status === 'rejected';
+
     document.getElementById('zone-confirm').style.display  = isWaiting ? '' : 'none';
-    document.getElementById('zone-received').style.display = isWaiting ? 'none' : '';
-    if (!isWaiting) {
-        document.getElementById('m-received-at').textContent = r.shop_received_at || 'ไม่ทราบวันที่';
+    document.getElementById('zone-received').style.display = !isWaiting ? '' : 'none';
+    
+    if (isReceived) {
+        document.getElementById('m-received-text').innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับสินค้าคืนแล้ว เมื่อ ' + (r.shop_received_at || 'ไม่ทราบวันที่') + '<br><small style="font-weight:400;font-size:13px;color:#059669">Super Admin กำลังดำเนินการโอนเงินคืนให้ลูกค้า</small>';
+        document.getElementById('m-received-badge').style.background = '#d1fae5';
+        document.getElementById('m-received-badge').style.color = '#059669';
+    } else if (isRefunded) {
+        document.getElementById('m-received-text').innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>คืนเงินลูกค้าเรียบร้อยแล้ว เมื่อ ' + (r.refunded_at || 'ไม่ทราบวันที่');
+        document.getElementById('m-received-badge').style.background = '#dcfce7';
+        document.getElementById('m-received-badge').style.color = '#166534';
+    } else if (isRejected) {
+        document.getElementById('m-received-text').innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>คำขอถูกปฏิเสธโดย Super Admin';
+        document.getElementById('m-received-badge').style.background = '#fee2e2';
+        document.getElementById('m-received-badge').style.color = '#991b1b';
     }
 
     // Reset button
     const btn = document.getElementById('btn-confirm-received');
     btn.disabled = false;
-    btn.textContent = '✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว';
+    btn.textContent = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว';
 
     document.getElementById('modal').classList.add('open');
 }
@@ -554,7 +601,7 @@ function showToast(msg, isError = false) {
 
 // แสดง toast หลัง redirect สำเร็จ
 if (new URLSearchParams(location.search).get('confirmed') === '1') {
-    setTimeout(() => showToast('✅ ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว ระบบจะดำเนินการคืนเงินให้ลูกค้าต่อไป', false), 200);
+    setTimeout(() => showToast('<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-4px;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>ยืนยันรับสินค้าเคลมเรียบร้อยแล้ว ระบบจะดำเนินการคืนเงินให้ลูกค้าต่อไป', false), 200);
     // ลบ ?confirmed=1 ออกจาก URL
     history.replaceState(null, '', location.pathname + (location.search.replace(/[?&]confirmed=1/, '') || ''));
 }

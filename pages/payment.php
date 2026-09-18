@@ -27,7 +27,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['shipping_name'])){
 $orderId=(int)($_GET['order']??$_POST['order_id']??0);$stmt=$pdo->prepare('SELECT * FROM orders WHERE order_id=? AND user_id=?');$stmt->execute([$orderId,$userId]);$order=$stmt->fetch(PDO::FETCH_ASSOC);if(!$order){http_response_code(404);exit('ไม่พบคำสั่งซื้อ');}if($order['payment_status']==='cancelled'&&($order['cancellation_reason']??'')==='หมดเวลาชำระเงิน 24 ชั่วโมง'){header('Location:/pages/orders.php?tab=cancelled&expired=1');exit;}$enableReservationCountdown=$order['payment_status']==='pending'&&!empty($order['stock_reserved']);$reservationCountdownDeadline=$enableReservationCountdown?strtotime((string)$order['reservation_expires_at']):0;$reservationCountdownExpired=false;
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['confirm_payment']) && $order['payment_status']==='pending'){
     $slip=null;if(!empty($_FILES['payment_slip']['name'])&&$_FILES['payment_slip']['error']===UPLOAD_ERR_OK){$mime=(new finfo(FILEINFO_MIME_TYPE))->file($_FILES['payment_slip']['tmp_name']);$ext=['image/jpeg'=>'jpg','image/png'=>'png'][$mime]??null;if($ext&&$_FILES['payment_slip']['size']<=5*1024*1024){$dir=__DIR__.'/uploads/payment_slips';if(!is_dir($dir))mkdir($dir,0775,true);$name='slip_'.bin2hex(random_bytes(10)).'.'.$ext;move_uploaded_file($_FILES['payment_slip']['tmp_name'],$dir.'/'.$name);$slip='uploads/payment_slips/'.$name;}}
-    if(!$slip){$paymentError='กรุณาแนบสลิป JPEG หรือ PNG ขนาดไม่เกิน 5 MB';}else{$pdo->beginTransaction();try{$pdo->prepare("UPDATE orders SET payment_status='reviewing',payment_slip_url=? WHERE order_id=? AND payment_status='pending'")->execute([$slip,$orderId]);$items=$pdo->prepare('SELECT oi.book_id,b.seller_type,b.seller_id FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=?');$items->execute([$orderId]);$sellerUsers=[];foreach($items as $i){$pdo->prepare('DELETE FROM cart_items WHERE user_id=? AND book_id=?')->execute([$userId,$i['book_id']]);$staffTable=$i['seller_type']==='publisher'?'publisher_staff':'shop_staff';$sellerColumn=$i['seller_type']==='publisher'?'publisher_id':'shop_id';$staff=$pdo->prepare("SELECT user_id FROM {$staffTable} WHERE {$sellerColumn}=?");$staff->execute([$i['seller_id']]);$sellerUsers=array_merge($sellerUsers,$staff->fetchAll(PDO::FETCH_COLUMN));}wanawanNotifyUser($pdo, $userId, 'รอตรวจสอบคำสั่งซื้อ', 'คำสั่งซื้อ #'.$order['order_number'].' ได้รับสลิปแล้ว ทางร้านกำลังตรวจสอบความถูกต้อง', 'order');foreach(array_unique(array_map('intval',$sellerUsers)) as $sellerUser) wanawanNotifyUser($pdo, $sellerUser, 'มีสลิปคำสั่งซื้อใหม่', 'คำสั่งซื้อ #'.$order['order_number'].' รอให้ร้านตรวจสอบสลิปและยอดชำระ', 'order');$pdo->commit();header('Location:/pages/notifications.php?submitted=1');exit;}catch(Throwable $e){$pdo->rollBack();throw $e;}}
+    if(!$slip){$paymentError='กรุณาแนบสลิป JPEG หรือ PNG ขนาดไม่เกิน 5 MB';}else{$pdo->beginTransaction();try{$pdo->prepare("UPDATE orders SET payment_status='reviewing',payment_slip_url=? WHERE order_id=? AND payment_status='pending'")->execute([$slip,$orderId]);$items=$pdo->prepare('SELECT oi.book_id,b.seller_type,b.seller_id FROM order_items oi JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=?');$items->execute([$orderId]);foreach($items as $i){$pdo->prepare('DELETE FROM cart_items WHERE user_id=? AND book_id=?')->execute([$userId,$i['book_id']]);}
+    $saStmt=$pdo->query("SELECT user_id FROM users WHERE role='super_admin'");
+    foreach($saStmt->fetchAll(PDO::FETCH_COLUMN) as $sa) wanawanNotifyUser($pdo, (int)$sa, 'มีสลิปคำสั่งซื้อใหม่', 'คำสั่งซื้อ #'.$order['order_number'].' รอการตรวจสอบ', 'order');
+    wanawanNotifyUser($pdo, $userId, 'แจ้งชำระเงินเรียบร้อย', 'แนบสลิปคำสั่งซื้อ #'.$order['order_number'].' แล้ว กำลังรอผู้ดูแลระบบตรวจสอบ', 'order');$pdo->commit();header('Location:/pages/orders.php?tab=pending');exit;}catch(Throwable $e){$pdo->rollBack();throw $e;}}
 }
 $items=$pdo->prepare('SELECT oi.*,b.title,b.author,b.image_cover FROM order_items oi LEFT JOIN books b ON b.book_id=oi.book_id WHERE oi.order_id=?');$items->execute([$orderId]);$items=$items->fetchAll(PDO::FETCH_ASSOC);
 
@@ -40,33 +43,27 @@ $qr = 'https://quickchart.io/qr?size=300&margin=2&ecLevel=M&text=' . rawurlencod
 .loader{border:4px solid #f3f3f3;border-top:4px solid var(--secondary-color);border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:15px auto;}
 @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
 @media(max-width:800px){.layout{grid-template-columns:1fr}}@media(max-width:500px){.wrap{padding:30px 16px}}</style></head><body><?php require __DIR__.'/../components/header.php';?><main class="wrap"><h1 class="title">ชำระเงิน</h1><div class="layout"><section class="card"><h2>สแกนเพื่อชำระเงิน</h2><div class="qr-area"><img class="qr" src="<?=htmlspecialchars($qr)?>" alt="QR Code คำสั่งซื้อ"><div class="amount">฿<?=number_format($order['total_amount'],2)?></div><div class="order-no">เลขคำสั่งซื้อ <?=htmlspecialchars($order['order_number'])?></div>
-<div class="loader"></div>
-<h3 style="color:var(--secondary-color);margin:10px 0 5px;">กำลังรอการชำระเงิน...</h3>
-<p style="color:var(--text-muted);font-size:14px;">ระบบจะตรวจสอบยอดเงินและยืนยันการชำระอัตโนมัติ</p>
-<!-- ปุ่มสำหรับจำลอง Webhook (เพื่อการทดสอบ) -->
-<button onclick="simulateWebhook()" style="margin-top:20px;padding:8px 15px;background:#fde7e3;color:#a33;border:1px solid #eba49a;border-radius:6px;cursor:pointer;font-size:12px;">[Test] จำลองการโอนเงินสำเร็จ</button>
+<form method="POST" enctype="multipart/form-data">
+    <h3 style="color:var(--secondary-color);margin:10px 0 5px;">แนบสลิปการโอนเงิน</h3>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:0;">กรุณาโอนเงินตามยอดด้านบนและแนบสลิปเพื่อยืนยัน</p>
+    <input type="file" name="payment_slip" id="payment-slip-input" class="file-input" accept="image/jpeg, image/png" style="margin-top:20px;width:100%;padding:10px;border:1px dashed #ccc;border-radius:8px;background:#fff;" required>
+    <div style="text-align: center;">
+        <img id="slip-preview" style="display:none; max-width: 100%; max-height: 250px; margin-top: 15px; border-radius: 8px; border: 1px solid #ddd;" alt="Slip Preview">
+    </div>
+    <button type="submit" name="confirm_payment" style="margin-top:15px;width:100%;padding:12px;background:var(--secondary-color);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">ยืนยันการชำระเงิน</button>
+</form>
 </div></section><aside class="card summary"><h2>สรุปรายการสั่งซื้อ</h2><?php foreach($items as $item):?><div class="item"><span><?=htmlspecialchars($item['title']?:'หนังสือ')?> × <?=$item['quantity']?></span><strong>฿<?=number_format($item['price_at_purchase']*$item['quantity'],2)?></strong></div><?php endforeach;?><div class="row"><span>ยอดรวมสินค้า</span><span>฿<?=number_format($order['subtotal'],2)?></span></div><div class="row"><span>ค่าจัดส่ง</span><span>฿<?=number_format($order['shipping_fee'],2)?></span></div><div class="row total"><span>ยอดสุทธิ</span><span>฿<?=number_format($order['total_amount'],2)?></span></div><div><strong>ที่อยู่สำหรับจัดส่ง</strong><p><?=nl2br(htmlspecialchars($order['shipping_name']."\n".$order['shipping_address']."\nโทร: ".$order['shipping_phone']))?></p></div><a href="/pages/orders.php?tab=pending" class="btn-pay-later">ชำระเงินภายหลัง</a></aside></div></main><?php require __DIR__.'/../components/footer.php';?>
 <script>
-let polling = setInterval(() => {
-    fetch('../api/check_payment.php?order_id=<?=$orderId?>')
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'reviewing' || data.status === 'paid' || data.status === 'preparing') {
-            clearInterval(polling);
-            alert('ชำระเงินสำเร็จ! ระบบกำลังพาคุณไปยังหน้าคำสั่งซื้อ');
-            window.location.href = '/pages/orders.php?tab=pending';
-        }
-    }).catch(e => console.error(e));
-}, 3000);
-
-function simulateWebhook() {
-    fetch('../api/simulate_webhook.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({order_ids: [<?=$orderId?>]})
-    }).then(res => res.json()).then(data => {
-        if(!data.success) alert('Error: ' + data.error);
-    });
-}
+document.getElementById('payment-slip-input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('slip-preview');
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) { preview.src = e.target.result; preview.style.display = 'inline-block'; }
+        reader.readAsDataURL(file);
+    } else {
+        preview.src = ''; preview.style.display = 'none';
+    }
+});
 </script>
 </body></html>
