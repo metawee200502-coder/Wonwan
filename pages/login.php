@@ -414,5 +414,51 @@ if (!empty($_SESSION['user_id'])) {
     </script>
     <?php endif; ?>
 
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'wrong_password'): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'error',
+                title: 'รหัสผ่านไม่ถูกต้อง',
+                text: 'กรุณาตรวจสอบรหัสผ่านแล้วลองใหม่อีกครั้ง',
+                confirmButtonText: 'ตกลง',
+                iconColor: '#C97B8B',
+                background: '#FFFFFF',
+                customClass: {
+                    popup: 'wanawan-minimal-popup',
+                    title: 'wanawan-minimal-title',
+                    htmlContainer: 'wanawan-minimal-text',
+                    confirmButton: 'wanawan-minimal-btn'
+                }
+            }).then(() => {
+                window.history.replaceState(null, null, window.location.pathname);
+            });
+        });
+    </script>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'not_found'): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'ไม่พบบัญชีนี้',
+                text: 'ไม่พบอีเมลหรือชื่อผู้ใช้งานนี้ในระบบ กรุณาตรวจสอบหรือสมัครสมาชิกใหม่',
+                confirmButtonText: 'ตกลง',
+                iconColor: '#C97B8B',
+                background: '#FFFFFF',
+                customClass: {
+                    popup: 'wanawan-minimal-popup',
+                    title: 'wanawan-minimal-title',
+                    htmlContainer: 'wanawan-minimal-text',
+                    confirmButton: 'wanawan-minimal-btn'
+                }
+            }).then(() => {
+                window.history.replaceState(null, null, window.location.pathname);
+            });
+        });
+    </script>
+    <?php endif; ?>
+
 </body>
 </html>

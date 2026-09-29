@@ -1,8 +1,0 @@
-<?php
-return [
-    // สร้าง API key ได้ที่ Google AI Studio แล้วคัดลอกไฟล์นี้เป็น ai.local.php
-    'provider' => 'gemini',
-    'api_key' => 'YOUR_GEMINI_API_KEY',
-    'model' => 'gemini-3.5-flash-lite',
-    'web_search' => false,
-];

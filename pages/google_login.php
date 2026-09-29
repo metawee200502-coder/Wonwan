@@ -7,10 +7,41 @@ try {
     $config = googleOAuthConfig();
     $state = bin2hex(random_bytes(32));
     $nonce = bin2hex(random_bytes(24));
-    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'wanawan_project.test'));
+    // X-Forwarded-Host = domain จริง ที่ผู้ใช้เห็น (ngrok ส่งมาเมื่อใช้ --host-header)
+    $host = strtolower((string) (
+        $_SERVER['HTTP_X_FORWARDED_HOST'] ??
+        $_SERVER['HTTP_HOST'] ??
+        'wanawan_project.test'
+    ));
+    $bareHost = preg_replace('/:\d+$/', '', $host); // ตัด port ออก
     $allowedHosts = ['wanawan_project.test', 'localhost'];
-    $returnOrigin = in_array(preg_replace('/:\d+$/', '', $host), $allowedHosts, true)
-        ? ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $host
+
+    // รองรับ tunnel providers ต่าง ๆ
+    $tunnelDomains = [
+        '.trycloudflare.com',  // Cloudflare quick tunnel
+        '.serveo.net',         // serveo.net (SSH)
+        '.localhost.run',      // localhost.run (SSH, ใช้ key)
+        '.lhr.life',           // localhost.run (SSH, nokey)
+        '.ngrok-free.app',     // ngrok static domain
+        '.ngrok-free.dev',     // ngrok static domain (.dev)
+        '.ngrok.io',           // ngrok paid domain
+    ];
+    $isTunnelHost = array_reduce($tunnelDomains, fn($carry, $suffix) => $carry || str_ends_with($bareHost, $suffix), false);
+    $isAllowed = in_array($bareHost, $allowedHosts, true) || $isTunnelHost;
+
+    // ตรวจ HTTPS จาก header ของ Cloudflare ด้วย (X-Forwarded-Proto)
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    $scheme = $isHttps ? 'https' : 'http';
+
+    // ตรวจสอบ base path:
+    // - vhost (wanawan_project.test) → SCRIPT_NAME = /pages/google_login.php → basePath = ''
+    // - subdirectory (localhost/ngrok)  → SCRIPT_NAME = /wanawan_project/pages/google_login.php → basePath = '/wanawan_project'
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $basePath = str_contains($scriptName, '/wanawan_project/') ? '/wanawan_project' : '';
+
+    $returnOrigin = $isAllowed
+        ? $scheme . '://' . $host . $basePath
         : 'http://wanawan_project.test';
 
     $pdo->prepare('DELETE FROM oauth_login_states WHERE expires_at < NOW()')->execute();

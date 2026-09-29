@@ -1,6 +1,32 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * สร้าง redirect_uri แบบ dynamic จาก HTTP_HOST จริง ๆ
+ * รองรับ localhost, wanawan_project.test และ Cloudflare tunnel (*.trycloudflare.com)
+ */
+function googleOAuthRedirectUri(): string
+{
+    // ngrok+host-header ส่ง X-Forwarded-Host = domain จริง ที่ผู้ใช้เห็น
+    $host = strtolower((string) (
+        $_SERVER['HTTP_X_FORWARDED_HOST'] ??
+        $_SERVER['HTTP_HOST'] ??
+        'localhost'
+    ));
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    $scheme = $isHttps ? 'https' : 'http';
+
+    // - vhost mode (wanawan_project.test / ngrok+host-header):
+    //   SCRIPT_NAME = /pages/google_login.php → basePath = ''
+    // - subdirectory mode (localhost หรือ ngrok ไม่ใช้ host-header):
+    //   SCRIPT_NAME = /wanawan_project/pages/google_login.php → basePath = '/wanawan_project'
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $basePath = str_contains($scriptName, '/wanawan_project/') ? '/wanawan_project' : '';
+
+    return $scheme . '://' . $host . $basePath . '/pages/google_callback.php';
+}
+
 function googleOAuthConfig(): array
 {
     $paths = [
@@ -25,11 +51,11 @@ function googleOAuthConfig(): array
     }
 
     return [
-        'client_id' => (string) $client['client_id'],
-        'client_secret' => (string) $client['client_secret'],
-        'redirect_uri' => 'http://localhost/wanawan_project/pages/google_callback.php',
+        'client_id'              => (string) $client['client_id'],
+        'client_secret'          => (string) $client['client_secret'],
+        'redirect_uri'           => googleOAuthRedirectUri(),
         'authorization_endpoint' => (string) ($client['auth_uri'] ?? 'https://accounts.google.com/o/oauth2/auth'),
-        'token_endpoint' => (string) ($client['token_uri'] ?? 'https://oauth2.googleapis.com/token'),
+        'token_endpoint'         => (string) ($client['token_uri'] ?? 'https://oauth2.googleapis.com/token'),
     ];
 }
 

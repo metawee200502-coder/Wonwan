@@ -1,7 +1,11 @@
 <?php
 session_start();
-// เรียกไฟล์ config.php เพื่อเชื่อมต่อฐานข้อมูล
 require_once '../config/config.php';
+
+// ตรวจ base path: vhost → '' | subdirectory (ngrok/localhost) → '/wanawan_project'
+$_scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+$_basePath   = str_contains($_scriptName, '/wanawan_project/') ? '/wanawan_project' : '';
+$_loginUrl   = $_basePath . '/pages/login.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
@@ -107,7 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 exit();
             } else {
-                echo "<script>alert('รหัสผ่านไม่ถูกต้อง'); window.location='login.php';</script>";
+                header('Location: ' . $_loginUrl . '?error=wrong_password');
+                exit;
             }
         } else {
             // ตรวจสอบในตาราง admins (Sub-Admin)
@@ -131,11 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header("Location: ../admin/index.php");
                     exit;
                 } else {
-                    echo "<script>alert('รหัสผ่านไม่ถูกต้อง'); window.location='../pages/login.php';</script>";
+                    header('Location: ' . $_loginUrl . '?error=wrong_password');
                     exit;
                 }
             } else {
-                echo "<script>alert('ไม่พบอีเมลหรือชื่อผู้ใช้งานนี้ในระบบ'); window.location='../pages/login.php';</script>";
+                header('Location: ' . $_loginUrl . '?error=not_found');
                 exit;
             }
         }
