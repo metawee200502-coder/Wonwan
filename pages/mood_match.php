@@ -314,12 +314,43 @@ require_once __DIR__ . '/../config/config.php';
         .error-msg.show { display: block; }
 
         @media (max-width: 760px) {
-            html, body { overflow: hidden; height: 100dvh; }
-            .mood-page { padding: 0; height: calc(100dvh - 68px); min-height: 0; }
-            .mood-shell { height: 100%; min-height: 0; border-radius: 0; border: none; }
-            .mood-head { height: 70px; padding: 15px; }
-            .mood-welcome h2 { font-size: 20px; }
-            .bubble { max-width: 90%; }
+            .mood-page { padding: 0; height: auto; min-height: auto; }
+            .mood-shell { 
+                height: calc(100dvh - 140px); /* Adjust based on mobile header height */
+                min-height: 400px; 
+                border-radius: 0; 
+                border-left: none; 
+                border-right: none; 
+                box-shadow: none;
+            }
+            .mood-head { height: 60px; padding: 12px 15px; }
+            .mood-welcome h2 { font-size: 18px; }
+            .bubble { max-width: 90%; font-size: 13px; padding: 10px 14px; }
+            .bubble a { font-size: 12px; padding: 4px 8px; }
+            .bubble a::after { font-size: 11px; }
+            .mood-form { padding: 6px 10px 8px; }
+            .mood-input-wrap { padding: 4px 6px 4px 14px; gap: 8px; align-items: center; }
+            .mood-input { font-size: 11.5px; line-height: 1.3; padding: 4px 0; max-height: 80px; overflow: hidden !important; }
+            .mood-send { 
+                width: 28px !important; 
+                height: 28px !important; 
+                min-width: 28px !important; 
+                max-width: 28px !important; 
+                min-height: 28px !important; 
+                max-height: 28px !important; 
+                flex: 0 0 28px !important; 
+                border-radius: 50% !important; 
+                padding: 0 !important;
+            }
+            .mood-send svg { width: 14px; height: 14px; }
+            .chat-book-title { font-size: 14px; margin-bottom: 6px; }
+            .chat-btn { font-size: 11.5px; padding: 5px 10px; }
+            .chat-book-img { width: 60px; height: 85px; }
+            .emotion-drawer.open { padding: 15px; max-height: 400px; }
+            .chip { font-size: 12px; padding: 8px 14px; }
+            .mood-orb { width: 36px; height: 36px; font-size: 18px; }
+            .mood-head strong { font-size: 16px; }
+            .mood-head small { font-size: 11px; }
         }
     </style>
 </head>

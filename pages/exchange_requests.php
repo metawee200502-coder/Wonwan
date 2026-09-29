@@ -209,9 +209,79 @@ body {background: #fdfdfd;}
 .banner-btn { background: #fff; color: #0f5132; padding: 12px 24px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 14px; transition: background .2s; white-space: nowrap; }
 .banner-btn:hover { background: #f3f4f6; }
 
-@media(max-width:1050px){.manage{padding:30px 24px}.request-body{grid-template-columns:1fr}.request-side{border-left:0;border-top:1px solid #f3f4f6; margin: 0 24px; padding-left: 0; padding-right: 0;}.exchange-pair {margin: 24px;}.bottom-banner { flex-direction: column; gap: 24px; text-align: center; align-items: stretch; }.banner-left { flex-direction: column; text-align: center; }.banner-btn { text-align: center; }}
-@media(max-width:800px){.account{display:block}.manage{padding:28px 18px 60px}.tools-container{align-items:flex-start;flex-direction:column}.filters{width:100%; flex-direction: column;}.search-box, .search-box input, .filters select { width: 100%; }.tabs{overflow-x:auto; width:100%; padding-bottom: 4px;}.tabs a{min-width:150px; white-space: nowrap; justify-content: center;}.exchange-pair{padding:22px 16px}.header-area { flex-direction: column; gap: 16px; }.header-text { max-width: 100%; }}
-@media(max-width:520px){.title{font-size:26px}.request-head{align-items:flex-start; flex-direction: column; gap: 12px;}.avatar{width:40px;height:40px}.exchange-pair{grid-template-columns:1fr 32px 1fr;gap:5px}.cover{width:100%;max-width:110px;height:160px}.swap-icon{width: 32px; height: 32px;}.swap-icon svg { width: 16px; height: 16px;}.result{font-size:13px; align-self: flex-start;}.footer-note { flex-direction: column; align-items: flex-start; gap: 12px; }}
+@media(max-width:1050px){
+    .manage{padding:30px 24px}
+    .request-body{grid-template-columns:1fr}
+    .request-side{border-left:0;border-top:1px solid #f3f4f6;margin:0 24px;padding-left:0;padding-right:0}
+    .exchange-pair{margin:24px}
+    .bottom-banner{flex-direction:column;gap:24px;text-align:center;align-items:stretch}
+    .banner-left{flex-direction:column;text-align:center}
+    .banner-btn{text-align:center}
+}
+@media(max-width:800px){
+    .account{display:block}
+    .profile-sidebar{display:none!important}
+    .manage{padding:12px 13px 60px;max-width:100%}
+    /* Header */
+    .header-area{flex-direction:column;gap:10px;margin-bottom:14px}
+    .header-text{max-width:100%}
+    .title{font-size:17px!important;margin:0 0 3px;font-weight:700}
+    .subtitle{font-size:12px;line-height:1.5;display:none}
+    .btn-add{font-size:12px;padding:8px 13px;border-radius:8px;gap:6px;align-self:flex-start}
+    /* Tabs */
+    .tabs{overflow-x:auto;width:100%;padding-bottom:4px;margin-bottom:14px;gap:0}
+    .tabs a{padding:9px 16px;font-size:13px;white-space:nowrap;justify-content:center;min-width:auto;flex:1}
+    .badge{font-size:10px;padding:1px 6px}
+    /* Filters */
+    .tools-container{align-items:flex-start;flex-direction:column;gap:8px;margin-bottom:14px}
+    .filters{width:100%;flex-direction:column;gap:7px}
+    .search-box{width:100%}
+    .search-box input{width:100%;height:34px!important;font-size:11px!important;padding:0 12px 0 32px!important;border-radius:16px!important}
+    .search-box svg{top:9px!important;left:10px!important;width:13px!important;height:13px!important}
+    .filters select{width:100%;height:34px!important;font-size:11px!important;padding:0 10px!important;border-radius:8px!important}
+    .result{font-size:11px;padding:5px 10px}
+    /* Request Card */
+    .request-list{gap:14px}
+    .request-card{border-radius:12px}
+    .request-head{padding:12px 14px;flex-wrap:wrap;gap:8px}
+    .avatar{width:38px;height:38px;font-size:16px;flex-shrink:0}
+    .person{gap:10px}
+    .person-name{font-size:13px}
+    .role-badge{font-size:10px;padding:2px 6px}
+    .req-id{font-size:11px}
+    .status-group{gap:6px}
+    .status-pill{padding:4px 9px;font-size:11px}
+    /* Exchange Pair */
+    .exchange-pair{grid-template-columns:1fr 36px 1fr;gap:8px;padding:14px 12px;margin:12px;border-radius:12px}
+    .book-label{font-size:10px;padding:3px 10px;margin-bottom:10px}
+    .cover{width:100%;max-width:100px;height:145px;border-radius:6px}
+    .book-title{font-size:12px;margin-top:10px}
+    .book-cond{font-size:11px}
+    .swap-icon{width:32px;height:32px}
+    .swap-icon svg{width:14px;height:14px}
+    .swap-text{font-size:10px}
+    /* Side Actions */
+    .request-side{padding:12px;margin:0 12px 12px;gap:10px}
+    .quote-box{padding:12px 14px;font-size:12px}
+    .btn{min-height:38px;font-size:13px;padding:0 12px;border-radius:7px}
+    .status-dropdown{padding:9px 12px;font-size:12px}
+    .footer-note{padding:10px 14px;font-size:11px;flex-direction:column;align-items:flex-start;gap:8px}
+    /* Banner */
+    .bottom-banner{padding:16px;border-radius:12px;margin-top:24px}
+    .shield-icon{width:40px;height:40px;border-radius:8px}
+    .banner-text h3{font-size:14px}
+    .banner-text p{font-size:12px}
+    .banner-btn{padding:10px 16px;font-size:13px}
+}
+@media(max-width:480px){
+    .manage{padding:10px 11px 60px}
+    .title{font-size:16px!important}
+    .exchange-pair{grid-template-columns:1fr 28px 1fr;gap:5px;padding:12px 10px;margin:10px}
+    .cover{max-width:88px;height:128px}
+    .book-title{font-size:11px}
+    .request-head{flex-direction:column;align-items:flex-start}
+    .status-group{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>

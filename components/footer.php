@@ -86,19 +86,10 @@ body {
 @media (max-width: 768px) {
     .footer-inner { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 1200px) {
+    .site-footer { display: none !important; }
+}
 @media (max-width: 480px) {
-    .footer-inner {
-        grid-template-columns: 1fr;
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-    .footer-bottom__inner {
-        padding-left: 20px;
-        padding-right: 20px;
-        flex-direction: column;
-        gap: 6px;
-        text-align: center;
-    }
 }
 @media (min-width: 481px) and (max-width: 820px) {
     .footer-inner { padding-left: 22px; padding-right: 22px; gap: 26px; }

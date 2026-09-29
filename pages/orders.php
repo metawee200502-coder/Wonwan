@@ -307,6 +307,87 @@ if ($orders) {
         .od-btn.close-btn { background: #f3f4f6; border-color: #f3f4f6; color: #374151;}
         .od-btn.close-btn:hover { background: #e5e7eb; }
         .grand-total{display:flex;justify-content:space-between;padding:12px 0 4px;font-size:16px;font-weight:700;color:#115e59;border-top:1px solid #f3f4f6;margin-top:8px}
+
+        /* ───── Responsive ───── */
+        @media(max-width:1000px){
+            .orders-content{padding:32px 24px 70px}
+        }
+        @media(max-width:900px){
+            .title{font-size:26px}
+            .subtitle{font-size:13px}
+            .btn-action-outline,.btn-action-solid{padding:9px 13px;font-size:13px;gap:6px}
+            .tabs{gap:20px}
+            .tabs a{font-size:14px;padding:10px 0}
+            .search-box{width:100%}
+            .filters-area{flex-direction:column;gap:10px}
+            .filter-dropdowns{width:100%}
+            .filter-dropdowns .dropdown{flex:1}
+        }
+        @media(max-width:800px){
+            .account{display:block}
+            /* ซ่อน profile sidebar บนมือถือ (profile_sidebar.php จัดการเองอยู่แล้วที่ 1200px) */
+            .profile-sidebar{display:none!important}
+            .orders-content{padding:12px 14px 60px;max-width:100%}
+            .title{font-size:16px!important;margin-bottom:3px;font-weight:700}
+            .subtitle{display:none}
+            .header-area{margin-bottom:10px;gap:6px}
+            .header-actions{display:none}
+            /* Tabs ปรับให้กะทัดรัด scroll ได้ */
+            .tabs{gap:0;padding-bottom:0;margin-bottom:16px;-webkit-overflow-scrolling:touch}
+            .tabs a{font-size:12px;gap:5px;padding:10px 12px;border-bottom-width:2.5px}
+            .tab-count{padding:1px 6px;font-size:10px;border-radius:10px}
+            /* Filters */
+            .filters-area{margin-bottom:12px;gap:7px}
+            .search-box{width:100%}
+            .search-box input{height:30px!important;font-size:11px!important;padding:0 12px 0 30px!important;border-radius:16px!important;line-height:30px!important}
+            .search-box svg{top:8px!important;left:10px!important;width:13px!important;height:13px!important}
+            .filter-dropdowns{gap:6px}
+            .dropdown{height:30px!important;font-size:11px!important;padding:0 8px!important;border-radius:8px!important;line-height:30px!important}
+            /* Order Card */
+            .order-card{border-radius:12px;margin-bottom:14px}
+            .order-head{padding:11px 14px;gap:8px}
+            .seller-info{gap:8px}
+            .store-icon{width:28px;height:28px;border-radius:6px;flex-shrink:0}
+            .store-icon svg{width:14px;height:14px}
+            .seller-name{font-size:13px}
+            .seller-badge{font-size:10px;padding:2px 6px}
+            .badge{padding:5px 10px;font-size:11px;gap:4px}
+            /* Body */
+            .order-body{padding:12px 14px;gap:12px;flex-direction:column}
+            .book-info{gap:12px}
+            .cover{width:72px;height:96px;border-radius:7px;flex-shrink:0}
+            .details h3{font-size:14px;margin-bottom:4px;line-height:1.35}
+            .details p.author{font-size:12px;margin-bottom:4px}
+            .details p.qty{font-size:12px;margin-bottom:8px}
+            .edition-badge{font-size:11px;padding:3px 8px}
+            .price-info{text-align:left;min-width:unset}
+            .price-label{font-size:12px}
+            .price-amount{font-size:18px}
+            /* Foot */
+            .order-foot{padding:10px 14px;flex-direction:column;align-items:flex-start;gap:8px;background:#fafafa}
+            .foot-info{font-size:11px;gap:6px;line-height:1.5}
+            .foot-actions{width:100%;gap:6px;flex-wrap:wrap}
+            .btn-outline,.btn-solid,.btn-cancel{font-size:11px;padding:7px 10px;border-radius:8px;flex:1;justify-content:center;min-width:0;height:34px}
+            /* Cancel Alert */
+            .cancel-alert{padding:10px 14px;font-size:11px;flex-direction:column;gap:5px}
+            /* Banner */
+            .bottom-banner{padding:16px;border-radius:12px;flex-direction:column;gap:14px}
+            .shield-icon{width:38px;height:38px;border-radius:8px}
+            .banner-text h3{font-size:14px;margin-bottom:5px}
+            .banner-text p{font-size:12px}
+            .btn-banner{width:100%;padding:11px;font-size:13px;border-radius:8px;text-align:center}
+        }
+        @media(max-width:480px){
+            .orders-content{padding:12px 12px 60px}
+            .title{font-size:18px}
+            .tabs a{font-size:11px;padding:9px 10px;gap:4px}
+            .tab-count{padding:1px 5px;font-size:10px}
+            .cover{width:64px;height:86px}
+            .details h3{font-size:13px}
+            .price-amount{font-size:17px}
+            .foot-info{font-size:11px}
+            .btn-outline,.btn-solid,.btn-cancel{font-size:11px;padding:7px 10px}
+        }
     </style>
 </head>
 <body>
@@ -318,16 +399,6 @@ if ($orders) {
                 <div>
                     <h1 class="title">รายการคำสั่งซื้อของฉัน</h1>
                     <p class="subtitle">ติดตามสถานะและประวัติการสั่งซื้อหนังสือของคุณทั้งหมดได้ที่นี่ พร้อมระบบคุ้มครองความปลอดภัยผ่าน Wanawan Escrow</p>
-                </div>
-                <div class="header-actions">
-                    <button class="btn-action-outline">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                        สอบถามเจ้าหน้าที่
-                    </button>
-                    <a href="/pages/market.php" class="btn-action-solid">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                        เลือกซื้อหนังสือเพิ่ม
-                    </a>
                 </div>
             </div>
             

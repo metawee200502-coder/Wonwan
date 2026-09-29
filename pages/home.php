@@ -519,17 +519,75 @@ try {
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
-            justify-content: flex-start;
+            justify-content: space-between;
         }
         .book-tab {
-            min-width: max-content;
-            flex: 0 0 auto;
-            padding: 10px 16px;
+            flex: 1;
+            text-align: center;
+            padding: 10px 8px;
         }
     }
     @media (max-width: 480px) {
         .book-grid { grid-template-columns: repeat(2, 1fr); }
-        .hero-img-box{height:245px}.top-book-slide{grid-template-columns:43% 57%}.top-book-cover{padding:14px}.top-book-cover img{width:105px;height:155px}.top-book-detail{padding:24px 15px 30px}.top-book-detail h3{font-size:16px}.top-book-price{font-size:19px}.top-book-rank{top:10px;right:10px}
+        
+        /* จัด Layout แบบ Side-by-side (ซ้าย=ข้อความ, ขวา=พรีวิวหนังสือ) บนมือถือ */
+        .hero-section { 
+            padding: 16px 0 24px !important; 
+            gap: 12px !important; 
+            flex-direction: row !important; 
+            align-items: center !important;
+        }
+        .hero-content { text-align: left !important; flex: 1; min-width: 0; }
+        .hero-content h1 { font-size: 20px !important; margin: 0 0 4px !important; }
+        .hero-content .hero-quote { font-size: 10px !important; margin: 0 0 12px !important; line-height: 1.4 !important; }
+        .hero-stats { justify-content: flex-start !important; gap: 14px !important; }
+        .hero-stat .num { font-size: 18px !important; }
+        .hero-stat .lbl { font-size: 9px !important; }
+        
+        .hero-img-box {
+            flex: 0 0 160px !important;
+            height: 240px !important;
+        }
+        .top-book-slide {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto 1fr !important;
+        }
+        .top-book-cover { padding: 12px 10px 0 !important; background: transparent !important; }
+        .top-book-cover img { width: 100px !important; height: 145px !important; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+        .top-book-detail { position: static !important; padding: 6px 10px 12px !important; align-items: center !important; text-align: center !important; background: transparent !important; justify-content: flex-start !important; }
+        .top-book-detail h3 { font-size: 13px !important; margin: 0 0 2px !important; -webkit-line-clamp: 2 !important; white-space: normal !important; }
+        .top-book-author, .top-book-store, .top-book-sold { display: none !important; }
+        .top-book-price { font-size: 14.5px !important; margin-top: 4px !important; }
+        .top-book-rank { top: 6px !important; left: 6px !important; right: auto !important; font-size: 8px !important; padding: 2px 6px !important; z-index: 10 !important; }
+        
+        /* แก้ไขจุดนำทาง (Slider dots) ให้เป็นจุดเล็กๆ ไม่ยืดบังหนังสือ */
+        .top-book-dots { right: 0 !important; left: 0 !important; bottom: 8px !important; justify-content: center !important; align-items: center !important; gap: 4px !important; width: 100% !important; height: auto !important; }
+        .top-book-dot { width: 5px !important; height: 5px !important; min-width: 5px !important; max-width: 5px !important; min-height: 5px !important; max-height: 5px !important; border-radius: 50% !important; }
+        .top-book-dot.active { width: 14px !important; max-width: 14px !important; border-radius: 4px !important; }
+        
+        /* ย่อ Digital Twin section ให้กินที่น้อยลง */
+        .dt-section { padding: 32px 0 28px !important; }
+        .dt-section h2 { font-size: 20px !important; margin: 0 0 6px !important; }
+        .dt-section .dt-sub { font-size: 13px !important; margin: 0 0 20px !important; line-height: 1.5 !important; }
+        
+        .dt-search { padding: 4px 12px !important; margin: 0 auto 20px !important; gap: 8px !important; border-radius: 50px !important; max-width: 90% !important; min-height: 34px !important; height: 34px !important; align-items: center !important; }
+        .dt-search input { font-size: 12px !important; line-height: normal !important; margin: 0 !important; }
+        .dt-search .send-btn { 
+            width: 24px !important; height: 24px !important; 
+            min-width: 24px !important; max-width: 24px !important; 
+            min-height: 24px !important; max-height: 24px !important; 
+            padding: 0 !important; border-radius: 50% !important; 
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            box-sizing: border-box !important;
+        }
+        .dt-search .send-btn svg { width: 11px !important; height: 11px !important; margin: 0 !important; }
+        
+        .dt-cards { gap: 10px !important; grid-template-columns: repeat(2, 1fr) !important; }
+        .dt-card { padding: 12px 10px 10px !important; border-radius: 12px !important; display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; }
+        .dt-card-ico { width: 28px !important; height: 28px !important; font-size: 14px !important; margin-bottom: 8px !important; }
+        .dt-card h3 { font-size: 12px !important; margin: 0 0 4px !important; white-space: nowrap; }
+        .dt-card p { font-size: 9.5px !important; line-height: 1.35 !important; margin: 0 0 10px !important; display: -webkit-box !important; -webkit-line-clamp: 3 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; }
+        .dt-card a { font-size: 10px !important; margin-top: auto !important; }
     }
     </style>
 </head>

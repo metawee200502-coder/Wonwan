@@ -359,6 +359,100 @@ $sourceTag = match ($source_seller_type) {
     color: var(--primary-color);
     opacity: 0.8;
 }
+
+/* ---------- Responsive: ปุ่มการ์ดบน Mobile / iPad ---------- */
+@media (max-width: 900px) {
+    .book-card__actions { padding: 10px 12px 8px; gap: 6px; }
+    .book-card__owner-actions { gap: 6px; }
+    .book-card__owner-btn {
+        min-height: 36px;
+        font-size: 12px;
+        padding: 4px 6px;
+    }
+    .btn-add-cart,
+    .btn-exchange {
+        padding: 9px 0;
+        font-size: 13px;
+    }
+    .btn-digital-twin {
+        padding: 8px 0;
+        font-size: 12px;
+    }
+}
+@media (max-width: 600px) {
+    /* Image Zone */
+    .book-card.out-of-stock .book-card__img-zone::after,
+    .out-of-stock-overlay {
+        font-size: 11.5px !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+        padding: 4px 8px !important;
+        white-space: nowrap !important;
+        border-radius: 4px !important;
+    }
+    .book-card__img-zone {
+        min-height: 140px !important;
+        padding: 12px 10px 10px !important;
+    }
+    .book-card__cover,
+    .book-card__placeholder {
+        width: 90px !important;
+        height: 128px !important;
+    }
+    .book-card__badge {
+        top: 6px !important; left: 6px !important;
+        font-size: 8.5px !important;
+        padding: 2px 6px !important;
+    }
+    .book-card__wish {
+        top: 6px !important; right: 6px !important;
+        width: 26px !important; height: 26px !important;
+        min-width: 26px !important; max-width: 26px !important;
+        min-height: 26px !important; max-height: 26px !important;
+        padding: 0 !important;
+        display: flex !important; align-items: center !important; justify-content: center !important;
+        border-radius: 50% !important;
+        box-sizing: border-box !important;
+    }
+    .book-card__wish svg { width: 12px !important; height: 12px !important; margin: 0 !important; }
+    
+    /* Info Zone */
+    .book-card__info { padding: 8px 10px 2px !important; }
+    .book-card__title { font-size: 12px !important; }
+    .book-card__price { font-size: 12px !important; }
+    .book-card__author { font-size: 10px !important; line-height: 1 !important; margin: 2px 0 0 !important; }
+    .book-card__source-tag { font-size: 8.5px !important; padding: 2px 5px !important; margin-bottom: 4px !important; }
+    .book-card__source-tag::before { width: 10px !important; height: 10px !important; font-size: 7px !important; flex: 0 0 10px !important; }
+    
+    /* Actions Zone */
+    .book-card__actions { padding: 4px 10px 6px !important; gap: 4px !important; }
+    .btn-add-cart, .btn-exchange { 
+        padding: 4px 0 !important; 
+        font-size: 11px !important; 
+        min-height: 28px !important; 
+        line-height: 1 !important;
+    }
+    .btn-add-cart svg, .btn-exchange svg { width: 13px !important; height: 13px !important; }
+    .btn-digital-twin { 
+        padding: 4px 0 !important; 
+        font-size: 10px !important; 
+        min-height: 26px !important; 
+        line-height: 1 !important;
+    }
+    .book-card__owner-btn {
+        min-height: 28px !important;
+        font-size: 9px !important;
+        padding: 0 4px !important;
+        letter-spacing: -0.2px !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Footer Zone */
+    .book-card__footer { padding: 4px 10px 6px !important; gap: 2px !important; }
+    .book-card__footer-loc { font-size: 9px !important; }
+    .book-card__footer-loc svg { width: 9px !important; height: 9px !important; }
+    .book-card__label { font-size: 9px !important; }
+}
 </style>
 
 <!-- =============================================

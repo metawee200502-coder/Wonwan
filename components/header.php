@@ -493,17 +493,112 @@ if (!empty($_SESSION['user_id'])) {
     }
 }
 @media (max-width: 520px) {
-    .header-topbar { padding: 8px 12px; gap: 8px; }
-    .header-logo { gap: 6px; }
-    .header-logo img { width: 58px; height: 38px; }
-    .header-logo__name { font-size: 17px; }
+    /* topbar แถวหลัก: hamburger | logo | actions */
+    .header-topbar { padding: 4px 10px !important; gap: 4px !important; flex-wrap: wrap; align-items: center; }
+    .header-logo { gap: 5px; flex-shrink: 0; }
+    .header-logo img { width: 50px; height: 33px; }
+    .header-logo__name { font-size: 15px; }
     .header-logo__tagline { display: none; }
-    .header-actions { margin-left: auto; gap: 0; }
-    .icon-btn { width: 36px; height: 36px; }
-    .header-avatar { width: 36px; height: 36px; }
-    .header-search form { min-height: 42px; padding: 7px 13px; }
-    .header-breadcrumb { padding: 7px 12px; flex-wrap: nowrap; overflow-x: auto; font-size: 12px; }
-    .header-breadcrumb__current { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; }
+    /* ปุ่ม + เพิ่มโพสต์ — บังคับขนาด 28x28 ทุกมิติเพื่อกันเพี้ยน */
+    .header-actions { margin-left: auto; gap: 6px; flex-shrink: 0; align-items: center; }
+    body .site-header .header-actions .quick-post-btn,
+    body .site-header .header-actions .force-mobile-mini { 
+        width: 28px !important; 
+        height: 28px !important; 
+        min-width: 28px !important;
+        min-height: 28px !important;
+        max-width: 28px !important;
+        max-height: 28px !important;
+        padding: 0 !important; 
+        border-radius: 50% !important; 
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important; 
+        gap: 0 !important; 
+        background-color: var(--primary-color) !important;
+        box-sizing: border-box !important;
+    }
+    body .site-header .header-actions .quick-post-btn span.btn-text,
+    body .site-header .header-actions .force-mobile-mini span.btn-text { display: none !important; }
+    body .site-header .header-actions .quick-post-btn svg,
+    body .site-header .header-actions .force-mobile-mini svg { width: 14px !important; height: 14px !important; margin: 0 !important; }
+    .icon-btn { width: 32px; height: 32px; }
+    
+    /* จัด Dropdown ตัวเลือกโพสต์ให้อยู่ตรงกลางหน้าจอ (แนวนอน) บนมือถือ */
+    body .site-header .quick-post-wrapper .quick-post-dropdown {
+        position: fixed !important;
+        top: 60px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translate(-50%, -10px) !important;
+        width: 90vw !important;
+        max-width: 320px !important;
+        z-index: 9999 !important;
+    }
+    body .site-header .quick-post-wrapper:hover .quick-post-dropdown,
+    body .site-header .quick-post-wrapper:focus-within .quick-post-dropdown {
+        transform: translate(-50%, 0) !important;
+    }
+    
+    /* แจ้งเตือนกระดิ่ง — บังคับจุดแดง 8x8 ทุกมิติ ทับ JS ที่แทรกเข้ามาภายหลัง */
+    body .site-header .icon-btn__badge.notification-live-badge,
+    body .site-header .force-status-dot {
+        width: 8px !important;
+        height: 8px !important;
+        min-width: 8px !important;
+        min-height: 8px !important;
+        max-width: 8px !important;
+        max-height: 8px !important;
+        padding: 0 !important;
+        top: 4px !important;
+        right: 4px !important;
+        border-radius: 50% !important;
+        border: none !important;
+        background: #ef4444 !important;
+        color: transparent !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+    body .site-header .icon-btn__badge.notification-live-badge:not([hidden]),
+    body .site-header .force-status-dot:not([hidden]) {
+        display: block !important;
+    }
+
+    .icon-btn svg { width: 18px; height: 18px; }
+    .header-avatar { width: 32px; height: 32px; }
+    /* search ย้ายลงมาเป็นแถวที่ 2 เต็มความกว้าง */
+    .header-search { order: 10; flex-basis: 100%; max-width: 100%; }
+    .header-search form { min-height: 30px !important; height: 30px !important; padding: 0 12px !important; border-radius: 50px !important; }
+    .header-search input { font-size: 12px !important; line-height: normal !important; margin: 0 !important; }
+    .header-search button svg { width: 14px !important; height: 14px !important; }
+    .header-breadcrumb {
+        padding: 5px 12px;
+        font-size: 11px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        max-width: 100vw;
+        box-sizing: border-box;
+    }
+    .header-breadcrumb::-webkit-scrollbar { display: none; }
+    .header-breadcrumb a { font-size: 11px; color: #888; white-space: nowrap; }
+    .header-breadcrumb__sep { font-size: 11px; color: #bbb; margin: 0 2px; }
+    .header-breadcrumb__current { font-size: 11px; color: var(--secondary-color); font-weight: 600; white-space: nowrap; }
+}
+@media (max-width: 400px) {
+    .header-topbar { padding: 6px 8px; gap: 4px; }
+    .header-logo img { width: 44px; height: 29px; }
+    .header-logo__name { font-size: 14px; }
+    .quick-post-btn { padding: 6px 8px; font-size: 11px; }
+    .icon-btn { width: 30px; height: 30px; }
+    .icon-btn svg { width: 16px; height: 16px; }
+    .header-avatar { width: 30px; height: 30px; }
+    .header-actions { gap: 1px; }
+    .header-search { flex-basis: 100%; }
 }
 
 .mobile-menu-btn {
@@ -578,12 +673,12 @@ if (!empty($_SESSION['user_id'])) {
             <!-- ปุ่มโพสต์หนังสือแบบลัด -->
             <?php if (!empty($_SESSION['user_id'])): ?>
             <div class="quick-post-wrapper">
-                <button class="quick-post-btn" aria-label="เพิ่มโพสต์">
+                <button class="quick-post-btn force-mobile-mini" aria-label="เพิ่มโพสต์">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    เพิ่มโพสต์
+                    <span class="btn-text">เพิ่มโพสต์</span>
                 </button>
                 <div class="quick-post-dropdown">
                     <a href="/pages/sell_used_book.php" class="quick-post-item">
@@ -604,12 +699,12 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
             </div>
             <?php else: ?>
-            <a href="#" class="quick-post-btn" aria-label="เพิ่มโพสต์" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อโพสต์หนังสือ', 'คุณต้องเข้าสู่ระบบก่อนเพื่อเพิ่มโพสต์ใหม่')">
+            <a href="#" class="quick-post-btn force-mobile-mini" aria-label="เพิ่มโพสต์" onclick="event.preventDefault(); requireLoginPopup('เข้าสู่ระบบเพื่อโพสต์หนังสือ', 'คุณต้องเข้าสู่ระบบก่อนเพื่อเพิ่มโพสต์ใหม่')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                เพิ่มโพสต์
+                <span class="btn-text">เพิ่มโพสต์</span>
             </a>
             <?php endif; ?>
 
@@ -679,8 +774,8 @@ if (!empty($_SESSION['user_id'])) {
                         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
                         <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
                     </svg>
-                    <!-- แสดง badge ถ้ามีการแจ้งเตือน -->
-                    <span class="icon-btn__badge notification-live-badge" title="<?=$headerUnreadCount?> รายการใหม่" <?=$headerUnreadCount > 0 ? '' : 'hidden'?>><?=$headerUnreadCount > 99 ? '99+' : $headerUnreadCount?></span>
+                    <!-- แสดง badge จุดแดง ถ้ามีการแจ้งเตือน -->
+                    <span class="icon-btn__badge notification-live-badge force-status-dot" title="<?=$headerUnreadCount?> รายการใหม่" <?=$headerUnreadCount > 0 ? '' : 'hidden'?>></span>
                 </a>
                 <div class="notification-dropdown">
                     <div class="notification-header">การแจ้งเตือนล่าสุด</div>
@@ -794,6 +889,8 @@ if (!empty($_SESSION['user_id'])) {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         background: rgba(0,0,0,0.5); z-index: 10000;
         opacity: 0; visibility: hidden; transition: 0.3s;
+        /* ป้องกัน overlay รับ touch บนพื้นที่ sidebar */
+        left: 300px;
     }
     .mobile-sidebar-overlay.active { opacity: 1; visibility: visible; }
     
@@ -860,23 +957,7 @@ if (!empty($_SESSION['user_id'])) {
     }
     .msb-sublink:hover { background: #f6e6e2; font-weight: 600; }
 
-    @media (max-width: 1200px) {
-        body .site-header .icon-btn__badge.notification-live-badge, 
-        body .site-header .icon-btn__badge {
-            font-size: 0 !important;
-            width: 8px !important;
-            height: 8px !important;
-            min-width: 0 !important;
-            padding: 0 !important;
-            top: 4px !important;
-            right: 4px !important;
-            color: transparent !important;
-            border-radius: 50% !important;
-            display: block !important;
-            background: #cf2f3b !important;
-            border: 1.5px solid #fdeee2 !important;
-        }
-    }
+
     
     .msb-footer { margin-top: auto; padding: 20px; border-top: 1px solid #f0e6e2; text-align: center; background: #faf9f8; }
     .msb-logout { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid #eadbd4; border-radius: 12px; background: #fff; color: #bd2525; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; transition: 0.2s; }
@@ -967,7 +1048,7 @@ if (!empty($_SESSION['user_id'])) {
             </a>
             
             <div class="msb-nav-group">ผู้ช่วย AI ของคุณ</div>
-            <a href="/pages/digital_twin.php" class="msb-link">
+            <a href="/pages/digital_twin.php?discover=1" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> Digital Twin
             </a>
             <a href="/pages/mood_match.php" class="msb-link">
@@ -988,24 +1069,9 @@ if (!empty($_SESSION['user_id'])) {
             <a href="#" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span> ความเป็นส่วนตัวและความปลอดภัย
             </a>
-            
-            <div class="msb-nav-group">ช่วยเหลือและข้อมูลระบบ</div>
-            <a href="#" class="msb-link">
-                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span> ศูนย์ช่วยเหลือและคำถามที่พบบ่อย
-            </a>
-            <a href="#" class="msb-link">
-                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> ข้อกำหนดและนโยบายความเป็นส่วนตัว
-            </a>
         </div>
         
-        <div class="msb-footer">
-            <a href="#" class="msb-logout" onclick="event.preventDefault(); document.getElementById('msbLogoutForm').submit();">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                ออกจากระบบ
-            </a>
-            <form id="msbLogoutForm" action="/process/logout.php" method="POST" style="display:none;"></form>
-            <div class="msb-version">วนวรรณ v1.2.0 • ซื้อ ขาย แลกเปลี่ยนหนังสือ</div>
-        </div>
+        <!-- Logout button was moved to the very bottom -->
         <?php else: ?>
         <div class="msb-user" style="text-align:center; padding: 40px 20px;">
             <img src="/assets/image/logo.png" alt="โลโก้" style="height:60px; margin-bottom:20px; opacity:0.8;">
@@ -1028,7 +1094,7 @@ if (!empty($_SESSION['user_id'])) {
             <a href="/pages/map_search.php" class="msb-link"><span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span> แผนที่ร้านหนังสือ</a>
 
             <div class="msb-nav-group">ผู้ช่วย AI ของคุณ</div>
-            <a href="/pages/digital_twin.php" class="msb-link">
+            <a href="/pages/digital_twin.php?discover=1" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span> Digital Twin
             </a>
             <a href="/pages/mood_match.php" class="msb-link">
@@ -1036,9 +1102,33 @@ if (!empty($_SESSION['user_id'])) {
             </a>
             <a href="/pages/book_genome.php" class="msb-link">
                 <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Book Genome
-            </a>
         </div>
         <?php endif; ?>
+        
+        <div class="msb-nav" style="padding-top: 10px; padding-bottom: 30px; border-top: 1px solid var(--border-color); margin-top: 15px;">
+            <div class="msb-nav-group">ช่วยเหลือและข้อมูลระบบ</div>
+            <a href="#" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span> ศูนย์ช่วยเหลือและคำถามที่พบบ่อย
+            </a>
+            <a href="/pages/policies.php" class="msb-link">
+                <span class="msb-link-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> ข้อกำหนดและนโยบายความเป็นส่วนตัว
+            </a>
+            
+            <div style="margin-top: 25px; padding: 0 20px; text-align: center; font-size: 11px; color: var(--text-muted);">
+                <p style="margin: 0 0 4px;">© <?= date('Y') ?> วนวรรณ – Buy Sell Exchange</p>
+                <p style="margin: 0;">Supported by Wannawan Archive</p>
+            </div>
+            
+            <?php if (!empty($_SESSION['user_id'])): ?>
+            <div class="msb-footer" style="border-top: none; padding-top: 15px; margin-top: 15px;">
+                <a href="#" class="msb-logout" onclick="event.preventDefault(); document.getElementById('msbLogoutForm').submit();">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    ออกจากระบบ
+                </a>
+                <form id="msbLogoutForm" action="/process/logout.php" method="POST" style="display:none;"></form>
+            </div>
+            <?php endif; ?>
+        </div>
     </aside>
 
 <script>
@@ -1053,16 +1143,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 sidebar.classList.add('active');
                 overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
+                // Lock scroll: ใช้ html แทน body เพื่อหลีกเลี่ยง Safari/iPad touch bug
+                document.documentElement.style.overflow = 'hidden';
             });
         }
         function closeSidebar() {
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
-            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
         }
         if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
         overlay.addEventListener('click', closeSidebar);
+        overlay.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            closeSidebar();
+        });
+
+        // iPad Safari: ป้องกัน touch บน sidebar bubble ขึ้น overlay
+        sidebar.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        sidebar.addEventListener('touchend', function(e) {
+            // อนุญาตให้ links ใน sidebar navigate ได้ตามปกติ
+            // (ไม่ preventDefault เพื่อให้ anchor tag ทำงาน)
+            e.stopPropagation();
+        });
     }
 });
 </script>

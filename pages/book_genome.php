@@ -173,16 +173,64 @@ require_once __DIR__ . '/../config/config.php';
         }
         @media (max-width: 768px) {
             html, body { overflow-x: hidden; }
-            .books-grid { grid-template-columns: repeat(2, 1fr); }
-            .genome-wrap { padding: 20px 15px; }
-            .glass-panel { padding: 20px; }
-            .dna-grid { grid-template-columns: 1fr; gap: 20px; }
-            .page-title { margin-bottom: 20px; }
-            .page-title h1 { font-size: 24px; }
-            .page-title p { font-size: 14px; }
+            .books-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .genome-wrap { padding: 15px 12px; }
+            .glass-panel { padding: 18px; border-radius: 16px; margin-bottom: 20px; }
+            .dna-grid { grid-template-columns: 1fr; gap: 16px; }
+            .page-title { margin-bottom: 15px; }
+            .page-title h1 { font-size: 20px; margin-bottom: 4px; }
+            .page-title p { font-size: 12px; }
+            .section-title { font-size: 15px; margin: 0 0 16px; gap: 6px; }
+            .section-title svg { width: 18px; height: 18px; }
+            .slider-labels { font-size: 11px; margin-bottom: 8px; }
+            .attention-input { padding: 12px; font-size: 12px; min-height: 100px; border-radius: 12px; line-height: 1.5; }
+            .btn-analyze { padding: 14px; font-size: 15px; margin-top: 20px !important; border-radius: 12px; }
+            .grid-header { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+            .grid-header h2 { font-size: 16px; line-height: 1.4; }
+            .btn-outline { padding: 8px 14px; font-size: 12px; border-radius: 8px; width: 100%; text-align: center; }
+            .book-card-genome img { height: 180px; }
+            .book-card-genome-info { padding: 12px; }
+            .book-card-genome-info h3 { font-size: 13px; margin-bottom: 4px; }
+            .book-card-genome-info p { font-size: 11px; margin-bottom: 12px; }
+            .btn-deep-dive { font-size: 12px; padding: 10px; border-radius: 8px; }
+
+            /* Dashboard Result Mobile CSS */
+            #bookTitleDisplay { font-size: 20px !important; line-height: 1.4 !important; margin-bottom: 10px; }
+            .result-dashboard .page-title p { font-size: 11px !important; }
+            .result-dashboard .page-title { margin-bottom: 25px !important; }
+            .book-cover-node img { width: 140px; height: 200px; }
+            .buy-btn-float { font-size: 12px; padding: 8px 20px; bottom: -15px; }
+            .metrics-col h3 { font-size: 16px; margin-bottom: 15px; }
+            .metric-card { padding: 15px; margin-bottom: 12px; border-radius: 12px; }
+            .metric-head h4 { font-size: 13px; }
+            .metric-head span { font-size: 14px; }
+            .metric-desc { font-size: 11px; }
+            .insight-card { padding: 20px; border-radius: 16px; }
+            .insight-header h3 { font-size: 16px; }
+            .insight-quote { font-size: 13px; padding-left: 12px; margin-bottom: 16px; border-left-width: 3px; }
+            .insight-text h4 { font-size: 13px; margin-bottom: 8px; }
+            .insight-text p { font-size: 12px; margin-bottom: 16px; }
+            .tag { font-size: 11px; padding: 4px 10px; }
+            .geo-card { padding: 15px; border-radius: 16px; gap: 12px; flex-direction: column; text-align: center; }
+            .geo-map { width: 50px; height: 50px; margin: 0 auto; }
+            .geo-info h3 { font-size: 15px; }
+            .geo-info p { font-size: 11px; }
+            .btn-reset button { font-size: 13px; padding: 10px 24px; }
+            .btn-reset { margin-top: 30px; }
         }
         @media (max-width: 480px) {
-            .books-grid { grid-template-columns: repeat(2, 1fr); }
+            .genome-wrap { padding: 10px; }
+            .glass-panel { padding: 15px; border-radius: 14px; margin-bottom: 15px; }
+            .page-title { margin-bottom: 12px; }
+            .page-title h1 { font-size: 18px; }
+            .page-title p { font-size: 11px; }
+            .section-title { font-size: 14px; margin: 0 0 14px; }
+            .dna-grid { gap: 14px; }
+            .attention-input { padding: 12px; font-size: 11px; min-height: 90px; line-height: 1.5; }
+            .btn-analyze { padding: 12px; font-size: 14px; margin-top: 15px !important; }
+            .grid-header h2 { font-size: 15px; }
+            .book-card-genome img { height: 150px; }
+            .books-grid { gap: 8px; }
         }
     </style>
 </head>

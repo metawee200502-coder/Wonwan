@@ -49,7 +49,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn-fetch { background: var(--secondary-color); color: #fff; border: 0; height: 52px; margin-bottom: 20px; padding: 0 15px; border-radius: 8px; font-family: inherit; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; font-size: 16px; }
         .btn-fetch:hover { opacity: 0.9; }
         .btn-fetch:disabled { opacity: 0.7; cursor: not-allowed; }
-        @media(max-width:1024px) { .account { display: block; } .content { padding: 30px 16px; } .form-card { padding: 28px 20px; } .grid { grid-template-columns: 1fr; } }
+        @media(max-width:1024px) { 
+            .account { display: block; } 
+            .content { padding: 30px 16px; } 
+            .form-card { padding: 28px 20px; } 
+        }
+        @media(max-width:760px) {
+            html, body { overflow: hidden; height: 100dvh; }
+            .account { height: 100%; display: flex; flex-direction: column; }
+            .content { padding: 5px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+            .form-card { 
+                flex: 1; 
+                display: flex; 
+                flex-direction: column; 
+                padding: 15px; 
+                margin: 0; 
+                border-radius: 12px; 
+                min-height: 0;
+            }
+            .form-card > p { font-size: 11px !important; line-height: 1.4 !important; margin: 4px 0 10px !important; color: var(--text-muted); }
+            .security { font-size: 18px; margin-bottom: 8px; }
+            .security svg { width: 18px; height: 18px; }
+            .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .field { margin: 4px 0; }
+            .field label { font-size: 11px; margin-bottom: 4px; }
+            .field input { padding: 8px 10px; font-size: 13px; height: 38px; border-radius: 6px; }
+            #addressDisplay { padding: 10px; margin-top: 8px; gap: 6px !important; }
+            #addressDisplay strong { font-size: 12px; }
+            #addressDisplay span { font-size: 12px; }
+            #addressDisplay div { font-size: 10px !important; margin-top: 4px !important; color: #666; }
+            #map { flex: 1; min-height: 150px; margin-top: 8px; height: auto !important; border-radius: 8px; }
+            #actionButtons { margin-top: 12px; display: flex; gap: 8px; flex-shrink: 0; }
+            .btn-fetch { height: 42px; font-size: 14px; margin-bottom: 0; flex: 1; padding: 0 5px; border-radius: 6px; }
+        }
         
         #map { width: 100%; height: 300px; border-radius: 8px; margin-top: 15px; border: 1px solid #ccd3c5; z-index: 1; }
     </style>

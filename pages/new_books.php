@@ -168,10 +168,50 @@ function renderZoneBooks(array $rows): void {
     .zone-content { padding-bottom: 70px; }
     @media (max-width: 1000px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } .zone-book-grid { grid-template-columns: repeat(2, 1fr); } .publisher-grid { grid-template-columns: repeat(3, 1fr); } .publisher-card:nth-child(n+4) { display: none; } }
     @media (max-width: 700px) { .zone-wrap { padding: 0 16px; } .zone-hero { grid-template-columns: 1fr; } .hero-img-box { max-width:none;height:245px; } .top-book-slide{grid-template-columns:43% 57%}.top-book-cover{padding:14px}.top-book-cover img{width:105px;height:155px}.top-book-detail{padding:24px 15px 30px}.top-book-detail h3{font-size:16px}.top-book-price{font-size:19px}.top-book-rank{top:10px;right:10px} .filter-grid { grid-template-columns: 1fr; } .zone-book-grid { grid-template-columns: repeat(2, 1fr); } .publisher-grid { grid-template-columns: repeat(3, 1fr); } .zone-title { font-size: 28px; } }
+    @media (max-width: 480px) {
+        .zone-hero { padding: 20px 0 24px !important; gap: 20px !important; }
+        .zone-title { font-size: 20px !important; gap: 8px !important; margin: 0 0 8px !important; }
+        .zone-title svg { width: 24px !important; height: 24px !important; }
+        .zone-quote { font-size: 13px !important; line-height: 1.5 !important; }
+        .zone-stats { margin-top: 16px !important; gap: 30px !important; }
+        .zone-stat strong { font-size: 24px !important; }
+        .zone-stat span { font-size: 11px !important; }
+        
+        .hero-img-box { height: 190px !important; }
+        .top-book-slide { grid-template-columns: 43% 57% !important; grid-template-rows: 1fr !important; }
+        .top-book-cover { padding: 16px 0 16px 16px !important; background: transparent !important; }
+        .top-book-cover img { width: 95px !important; height: 140px !important; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+        .top-book-detail { position: relative !important; padding: 20px 14px 28px 12px !important; align-items: flex-start !important; text-align: left !important; background: transparent !important; justify-content: center !important; }
+        .top-book-detail h3 { font-size: 14px !important; margin: 0 0 6px !important; -webkit-line-clamp: 2 !important; white-space: normal !important; }
+        .top-book-author, .top-book-store, .top-book-sold { display: block !important; }
+        .top-book-author, .top-book-store { font-size: 11px !important; margin: 0 0 2px !important; }
+        .top-book-price { font-size: 17px !important; margin-top: 10px !important; }
+        .top-book-sold { font-size: 10px !important; margin-top: 4px !important; }
+        .top-book-rank { top: 12px !important; right: 12px !important; left: auto !important; font-size: 9px !important; padding: 3px 8px !important; z-index: 10 !important; }
+        
+        .top-book-dots { right: 14px !important; left: auto !important; bottom: 12px !important; justify-content: flex-end !important; align-items: center !important; gap: 5px !important; width: auto !important; height: auto !important; }
+        .top-book-dot { width: 5px !important; height: 5px !important; min-width: 5px !important; max-width: 5px !important; min-height: 5px !important; max-height: 5px !important; border-radius: 50% !important; }
+        .top-book-dot.active { width: 14px !important; max-width: 14px !important; border-radius: 4px !important; }
+        
+        .filter-box { padding: 12px 10px !important; margin-bottom: 20px !important; border-radius: 8px !important; }
+        .filter-grid { grid-template-columns: 1fr 1fr !important; gap: 8px 10px !important; }
+        .filter-field:first-child { grid-column: span 2 !important; }
+        .filter-field label { font-size: 10.5px !important; margin-bottom: 3px !important; }
+        .filter-field input, .filter-field select { height: 30px !important; padding: 0 6px !important; font-size: 11px !important; border-radius: 4px !important; }
+        .filter-actions { margin-top: 10px !important; justify-content: center !important; gap: 8px !important; }
+        .filter-btn { min-width: 90px !important; height: 30px !important; font-size: 11.5px !important; border-radius: 4px !important; }
+        
+        .publisher-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .publisher-card { min-height: 90px; padding: 12px 10px; gap: 10px; }
+        .publisher-logo { width: 36px; height: 36px; }
+        .publisher-info strong { font-size: 12px; }
+        .publisher-meta { font-size: 10px; margin-top: 4px; }
+        .publisher-rank { font-size: 9px; padding: 2px 6px; margin-top: 4px; }
+    }
     </style>
 </head>
 <body>
-<div class="home-sticky-header">
+<div class="home-sticky-header" style="position: sticky; top: 0; z-index: 1000;">
     <?php require __DIR__ . '/../components/header.php'; ?>
 
 </div>

@@ -808,10 +808,12 @@ document.addEventListener('DOMContentLoaded',()=>{
  .chat-back{display:grid}
  .messages{padding:18px 14px}
  .bubble{max-width:86%}
- .composer{padding:10px;flex-wrap:nowrap}
- .composer input{min-width:0}
+ .composer{padding:8px 10px;gap:8px;flex-wrap:nowrap}
+ .composer input{min-width:0;padding:9px 14px;font-size:13px;height:38px}
  .chat-image{max-height:280px}
- .chat-attach{width:42px;height:42px;flex-basis:42px}
+ .chat-attach{width:36px;height:36px;flex-basis:36px}
+ .chat-attach svg{width:18px;height:18px}
+ .composer button[name="send_message"]{width:36px;height:36px;font-size:15px}
 }
 @media(max-width:600px){
  .layout{height:calc(100dvh - 64px)}
@@ -820,7 +822,11 @@ document.addEventListener('DOMContentLoaded',()=>{
  .threads h2{padding:17px 60px 17px 16px;font-size:21px}
  .chat-head{padding:13px 58px 13px 10px;font-size:19px}
  .messages{padding:14px 10px}
- .composer{padding:9px 8px}
+ .composer{padding:7px 8px;gap:7px}
+ .composer input{height:36px;padding:8px 12px;font-size:13px}
+ .chat-attach{width:34px;height:34px;flex-basis:34px}
+ .chat-attach svg{width:16px;height:16px}
+ .composer button[name="send_message"]{width:34px;height:34px;font-size:14px}
  .bubble{max-width:88%}
 }
 @media(min-width:601px) and (max-width:1200px){

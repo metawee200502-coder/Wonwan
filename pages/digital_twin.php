@@ -72,7 +72,45 @@ foreach ($titleMapStmt->fetchAll(PDO::FETCH_ASSOC) as $titleRow) $productTitleMa
         .twin-chat{min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden}.twin-head{height:78px;flex:0 0 auto;padding:18px 25px;border-bottom:1px solid #eee2dd;display:flex;align-items:center;gap:13px}.twin-orb{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;color:#fff;background:linear-gradient(135deg,#d86f99,#056573);box-shadow:0 5px 16px #9b668c40}.twin-head strong{display:block;color:#005764;font-size:18px}.twin-head small{color:#9a8580}.twin-clear{margin-left:auto;border:0;background:transparent;color:#b36a79;font-family:inherit;cursor:pointer}.twin-messages{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:25px;scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none}.twin-messages::-webkit-scrollbar{display:none;width:0;height:0}.message{display:flex;margin-bottom:16px}.message.user{justify-content:flex-end}.bubble{max-width:min(76%,650px);padding:13px 16px;border-radius:17px;line-height:1.7;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.assistant .bubble{background:#f5f8f7;color:#3e4c4b;border-bottom-left-radius:5px}.user .bubble{background:#d57e98;color:#fff;border-bottom-right-radius:5px}.bubble a{color:#006572;font-weight:700}.twin-welcome{text-align:center;max-width:580px;margin:30px auto;color:#806f69}.twin-welcome .twin-orb{width:64px;height:64px;margin:0 auto 15px;font-size:24px}.twin-welcome h2{color:#005764;margin:0 0 8px}.suggestions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px}.suggestion{border:1px solid #dfb8c4;background:#fff;color:#9b4d69;border-radius:20px;padding:9px 14px;font-family:inherit;cursor:pointer}.typing{display:none;flex:0 0 auto;color:#8a7772;font-size:13px;padding:0 28px 8px}.typing.show{display:block}.twin-form{flex:0 0 auto;padding:14px 20px 20px;border-top:1px solid #eee2dd}.twin-input-wrap{display:flex;gap:9px;padding:7px 7px 7px 16px;border:1px solid #ddceca;border-radius:16px;background:#fff}.twin-input{flex:1;resize:none;border:0;outline:0;font:14px/1.5 inherit;max-height:110px;padding:8px 0}.twin-send{width:44px;height:44px;border:0;border-radius:12px;background:#00616d;color:#fff;cursor:pointer;font-size:18px}.twin-send:disabled{opacity:.5}.twin-error{display:none;flex:0 0 auto;margin:0 20px 8px;padding:10px 13px;background:#fff0f0;color:#b44949;border-radius:9px;font-size:13px}.twin-error.show{display:block}.setup-banner{flex:0 0 auto;padding:10px 18px;background:#fff5d8;color:#7a5c1b;font-size:13px;text-align:center}
         .bubble a{display:inline-flex;align-items:center;gap:6px;margin:3px 0;padding:5px 10px;border:1px solid #b9d7d8;border-radius:8px;background:#fff;color:#006572;font-weight:700;text-decoration:none}.bubble a::after{content:'↗';font-size:12px}.bubble a:hover{background:#eaf7f6;border-color:#72afb3}
         .assistant .bubble strong{font-weight:800;color:#244f54}
-        @media(max-width:760px){html, body { overflow: hidden; height: 100dvh; } .twin-page{padding:0; height: calc(100dvh - 68px); min-height: 0;} .twin-shell{height:100%;min-height:0;border:0;border-radius:0;grid-template-columns:1fr}.twin-book{display:none}.twin-head{height:68px}.bubble{max-width:88%}.twin-messages{padding:18px 14px}.twin-form{padding:10px 12px 14px}}
+        @media(max-width:760px){
+            .twin-page { padding: 0; height: auto; min-height: auto; }
+            .twin-shell { 
+                height: calc(100dvh - 140px);
+                min-height: 400px; 
+                border-radius: 0; 
+                border-left: none; 
+                border-right: none; 
+                box-shadow: none; 
+                grid-template-columns: 1fr;
+            }
+            .twin-book { display: none; }
+            .twin-head { height: 60px; padding: 12px 15px; }
+            .twin-head strong { font-size: 16px; }
+            .twin-head small { font-size: 11px; }
+            .twin-orb { width: 36px; height: 36px; font-size: 18px; }
+            
+            .bubble { max-width: 90%; font-size: 13px; padding: 10px 14px; }
+            .bubble a { font-size: 12px; padding: 4px 8px; }
+            .bubble a::after { font-size: 11px; }
+            
+            .twin-messages { padding: 18px 14px; }
+            
+            .twin-form { padding: 6px 10px 8px; }
+            .twin-input-wrap { padding: 4px 6px 4px 14px; gap: 8px; align-items: center; }
+            .twin-input { font-size: 11.5px; line-height: 1.3; padding: 4px 0; max-height: 80px; overflow: hidden !important; }
+            .twin-send { 
+                width: 28px !important; 
+                height: 28px !important; 
+                min-width: 28px !important; 
+                max-width: 28px !important; 
+                min-height: 28px !important; 
+                max-height: 28px !important; 
+                flex: 0 0 28px !important; 
+                border-radius: 50% !important; 
+                padding: 0 !important;
+            }
+            .twin-send svg { width: 14px; height: 14px; }
+        }
     </style>
 </head>
 <body>
