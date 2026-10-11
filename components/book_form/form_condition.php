@@ -31,15 +31,14 @@ $conds = [
 
     <div class="form-grid-2" style="margin-bottom:14px" id="priceGrid">
         <div class="form-group">
-            <label>ราคาขาย (บาท)</label>
-            <input type="number" name="price" value="<?= $book['price'] ?? '' ?>" class="form-control">
-<input type="number" name="original_price" value="<?= $book['original_price'] ?? '' ?>" class="form-control">
+            <label>ราคาขาย (บาท) <span style="color:var(--accent-red)">*</span></label>
+            <input type="number" name="price" id="book_price" value="<?= htmlspecialchars((string)($book['price'] ?? '')) ?>" class="form-control" placeholder="0.00" min="0" step="0.01" required>
         </div>
         <div class="form-group" id="originalPriceGroup">
             <label>ราคาหน้าปก (บาท)
-                <span style="font-size:var(--text-xs);color:var(--text-muted)">(สำหรับมือ 2)</span>
+                <span style="font-size:var(--text-xs);color:var(--text-muted)">(สำหรับมือสอง)</span>
             </label>
-            <input type="number" name="original_price" class="form-control" placeholder="0.00" min="0" step="0.01">
+            <input type="number" name="original_price" id="book_original_price" value="<?= htmlspecialchars((string)($book['original_price'] ?? '')) ?>" class="form-control" placeholder="0.00" min="0" step="0.01">
         </div>
     </div>
 

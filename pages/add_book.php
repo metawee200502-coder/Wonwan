@@ -366,8 +366,14 @@ function previewImageFromUrl(slotId, urlInputId, imageUrl) {
 }
 
 async function lookupISBN() {
-    const isbn = document.getElementById('isbn_input').value.trim();
-    if (!isbn) return;
+    const isbnInput = document.getElementById('isbn_input');
+    const isbn = isbnInput.value.trim().replace(/[\s-]/g, '');
+    if (!isbn) {
+        isbnInput.focus();
+        isbnInput.style.borderColor = 'var(--accent-red)';
+        setTimeout(() => isbnInput.style.borderColor = '', 1500);
+        return;
+    }
     const btn    = document.getElementById('btnLookup');
     const textEl = document.getElementById('lookupText');
     document.getElementById('lookupIcon').outerHTML =
@@ -375,23 +381,36 @@ async function lookupISBN() {
     textEl.textContent = 'กำลังค้นหา...';
     btn.disabled = true;
     try {
-        const result = await fetch(`add_book.php?ajax=lookup_isbn&isbn=${encodeURIComponent(isbn)}`).then(r => r.json());
+        const res = await fetch(`/pages/add_book.php?ajax=lookup_isbn&isbn=${encodeURIComponent(isbn)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const result = await res.json();
         if (result.found) {
             const b = result.data;
-            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
-            setVal('book_title', b.title);       setVal('book_author', b.author);
-            setVal('isbn_13', b.isbn_13);
-            setVal('book_category', b.category); setVal('book_format', b.format);
-            setVal('book_pages', b.pages);       setVal('book_dimensions', b.dimensions);
-            setVal('book_weight', b.weight_grams); setVal('book_language', b.language);
-            setVal('book_synopsis', b.synopsis);
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null && val !== '') el.value = val; };
+            const setSelect = (id, val) => {
+                const el = document.getElementById(id);
+                if (!el || !val) return;
+                const opt = [...el.options].find(o => o.value === val || o.text === val);
+                if (opt) el.value = opt.value;
+            };
+            setVal('book_title',      b.title);
+            setVal('book_author',     b.author);
+            setVal('isbn_13',         b.isbn_13);
+            setVal('publisher_name',  b.publisher_name);
+            setVal('book_pages',      b.pages);
+            setVal('book_dimensions', b.dimensions);
+            setVal('book_weight',     b.weight_grams);
+            setVal('book_synopsis',   b.synopsis);
+            setSelect('book_category', b.category);
+            setSelect('book_language', b.language);
             if (b.image_cover) previewImageFromUrl('slot_image_cover', 'image_cover_url', b.image_cover);
             Swal.fire({ icon: 'success', title: 'พบข้อมูลหนังสือ', text: 'ดึงข้อมูลจาก Google Books เรียบร้อย', iconColor: '#80c97b', timer: 2200, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: result.message || 'กรุณากรอกข้อมูลเอง', iconColor: '#C97B8B' });
         }
-    } catch {
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถค้นหาได้ในขณะนี้' });
+    } catch (err) {
+        console.error('ISBN lookup error:', err);
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเชื่อมต่อ Google Books ได้ในขณะนี้' });
     } finally {
         document.getElementById('lookupIcon').outerHTML =
             `<svg id="lookupIcon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
