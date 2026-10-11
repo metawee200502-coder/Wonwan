@@ -1,1 +1,0 @@
-document.querySelector('.product-card img')?.addEventListener('click',()=>location.href='/pages/book_detail.php?id=<?=$book['book_id']?>');

@@ -502,7 +502,7 @@ function openModal(r) {
     document.getElementById('m-title').textContent    = 'สินค้าคืน — คำสั่งซื้อ #' + (r.order_number || r.order_id);
     document.getElementById('m-order').textContent    = '#' + (r.order_number || r.order_id);
     document.getElementById('m-buyer').textContent    = (r.buyer_name || 'ลูกค้า') + ' · ' + (r.buyer_email || '');
-    document.getElementById('m-reason').textContent   = REASONS[r.reason] || r.reason;
+    document.getElementById('m-reason').innerHTML    = REASONS[r.reason] || r.reason;
     document.getElementById('m-tracking').textContent = r.return_tracking;
     document.getElementById('m-amount').textContent   = '฿' + Number(r.refund_amount).toLocaleString('th-TH', {minimumFractionDigits:2});
     document.getElementById('m-confirm-amount').textContent = Number(r.refund_amount).toLocaleString('th-TH', {minimumFractionDigits:2});

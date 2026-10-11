@@ -1,1 +1,0 @@
-<?php require __DIR__.'/../config/config.php';  = ->query('SHOW COLUMNS FROM seller_promotions'); print_r(->fetchAll(PDO::FETCH_ASSOC));

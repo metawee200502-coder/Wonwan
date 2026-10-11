@@ -88,6 +88,44 @@ body {background: #fdfdfd;}
 .manage .btn-primary { padding: 10px 20px; border: 1px solid #0f5132; border-radius: 8px; background: #0f5132; color: #fff; font-family: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: background .2s; }
 .manage .btn-primary:hover { background: #0a3622; }
 
+/* Export dropdown & animations */
+.export-wrap { position: relative; }
+.export-menu {
+    display: none;
+    position: absolute;
+    right: 0; top: calc(100% + 6px);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05);
+    min-width: 235px;
+    z-index: 200;
+    overflow: hidden;
+}
+.export-wrap.open .export-menu { display: block; }
+.export-menu a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px;
+    font-size: 14px; color: #374151; font-weight: 500;
+    text-decoration: none; transition: background .15s, color .15s;
+}
+.export-menu a:hover { background: #f0fdf4; color: #166534; }
+.export-menu hr { border: none; border-top: 1px solid #f3f4f6; margin: 0; }
+
+.btn-export-market {
+    padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #374151; font-family: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; transition: all .2s ease;
+}
+.btn-export-market:hover:not(:disabled) { background: #f9fafb; border-color: #9ca3af; }
+.btn-export-market:disabled { opacity: 0.92; cursor: wait; }
+.btn-export-market.loading { background: #f3f4f6; color: #115e59; border-color: #115e59; }
+.btn-export-market.success { background: #15803D !important; color: #fff !important; border-color: #15803D !important; }
+
+@keyframes spinIcon {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.spin-icon { animation: spinIcon 0.75s linear infinite; }
+
 .dashboard-card { background: #115e59; border-radius: 16px; padding: 24px 32px; color: #fff; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(17, 94, 89, 0.1); }
 .dashboard-left { display: flex; gap: 20px; align-items: center; }
 .dashboard-number { font-size: 64px; font-weight: 700; line-height: 1; margin: 0; }
@@ -299,9 +337,28 @@ body {background: #fdfdfd;}
                 <p class="subtitle">ตรวจสอบและติดตามสถานะคำสั่งซื้อ ประวัติการขาย และการจัดส่งหนังสือทั้งหมดในบัญชีของคุณ</p>
             </div>
             <div class="header-actions">
-                <button class="btn-outline">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ส่งออกรายงาน
-                </button>
+                <div class="export-wrap" id="exportWrap">
+                    <button type="button" class="btn-export-market" id="exportBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        ส่งออกรายงาน
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="export-menu" id="exportMenu">
+                        <a href="#" onclick="doExport('orders');return false;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                            ประวัติคำสั่งซื้อ (.xlsx)
+                        </a>
+                        <a href="#" onclick="doExport('stock');return false;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                            รายการหนังสือที่ลงขาย (.xlsx)
+                        </a>
+                        <hr>
+                        <a href="#" onclick="doExport('summary');return false;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            สรุปยอดขายรายเดือน (.xlsx)
+                        </a>
+                    </div>
+                </div>
                 <a href="/pages/sell_used_book.php" class="btn-primary">
                     + ลงขายหนังสือเล่มใหม่
                 </a>
@@ -607,6 +664,72 @@ function openDetail(el){
 function form(id,status,label,cls=''){return `<form method="post" style="display:inline-block;"><input type="hidden" name="csrf_token" value="${csrf}"><input type="hidden" name="order_id" value="${id}"><input type="hidden" name="status" value="${status}"><button class="${cls}" name="update_status">${label}</button></form>`}
 document.querySelectorAll('.ship-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation(); document.getElementById('shipOrderId').value=btn.dataset.order;document.getElementById('shipNumber').textContent='คำสั่งซื้อ #'+btn.dataset.number;shippingModal.classList.add('open')}));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.modal').classList.remove('open')));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+
+// ─── Export Dropdown & Animated Loading ────────────────────────────────────
+const exportWrap = document.getElementById('exportWrap');
+const exportBtn  = document.getElementById('exportBtn');
+if (exportBtn && exportWrap) {
+    exportBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (exportBtn.disabled) return;
+        exportWrap.classList.toggle('open');
+    });
+    document.addEventListener('click', () => exportWrap.classList.remove('open'));
+    document.getElementById('exportMenu')?.addEventListener('click', (e) => e.stopPropagation());
+}
+
+async function doExport(type, extraParams) {
+    if (!exportBtn || exportBtn.disabled) return;
+    exportWrap?.classList.remove('open');
+
+    const originalHtml = exportBtn.innerHTML;
+    exportBtn.disabled = true;
+    exportBtn.classList.add('loading');
+    exportBtn.innerHTML = `
+        <svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+        กำลังเตรียมชีท...
+    `;
+
+    try {
+        const url = '/pages/dashboard_export.php?type=' + type + (extraParams || '');
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Export request failed: ' + res.status);
+
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="?([^";]+)"?/);
+        const filename = match ? match[1] : `${type}_export.xlsx`;
+
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        }, 1500);
+
+        exportBtn.classList.remove('loading');
+        exportBtn.classList.add('success');
+        exportBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            ดาวน์โหลดสำเร็จ!
+        `;
+        setTimeout(() => {
+            exportBtn.innerHTML = originalHtml;
+            exportBtn.disabled = false;
+            exportBtn.classList.remove('success');
+        }, 2000);
+    } catch (err) {
+        console.error('Export error:', err);
+        alert('เกิดข้อผิดพลาดในการสร้างไฟล์รายงาน Excel กรุณาลองใหม่อีกครั้ง');
+        exportBtn.innerHTML = originalHtml;
+        exportBtn.disabled = false;
+        exportBtn.classList.remove('loading', 'success');
+    }
+}
 </script>
 </body>
 </html>

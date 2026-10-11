@@ -295,7 +295,7 @@ body {background: #fdfdfd;}
                 <h1 class="title">จัดการคำขอแลกเปลี่ยน</h1>
                 <p class="subtitle">ตรวจสอบ ติดตามสถานะ และดำเนินการคำขอแลกเปลี่ยนหนังสือของคุณทั้งหมดผ่านศูนย์กลางความปลอดภัย</p>
             </div>
-            <a href="/pages/create_exchange.php" class="btn-add">
+            <a href="/pages/post_exchange.php" class="btn-add">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> เพิ่มหนังสือที่ต้องการแลก
             </a>
         </div>

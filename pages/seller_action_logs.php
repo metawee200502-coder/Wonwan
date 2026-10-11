@@ -216,7 +216,17 @@ $adminList = $adminListStmt->fetchAll(PDO::FETCH_ASSOC);
                         <?= $log['target_id'] ? '#'.htmlspecialchars($log['target_id']) : '-' ?>
                     </td>
                     <td>
-                        <div class="details-text"><?= htmlspecialchars($log['details']) ?></div>
+                        <div class="details-text"><?php
+                            // แปลง key=value เช่น "return_id=2 order_id=9" ให้อ่านออก
+                            $det = $log['details'];
+                            $det = preg_replace('/\breturn_id=(\d+)/i',   'รหัสการคืน $1', $det);
+                            $det = preg_replace('/\border_id=(\d+)/i',    'คำสั่งซื้อ $1', $det);
+                            $det = preg_replace('/\bbook_id=(\d+)/i',     'หนังสือ $1',    $det);
+                            $det = preg_replace('/\buser_id=(\d+)/i',     'ผู้ใช้ $1',     $det);
+                            $det = preg_replace('/\bshop_id=(\d+)/i',     'ร้าน $1',       $det);
+                            $det = preg_replace('/\bpublisher_id=(\d+)/i','สำนักพิมพ์ $1', $det);
+                            echo htmlspecialchars($det);
+                        ?></div>
                     </td>
                     <td style="color: #666;">
                         <?= date('d/m/Y', strtotime($log['created_at'])) ?><br>
