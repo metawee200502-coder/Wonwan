@@ -8,6 +8,7 @@ $shopPendingBadge = 0;
 $slipPendingBadge = 0;
 $disputeBadge = 0;
 $qcBadge = 0;
+$liveSupportBadge = 0;
 
 if (!empty($_SESSION['user_id']) && isset($pdo)) {
     try {
@@ -15,6 +16,7 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
         $slipPendingBadge = (int)$pdo->query("SELECT COUNT(*) FROM orders WHERE payment_status = 'reviewing'")->fetchColumn();
         $disputeBadge = (int)$pdo->query("SELECT COUNT(*) FROM disputes WHERE status = 'open'")->fetchColumn();
         $qcBadge = (int)$pdo->query("SELECT COUNT(*) FROM exchange_requests WHERE status = 'in_progress' AND (admin_qc_requester_status = 'pending' OR admin_qc_offer_status = 'pending')")->fetchColumn() + (int)$pdo->query("SELECT COUNT(*) FROM exchanges WHERE qc_status = 'pending'")->fetchColumn();
+        $liveSupportBadge = (int)$pdo->query("SELECT COUNT(*) FROM live_support_sessions WHERE status = 'queued'")->fetchColumn();
     } catch (Throwable $e) {}
 }
 ?>
@@ -64,6 +66,11 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             ข้อพิพาท & คืนเงิน
             <?php if($disputeBadge):?><span class="admin-order-badge"><?=$disputeBadge>99?'99+':$disputeBadge?></span><?php endif;?>
+        </a>
+        <a href="/admin/live_support.php" class="nav-item <?= $active_menu === 'live_support' ? 'active' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            แชทช่วยเหลือสด (Live Support)
+            <?php if($liveSupportBadge):?><span class="admin-order-badge"><?=$liveSupportBadge>99?'99+':$liveSupportBadge?></span><?php endif;?>
         </a>
         <a href="/admin/qc_exchanges.php" class="nav-item <?= $active_menu === 'qc_exchanges' ? 'active' : '' ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/><path d="M3.51 15A9 9 0 0 0 18.36 18.36L23 14"/></svg>

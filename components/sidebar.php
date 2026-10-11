@@ -53,7 +53,6 @@ if (!empty($_SESSION['user_id']) && isset($pdo)) {
 .profile-seller, .profile-name { color: #6e404a !important; }
 .profile-role { color: #a1747e !important; }
 .sidebar-logout { border: 1px solid #C97B8B !important; color: #C97B8B !important; }
-.sidebar-logout:hover { background: #C97B8B !important; color: #fff !important; }
 .profile-admin-name { font-size: 11px !important; color: #a1747e !important; margin-top: 3px !important; font-weight: 500 !important; line-height: 1.2 !important; }
 </style>
 <aside class="sidebar">
@@ -180,3 +179,4 @@ document.addEventListener("DOMContentLoaded", function() {
 <script>window.wanawanPromotionOptions=<?=json_encode(['categories'=>$categories??[],'books'=>$sellerBooks??[],'promotions'=>$promotions??[]],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>;</script>
 <script src="/assets/js/admin-promotions.js?v=<?=filemtime(__DIR__.'/../assets/js/admin-promotions.js')?>" defer></script>
 <?php endif;?>
+<?php require_once __DIR__ . '/live_chat_widget.php'; ?>

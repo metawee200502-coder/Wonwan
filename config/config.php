@@ -125,7 +125,8 @@ if (session_status() === PHP_SESSION_ACTIVE
     ];
     $currentPage = basename($scriptPath);
     $isBackendAction = str_contains($scriptPath, '/process/')
-        || str_contains($scriptPath, '/pages/handlers/');
+        || str_contains($scriptPath, '/pages/handlers/')
+        || str_contains($scriptPath, '/api/');
 
     if (!$isBackendAction && !in_array($currentPage, $adminPages, true)) {
         header('Location: /pages/dashboard.php');

@@ -147,3 +147,4 @@ body {
     </div>
 </footer>
 <script src="/assets/js/location_distance.js?v=4" defer></script>
+<?php require_once __DIR__ . '/live_chat_widget.php'; ?>

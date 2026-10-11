@@ -28,8 +28,13 @@ $active_menu='support';$seller_name='';
     <h1 class="page-title">แชตและการสนับสนุน</h1>
     <section class="support-card">
         <h2>ศูนย์ช่วยเหลือสำหรับร้านค้าและสำนักพิมพ์</h2>
-        <p>ติดตามข้อความเกี่ยวกับคำสั่งซื้อและการติดต่อจากผู้ใช้งานได้จากการแจ้งเตือนหลังบ้าน</p>
-        <a class="support-link" href="admin_notifications.php">เปิดการแจ้งเตือนหลังบ้าน</a>
+        <p>หากท่านมีข้อสงสัยเกี่ยวกับการจัดการสต็อก รายงานยอดขาย ค่า GP หรือต้องการความช่วยเหลือจากเจ้าหน้าที่ Super Admin สามารถเปิด Live Chat พูดคุยได้ทันที</p>
+        <div style="margin-top: 18px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" class="support-link" onclick="if(window.wanawanChat){wanawanChat.openChat();}else{alert('กำลังเปิด Live Chat...');}" style="background: linear-gradient(135deg, #b05467, #C97B8B); border: none; cursor: pointer; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                <span>🌸</span> เปิด Live Chat ติดต่อ Super Admin / บอทน้องพิงค์
+            </button>
+            <a class="support-link" href="admin_notifications.php" style="background: #f3e5ea; color: #87384a; border: 1px solid #e0bac5;">เปิดการแจ้งเตือนหลังบ้าน</a>
+        </div>
     </section>
 </main>
 </body>
